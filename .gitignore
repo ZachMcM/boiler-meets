@@ -1,0 +1,33 @@
+!db/**/*.sql
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDEs
+.vscode/
+.claude/
+.idea/
+*.swp
+
+/node_modules
+/tmp
+
+# python
+.venv/
+venv/
+__pycache__/
+tempCodeRunnerFile.py
+*.egg-info/
+
+# redis
+dump.rdb
+
+/client/ios/
+/client/android/
+credentials.json
