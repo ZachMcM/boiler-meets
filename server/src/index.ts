@@ -9,6 +9,9 @@ import { routes } from "./routes";
 import morgan from "morgan";
 import { logger } from "./logger";
 import { auth } from "./utils/auth";
+import { redis } from "./redis";
+import { createAdapter } from "@socket.io/redis-adapter";
+import { RoomManager } from "./utils/room-manager";
 
 const port = process.env.PORT;
 
@@ -22,6 +25,19 @@ export const io = new Server(httpServer, {
     credentials: true,
   },
 });
+
+// Configure Redis adapter for Socket.IO
+const pubClient = redis.duplicate();
+const subClient = redis.duplicate();
+
+Promise.all([pubClient.connect(), subClient.connect()])
+  .then(() => {
+    io.adapter(createAdapter(pubClient, subClient));
+    logger.info("Socket.IO Redis adapter configured");
+  })
+  .catch((error) => {
+    logger.error("Failed to configure Socket.IO Redis adapter:", error);
+  });
 
 socketServer(io);
 
@@ -38,4 +54,7 @@ app.use("/", routes);
 
 httpServer.listen(port, () => {
   logger.info(`Server is running on port ${port}`);
+
+  // Start room cleanup interval (runs every hour)
+  RoomManager.startCleanupInterval();
 });

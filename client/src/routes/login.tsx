@@ -1,16 +1,16 @@
-import { authClient } from "@/lib/auth-client";
-import { createFileRoute, Link } from "@tanstack/react-router";
-import * as z from "zod";
-import { Controller, useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { Card, CardContent } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { useState } from "react";
-import { toast } from "sonner";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { authClient } from "@/lib/auth-client";
+import { cn } from "@/lib/utils";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { createFileRoute } from "@tanstack/react-router";
 import { Loader } from "lucide-react";
+import { useState } from "react";
+import { Controller, useForm } from "react-hook-form";
+import { toast } from "sonner";
+import * as z from "zod";
 
 const signInSchema = z.object({
   username: z.string().min(1, { message: "Username is required" }),
@@ -24,8 +24,6 @@ export const Route = createFileRoute("/login")({
 });
 
 function RouteComponent() {
-  const { data: currentUserData } = authClient.useSession();
-
   const form = useForm({
     resolver: zodResolver(signInSchema),
     defaultValues: {
@@ -56,6 +54,7 @@ function RouteComponent() {
           onSuccess: () => {
             toast.success("Successfully signed in");
             setIsLoading(false);
+            // TODO redirect
           },
         }
       );
@@ -66,9 +65,6 @@ function RouteComponent() {
 
   const { isPending } = authClient.useSession();
 
-  if (currentUserData) {
-    // TODO redirect to main dashboard
-  }
 
   return (
     <div className="flex flex-1 justify-center items-center w-full h-full bg-gradient-to-br from-background from-30% to-primary">
