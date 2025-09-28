@@ -23,11 +23,18 @@ npx drizzle-kit migrate
 ```
 
 Environment Variables Needed
+In server/.env
 ```
 PORT=<VALID_HTTP_PORT>
 BETTER_AUTH_SECRET=<RANDOM_UUID>
 BETTER_AUTH_URL="http://localhost:3000"
 ```
+In client/.env
+```
+VITE_SERVER_URL="http://localhost:<SERVER_PORT>"
+```
+(SERVER_PORT should be the same valid HTTP port assigned in the server/.env variable PORT)
+
 
 Running the server in dev mode
 ```
