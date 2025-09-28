@@ -43,9 +43,7 @@ function RouteComponent() {
         },
         {
           onError: ({ error }) => {
-            toast.error(
-              error.message || "Login failed, invalid username or password"
-            );
+            toast.error(error.message);
             setIsLoading(false);
           },
           onRequest: () => {
@@ -64,7 +62,6 @@ function RouteComponent() {
   }
 
   const { isPending } = authClient.useSession();
-
 
   return (
     <div className="flex flex-1 justify-center items-center w-full h-full bg-gradient-to-br from-background from-30% to-primary">
