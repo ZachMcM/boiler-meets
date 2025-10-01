@@ -28,15 +28,31 @@ In server/.env
 PORT=<VALID_HTTP_PORT>
 BETTER_AUTH_SECRET=<RANDOM_UUID>
 BETTER_AUTH_URL="http://localhost:3000"
+EMAIL_USER="ibtemp99@gmail.com"
+GOOGLE_APP_PASSWORD=<ASK IAN FOR THIS>
 ```
+Note that EMAIL_USER is subject to change to a different google account
+
 In client/.env
 ```
 VITE_SERVER_URL="http://localhost:<SERVER_PORT>"
 ```
 (SERVER_PORT should be the same valid HTTP port assigned in the server/.env variable PORT)
 
+Ensure nodemon and ts-node are installed on your system
+```
+npm install -g nodemon
+npm install -g ts-node
+```
+
+Run 'npm install' in a terminal in both the server and client to install the necessary packages before running the server or client.
 
 Running the server in dev mode
 ```
 npm run dev
+```
+
+Running the client
+```
+npm run start
 ```

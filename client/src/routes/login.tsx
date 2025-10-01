@@ -1,5 +1,5 @@
 import { authClient } from "@/lib/auth-client";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import * as z from "zod";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -25,6 +25,7 @@ export const Route = createFileRoute("/login")({
 
 function RouteComponent() {
   const { data: currentUserData } = authClient.useSession();
+  const router = useRouter();
 
   const form = useForm({
     resolver: zodResolver(signInSchema),
@@ -44,10 +45,14 @@ function RouteComponent() {
           password,
         },
         {
-          onError: ({ error }) => {
+          onError: (ctx) => {
+            if (ctx.error.status === 403) {
+              toast.error("Please verify your email address");
+            } else {
             toast.error(
-              error.message || "Login failed, invalid username or password"
+              ctx.error.message || "Login failed, invalid username or password"
             );
+            }
             setIsLoading(false);
           },
           onRequest: () => {
@@ -149,9 +154,19 @@ function RouteComponent() {
                     <Loader className="text-foreground animate-spin" />
                   ))}
               </Button>
-              {/* TODO <Link to="" className="text-muted-foreground text-xs text-center underline">
-                Forgot Password?
-              </Link> */}
+              <Button
+                size="lg"
+                onClick={() => { router.navigate({ to: "/register" }); }}
+                disabled={isPending || isLoading}
+                className="flex-row gap-2 items-center"
+              >
+                <p className="font-bold">Register For Account</p>
+                {isPending ||
+                  (isLoading && (
+                    <Loader className="text-foreground animate-spin" />
+                  ))}
+              </Button>
+              {/* TODO Forgot Password Button */}
             </div>
           </CardContent>
         </Card>
