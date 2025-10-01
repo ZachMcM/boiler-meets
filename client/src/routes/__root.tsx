@@ -1,30 +1,20 @@
-import { Outlet, createRootRoute } from "@tanstack/react-router";
-import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
-import { TanstackDevtools } from "@tanstack/react-devtools";
 import { Toaster } from "@/components/ui/sonner";
-import { authClient } from "@/lib/auth-client";
+import {
+  QueryClient,
+  QueryClientProvider
+} from '@tanstack/react-query';
+import { Outlet, createRootRoute } from "@tanstack/react-router";
 
 function RootComponent() {
-  const { data: session } = authClient.useSession();
+  const queryClient = new QueryClient()
 
   return (
-    <>
+    <QueryClientProvider client={queryClient}>
       <div className="min-h-screen flex flex-col">
         <Outlet />
         <Toaster />
       </div>
-      {/* <TanstackDevtools
-        config={{
-          position: 'bottom-left',
-        }}
-        plugins={[
-          {
-            name: 'Tanstack Router',
-            render: <TanStackRouterDevtoolsPanel />,
-          },
-        ]}
-      /> */}
-    </>
+    </QueryClientProvider>
   );
 }
 

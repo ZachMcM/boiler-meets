@@ -13,7 +13,7 @@ import { toast } from "sonner";
 import * as z from "zod";
 
 const signInSchema = z.object({
-  username: z.string().min(1, { message: "Username is required" }),
+  email: z.string().min(1, { message: "Email is required" }),
   password: z.string().min(1, { message: "Password is required" }),
 });
 
@@ -29,18 +29,18 @@ function RouteComponent() {
   const form = useForm({
     resolver: zodResolver(signInSchema),
     defaultValues: {
-      username: "",
+      email: "",
       password: "",
     },
   });
 
   const [isLoading, setIsLoading] = useState(false);
 
-  async function onSubmit({ username, password }: FormValues) {
+  async function onSubmit({ email, password }: FormValues) {
     try {
-      await authClient.signIn.username(
+      await authClient.signIn.email(
         {
-          username,
+          email,
           password,
         },
         {
@@ -49,8 +49,7 @@ function RouteComponent() {
               toast.error("Please verify your email address");
             } else {
               toast.error(
-                ctx.error.message ||
-                  "Login failed, invalid username or password"
+                ctx.error.message || "Login failed, invalid email or password"
               );
             }
             setIsLoading(false);
@@ -73,7 +72,7 @@ function RouteComponent() {
   const { data: currentUserData, isPending } = authClient.useSession();
 
   if (currentUserData?.user) {
-    router.navigate({ to: "/dashboard" })
+    router.navigate({ to: "/dashboard" });
   }
 
   return (
@@ -104,9 +103,9 @@ function RouteComponent() {
                   fieldState: { error },
                 }) => (
                   <div className="flex flex-col gap-2">
-                    <Label>Username</Label>
+                    <Label>Email</Label>
                     <Input
-                      placeholder="Username"
+                      placeholder="Email"
                       onBlur={onBlur}
                       onChange={onChange}
                       className={cn(error && "border-destructive")}
@@ -117,7 +116,7 @@ function RouteComponent() {
                     )}
                   </div>
                 )}
-                name="username"
+                name="email"
               />
               <Controller
                 control={form.control}
@@ -165,10 +164,6 @@ function RouteComponent() {
                 className="flex-row gap-2 items-center"
               >
                 Register For Account
-                {isPending ||
-                  (isLoading && (
-                    <Loader className="text-foreground animate-spin" />
-                  ))}
               </Button>
               {/* TODO Forgot Password Button */}
             </div>
