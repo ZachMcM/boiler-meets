@@ -9,11 +9,23 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as Register_waitingRouteImport } from './routes/register_waiting'
+import { Route as RegisterRouteImport } from './routes/register'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ChatRoomRoomIdRouteImport } from './routes/chat-room.$roomId'
 
+const Register_waitingRoute = Register_waitingRouteImport.update({
+  id: '/register_waiting',
+  path: '/register_waiting',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RegisterRoute = RegisterRouteImport.update({
+  id: '/register',
+  path: '/register',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
@@ -39,38 +51,56 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
-  '/chat-room/$roomId': typeof ChatRoomRoomIdRoute
+  '/register': typeof RegisterRoute
+  '/register_waiting': typeof Register_waitingRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
-  '/chat-room/$roomId': typeof ChatRoomRoomIdRoute
+  '/register': typeof RegisterRoute
+  '/register_waiting': typeof Register_waitingRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
-  '/chat-room/$roomId': typeof ChatRoomRoomIdRoute
+  '/register': typeof RegisterRoute
+  '/register_waiting': typeof Register_waitingRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/dashboard' | '/login' | '/chat-room/$roomId'
+  fullPaths: '/' | '/login' | '/register' | '/register_waiting'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/dashboard' | '/login' | '/chat-room/$roomId'
-  id: '__root__' | '/' | '/dashboard' | '/login' | '/chat-room/$roomId'
+  to: '/' | '/login' | '/register' | '/register_waiting'
+  id: '__root__' | '/' | '/login' | '/register' | '/register_waiting'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DashboardRoute: typeof DashboardRoute
   LoginRoute: typeof LoginRoute
-  ChatRoomRoomIdRoute: typeof ChatRoomRoomIdRoute
+  RegisterRoute: typeof RegisterRoute
+  Register_waitingRoute: typeof Register_waitingRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/register_waiting': {
+      id: '/register_waiting'
+      path: '/register_waiting'
+      fullPath: '/register_waiting'
+      preLoaderRoute: typeof Register_waitingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/register': {
+      id: '/register'
+      path: '/register'
+      fullPath: '/register'
+      preLoaderRoute: typeof RegisterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/login': {
       id: '/login'
       path: '/login'
@@ -106,7 +136,8 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DashboardRoute: DashboardRoute,
   LoginRoute: LoginRoute,
-  ChatRoomRoomIdRoute: ChatRoomRoomIdRoute,
+  RegisterRoute: RegisterRoute,
+  Register_waitingRoute: Register_waitingRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

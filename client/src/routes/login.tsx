@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { authClient } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { Loader } from "lucide-react";
 import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
@@ -24,6 +24,9 @@ export const Route = createFileRoute("/login")({
 });
 
 function RouteComponent() {
+  const { data: currentUserData } = authClient.useSession();
+  const router = useRouter();
+
   const form = useForm({
     resolver: zodResolver(signInSchema),
     defaultValues: {
@@ -42,8 +45,15 @@ function RouteComponent() {
           password,
         },
         {
-          onError: ({ error }) => {
-            toast.error(error.message);
+          onError: (ctx) => {
+            if (ctx.error.status === 403) {
+              toast.error("Please verify your email address");
+            } else {
+              toast.error(
+                ctx.error.message ||
+                  "Login failed, invalid username or password"
+              );
+            }
             setIsLoading(false);
           },
           onRequest: () => {
@@ -142,9 +152,21 @@ function RouteComponent() {
                     <Loader className="text-foreground animate-spin" />
                   ))}
               </Button>
-              {/* TODO <Link to="" className="text-muted-foreground text-xs text-center underline">
-                Forgot Password?
-              </Link> */}
+              <Button
+                size="lg"
+                onClick={() => {
+                  router.navigate({ to: "/register" });
+                }}
+                disabled={isPending || isLoading}
+                className="flex-row gap-2 items-center"
+              >
+                <p className="font-bold">Register For Account</p>
+                {isPending ||
+                  (isLoading && (
+                    <Loader className="text-foreground animate-spin" />
+                  ))}
+              </Button>
+              {/* TODO Forgot Password Button */}
             </div>
           </CardContent>
         </Card>
