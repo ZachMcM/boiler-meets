@@ -53,6 +53,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
   '/register_waiting': typeof Register_waitingRoute
+  '/chat-room/$roomId': typeof ChatRoomRoomIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -60,6 +61,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
   '/register_waiting': typeof Register_waitingRoute
+  '/chat-room/$roomId': typeof ChatRoomRoomIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -68,13 +70,33 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
   '/register_waiting': typeof Register_waitingRoute
+  '/chat-room/$roomId': typeof ChatRoomRoomIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/login' | '/register' | '/register_waiting'
+  fullPaths:
+    | '/'
+    | '/dashboard'
+    | '/login'
+    | '/register'
+    | '/register_waiting'
+    | '/chat-room/$roomId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/login' | '/register' | '/register_waiting'
-  id: '__root__' | '/' | '/login' | '/register' | '/register_waiting'
+  to:
+    | '/'
+    | '/dashboard'
+    | '/login'
+    | '/register'
+    | '/register_waiting'
+    | '/chat-room/$roomId'
+  id:
+    | '__root__'
+    | '/'
+    | '/dashboard'
+    | '/login'
+    | '/register'
+    | '/register_waiting'
+    | '/chat-room/$roomId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -83,6 +105,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   RegisterRoute: typeof RegisterRoute
   Register_waitingRoute: typeof Register_waitingRoute
+  ChatRoomRoomIdRoute: typeof ChatRoomRoomIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -138,6 +161,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   RegisterRoute: RegisterRoute,
   Register_waitingRoute: Register_waitingRoute,
+  ChatRoomRoomIdRoute: ChatRoomRoomIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

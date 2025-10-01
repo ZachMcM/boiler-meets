@@ -10,7 +10,9 @@ import { RoomManager } from "../utils/room-manager";
 
 export async function videoChatHandler(socket: Socket) {
   const userId = socket.handshake.auth.userId as string | undefined;
-  const roomId = socket.handshake.query.roomId as string | undefined;
+  let roomId = socket.handshake.auth.roomId as string | string[] | undefined;
+
+  logger.info(`Video chat connection - userId: ${userId}, roomId: ${JSON.stringify(roomId)}, type: ${typeof roomId}`);
 
   if (!userId || typeof userId !== "string") {
     socket.emit("error", { message: "Invalid or missing userId" });
@@ -19,6 +21,7 @@ export async function videoChatHandler(socket: Socket) {
   }
 
   if (!roomId || typeof roomId !== "string") {
+    logger.warn(`Invalid roomId after processing - value: ${JSON.stringify(roomId)}, type: ${typeof roomId}`);
     socket.emit("error", { message: "Invalid or missing roomId" });
     socket.disconnect();
     return;
@@ -37,8 +40,22 @@ export async function videoChatHandler(socket: Socket) {
   // Join the room
   socket.join(roomId);
 
-  // Notify the other user that someone joined
-  socket.to(roomId).emit("user-joined", { userId });
+  // Get all sockets currently in the room (before this user joined)
+  const socketsInRoom = await io.of("/video-chat").in(roomId).fetchSockets();
+  const otherUsers = socketsInRoom
+    .map(s => s.handshake.auth.userId as string)
+    .filter(id => id !== userId);
+
+  // Tell the new user about existing users
+  if (otherUsers.length > 0) {
+    logger.info(`Notifying ${userId} about existing users: ${otherUsers.join(", ")}`);
+    for (const otherUserId of otherUsers) {
+      socket.emit("user-ready", { userId: otherUserId });
+    }
+  }
+
+  // Notify other users that this user joined and is ready
+  socket.to(roomId).emit("user-ready", { userId });
 
   // Handle WebRTC signaling events
   socket.on("offer", (data: WebRTCOffer) => {
@@ -54,11 +71,6 @@ export async function videoChatHandler(socket: Socket) {
   socket.on("ice-candidate", (data: WebRTCIceCandidate) => {
     logger.info(`ICE candidate received from ${userId} in room ${roomId}`);
     socket.to(roomId).emit("ice-candidate", { candidate: data.candidate, from: userId });
-  });
-
-  socket.on("ready", () => {
-    logger.info(`User ${userId} is ready for WebRTC in room ${roomId}`);
-    socket.to(roomId).emit("user-ready", { userId });
   });
 
   socket.on("disconnect", async () => {

@@ -40,6 +40,7 @@ export async function roomFinderHandler(socket: Socket) {
   const userId = socket.handshake.auth.userId as string | undefined;
 
   if (userId == undefined || typeof userId !== "string") {
+    logger.warn(`Rejected connection - Invalid userId: ${userId}`);
     socket.emit("error", { message: "Invalid or missing userId" });
     socket.disconnect();
     return;
@@ -59,16 +60,16 @@ export async function roomFinderHandler(socket: Socket) {
 
       const roomId = uuidv4();
 
-      redis.hSet(
+      await redis.hSet(
         "room",
         roomId,
         JSON.stringify({ user1, user2, createdAt: Date.now() })
       );
 
       io.of("room-finder").to(user1).emit("room-found", { roomId });
-      io.of("room-finder").to(user2).emit("room-found", { roomId })
+      io.of("room-finder").to(user2).emit("room-found", { roomId });
 
-      logger.info(`Room found between users ${user1} and ${user2}`)
+      logger.info(`Room found between users ${user1} and ${user2}: ${roomId}`);
     }
   };
 
@@ -79,8 +80,8 @@ export async function roomFinderHandler(socket: Socket) {
     removeFromQueue(userId);
   });
 
-  socket.on("cancel-search", () => {
-    logger.info(`User ${userId} cancelled search`);
+  socket.on("cancel-find-room", () => {
+    logger.info(`User ${userId} cancelled the room finder`);
     removeFromQueue(userId);
     socket.disconnect();
   });

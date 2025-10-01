@@ -12,23 +12,23 @@ export const auth = betterAuth({
   }),
   emailAndPassword: {
     enabled: true,
-    requireEmailVerification: true
+    // requireEmailVerification: true
   },
   emailVerification: {
-    sendOnSignUp: true,
-    autoSignInAfterVerification: true,
-    sendVerificationEmail: async ({user, url, token}, request) => {
-      await sendEmail({
-        to: user.email,
-        subject: "Verify your email address",
-        text: `Hello ${user.name ?? ''},\n\nPlease verify your email address by clicking the link: ${url}\n\nIf you didn't request this, you can ignore this email.`,
-        html: `<p>Hello ${user.name ?? ''},</p><p>Please verify your email address by clicking the link below:</p><p><a href="${url}">Verify email</a></p>`
-      })
-    },
-    async afterEmailVerification(user, request) {
-        // Your custom logic here, e.g., grant access to premium features
-        console.log(`${user.email} has been successfully verified!`);
-    }
+    // sendOnSignUp: true,
+    // autoSignInAfterVerification: true,
+    // sendVerificationEmail: async ({user, url, token}, request) => {
+    //   await sendEmail({
+    //     to: user.email,
+    //     subject: "Verify your email address",
+    //     text: `Hello ${user.name ?? ''},\n\nPlease verify your email address by clicking the link: ${url}\n\nIf you didn't request this, you can ignore this email.`,
+    //     html: `<p>Hello ${user.name ?? ''},</p><p>Please verify your email address by clicking the link below:</p><p><a href="${url}">Verify email</a></p>`
+    //   })
+    // },
+    // async afterEmailVerification(user, request) {
+    //     // Your custom logic here, e.g., grant access to premium features
+    //     console.log(`${user.email} has been successfully verified!`);
+    // }
   },
   plugins: [
     username(),

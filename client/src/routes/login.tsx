@@ -24,7 +24,6 @@ export const Route = createFileRoute("/login")({
 });
 
 function RouteComponent() {
-  const { data: currentUserData } = authClient.useSession();
   const router = useRouter();
 
   const form = useForm({
@@ -71,7 +70,11 @@ function RouteComponent() {
     }
   }
 
-  const { isPending } = authClient.useSession();
+  const { data: currentUserData, isPending } = authClient.useSession();
+
+  if (currentUserData?.user) {
+    router.navigate({ to: "/dashboard" })
+  }
 
   return (
     <div className="flex flex-1 justify-center items-center w-full h-full bg-gradient-to-br from-background from-30% to-primary">
@@ -146,7 +149,7 @@ function RouteComponent() {
                 disabled={isPending || isLoading}
                 className="flex-row gap-2 items-center"
               >
-                <p className="font-bold">Sign In</p>
+                Sign In
                 {isPending ||
                   (isLoading && (
                     <Loader className="text-foreground animate-spin" />
@@ -154,13 +157,14 @@ function RouteComponent() {
               </Button>
               <Button
                 size="lg"
+                variant="secondary"
                 onClick={() => {
                   router.navigate({ to: "/register" });
                 }}
                 disabled={isPending || isLoading}
                 className="flex-row gap-2 items-center"
               >
-                <p className="font-bold">Register For Account</p>
+                Register For Account
                 {isPending ||
                   (isLoading && (
                     <Loader className="text-foreground animate-spin" />
