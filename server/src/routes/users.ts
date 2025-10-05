@@ -13,7 +13,9 @@ usersRoute.get("/users/:id", authMiddleware, async (req, res) => {
       columns: {
         username: true,
         image: true,
-        name: true
+        name: true,
+        major: true,
+        year: true
       }
     })
 

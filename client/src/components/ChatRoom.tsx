@@ -323,7 +323,7 @@ export function ChatRoom({ roomId }: { roomId: string }) {
           remoteVideoRef.current.srcObject = null;
         }
 
-        leaveRoom()
+        leaveRoom();
       });
 
       videoChatSocket.on("error", ({ message }) => {
@@ -371,7 +371,7 @@ export function ChatRoom({ roomId }: { roomId: string }) {
       socket.emit("leave-room");
     }
     cleanup();
-    toast("Video Chat ended")
+    toast("Video Chat ended");
     router.navigate({ to: "/dashboard" });
   };
 
@@ -421,12 +421,15 @@ export function ChatRoom({ roomId }: { roomId: string }) {
                 <CardHeader>
                   <div className="flex items-center gap-2">
                     <Avatar>
-                      <AvatarImage src={otherUser?.image} />
+                      <AvatarImage src={otherUser?.image!} />
                       <AvatarFallback>{otherUser?.name[0]}</AvatarFallback>
                     </Avatar>
                     <div>
                       <p className="font-semibold text-foreground">
                         {otherUser.name || "Anonymous"}
+                      </p>
+                      <p>
+                        {otherUser.year} | {otherUser.major}
                       </p>
                       <p className="text-xs text-muted-foreground">
                         {otherUser.username}
