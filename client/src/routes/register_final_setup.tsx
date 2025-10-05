@@ -1,4 +1,4 @@
-import { authClient } from "@/lib/auth-client";
+import { authClient, fetchUserSession } from "@/lib/auth-client";
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import * as z from "zod";
 import { Controller, useForm } from "react-hook-form";
@@ -11,65 +11,54 @@ import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Loader } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Calendar } from "@/components/ui/calendar"
+import {Popover, PopoverContent, PopoverTrigger} from "@/components/ui/popover"
+import { ChevronDownIcon } from "lucide-react"
+import { useQueryClient } from "@tanstack/react-query";
 
-const registrationSchema = z.object({
-  email: z.string().regex(/^[a-zA-Z0-9._%+-]+@purdue\.edu$/, { message: "Email must be a valid Purdue email" }),
-  name: z.string().min(1, { message: "Your name is required" }),
-  username: z.string().min(1, { message: "Username is required" }),
-  password: z.string().min(8, { message: "Password must be at least 8 characters" })
-    .regex(/[A-Za-z]/, { message: "Password must contain at least one letter" })
-    .regex(/[0-9]/, { message: "Password must contain at least one number" }),
-  confirmPassword: z.string().min(1, { message: "Password and Confirmed Password must match" }),
-}).superRefine((data, ctx) => {
-  if (data.password !== data.confirmPassword) {
-    ctx.addIssue({
-      code: "custom",
-      message: "Password and Confirmed Password must match",
-      input: data.confirmPassword
-    })
-  }
-  });
+const basicInfoSchema = z.object({
+  major: z.string().min(1, { message: "Major is required" }),
+  year: z.string().min(1, { message: "School year is required" }),
+  birthdate: z.date().min(new Date('1900-01-01T00:00:00Z'), { message: "Birthdate is required" }).max(new Date()),
+  bio: z.string()
+})
 
-type FormValues = z.infer<typeof registrationSchema>;
+type FormValues = z.infer<typeof basicInfoSchema>;
 
-export const Route = createFileRoute("/register")({
+export const Route = createFileRoute("/register_final_setup")({
   component: RouteComponent,
 });
 
 function RouteComponent() {
   const router = useRouter();
+  const queryClient = useQueryClient();
 
   const form = useForm({
-    resolver: zodResolver(registrationSchema),
+    resolver: zodResolver(basicInfoSchema),
     defaultValues: {
-      email: "",
-      name: "",
-      username: "",
-      password: "",
-      confirmPassword: "",
+        major: "",
+        year: "",
+        bio: "",
+        birthdate: new Date('1899-01-01T00:00:00Z')
     },
   });
 
   const [isLoading, setIsLoading] = useState(false);
 
-  async function onSubmit({ email, name, username, password }: FormValues) {
+  async function onSubmit({ major, year, bio, birthdate }: FormValues) {
     try {
-      await authClient.signUp.email(
+      await authClient.updateUser(
         {
-          name: name,
-          username: username,
-          email: email,
-          password: password,
-          major: null,
-          year: null,
-          bio: null,
-          birthdate: null,
-          callbackURL: "/login"
+          major: major,
+          year: year,
+          birthdate: birthdate,
+          bio: bio,
         },
         {
           onError: ({ error }) => {
             toast.error(
-              error.message || "Registration Failed"
+              error.message || "User Update Failed"
             );
             toast.error(error.message)
             setIsLoading(false);
@@ -77,20 +66,23 @@ function RouteComponent() {
           onRequest: () => {
             setIsLoading(true);
           },
-          onSuccess: () => {
-            toast.success("Email sent. Please verify your account.");
+          onSuccess: async () => {
+            await queryClient.invalidateQueries(["session"]);
+            await queryClient.refetchQueries(['session']);
+            toast.success("Welcome to BoilerMeets!");
             setIsLoading(false);
-            router.navigate( {to: "/register_waiting"} );
+            router.navigate( {to: "/dashboard"} )
           },
         }
-      );
+      )
     } catch (error) {
-      toast.error("There was an error signing in, please try again.");
+      toast.error("There was an error, please try again.");
     }
   }
 
   const { isPending } = authClient.useSession();
 
+  const [open, setOpen] = useState(false);
 
   return (
     <div className="flex flex-1 justify-center items-center w-full h-full bg-gradient-to-br from-background from-30% to-primary">
@@ -101,29 +93,14 @@ function RouteComponent() {
             Connect through conversations, not just photos
           </p>
         </div>
-          <Button
-            asChild
-            variant={"outline"}
-            size="lg"
-            disabled={isPending || isLoading}
-            className="flex-row gap-2 items-center"
-          >
-            <Link to="/login" className="w-full flex items-center justify-center">
-              <p className="font-bold">&lt; Back To Login</p>
-              {isPending ||
-              (isLoading && (
-                <Loader className="text-foreground animate-spin" />
-              ))}
-            </Link>
-          </Button>
         <Card className="w-lg">
           <CardContent className="p-4 flex flex-col gap-2">
             <div className="flex flex-col">
               <h3 className="text-center font-semibold text-xl">
-                Register For Account
+                Finish Your Account
               </h3>
               <p className="text-muted-foreground text-center text-xs">
-                Create an account to meet your fellow Boilermakers
+                Write a little about yourself
               </p>
             </div>
             <div className="flex flex-col gap-4">
@@ -135,10 +112,9 @@ function RouteComponent() {
                   fieldState: { error },
                 }) => (
                   <div className="flex flex-col gap-2">
-                    <Label>Email</Label>
-                    <Label className="text-xs">Must be a valid @purdue.edu email</Label>
+                    <Label>Major</Label>
                     <Input
-                      placeholder="Email"
+                      placeholder="What Is Your Major at Purdue?"
                       onBlur={onBlur}
                       onChange={onChange}
                       className={cn(error && "border-destructive")}
@@ -149,7 +125,34 @@ function RouteComponent() {
                     )}
                   </div>
                 )}
-                name="email"
+                name="major"
+              />
+              <Controller
+                control={form.control}
+                rules={{ required: true }}
+                render={({
+                  field: { onChange, onBlur },
+                  fieldState: { error },
+                }) => (
+                  <div className="flex flex-col gap-2">
+                    <Label>Year</Label>
+                    <Select onValueChange={onChange}>
+                      <SelectTrigger className="w-1/3 justify-between font-normal" onBlur={onBlur} onChange={onChange}>
+                        <SelectValue placeholder="Student Year" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Freshman">Freshman</SelectItem>
+                        <SelectItem value="Sophomore">Sophomore</SelectItem>
+                        <SelectItem value="Junior">Junior</SelectItem>
+                        <SelectItem value="Senior">Senior</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {error && (
+                      <p className="text-destructive">{error.message}</p>
+                    )}
+                  </div>
+                )}
+                name="year"
               />
               <Controller
                 control={form.control}
@@ -159,20 +162,36 @@ function RouteComponent() {
                   fieldState: { error },
                 }) => (
                   <div className="flex flex-col gap-2">
-                    <Label>Name</Label>
-                    <Input
-                      placeholder="Name"
-                      onBlur={onBlur}
-                      onChange={onChange}
-                      className={cn(error && "border-destructive")}
-                      value={value}
-                    />
+                    <Label htmlFor="date">Date of Birth</Label>
+                    <Popover open={open} onOpenChange={setOpen}>
+                      <PopoverTrigger asChild onBlur={onBlur}>
+                        <Button
+                          variant="outline"
+                          id="date"
+                          className="w-1/3 justify-between font-normal"
+                        >
+                          {value && value > new Date("1900-01-01") ? value.toLocaleDateString() : "Select date"}
+                          <ChevronDownIcon className="size-4 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto overflow-hidden p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={value}
+                          onSelect={onChange}
+                          captionLayout="dropdown"
+                          disabled={(date) =>
+                            date > new Date() || date < new Date("1900-01-01")
+                          }
+                        />
+                      </PopoverContent>
+                    </Popover>
                     {error && (
                       <p className="text-destructive">{error.message}</p>
                     )}
                   </div>
                 )}
-                name="name"
+                name="birthdate"
               />
               <Controller
                 control={form.control}
@@ -182,9 +201,10 @@ function RouteComponent() {
                   fieldState: { error },
                 }) => (
                   <div className="flex flex-col gap-2">
-                    <Label>Username</Label>
+                    <Label>Bio</Label>
+                    <Label className="text-xs">Give a brief explanation about yourself</Label>
                     <Input
-                      placeholder="Username"
+                      placeholder="Bio"
                       onBlur={onBlur}
                       onChange={onChange}
                       className={cn(error && "border-destructive")}
@@ -195,56 +215,7 @@ function RouteComponent() {
                     )}
                   </div>
                 )}
-                name="username"
-              />
-              <Controller
-                control={form.control}
-                rules={{ required: true }}
-                render={({
-                  field: { onChange, onBlur, value },
-                  fieldState: { error },
-                }) => (
-                  <div className="flex flex-col gap-2">
-                    <Label>Password</Label>
-                    <Label className="text-xs">Must be 8 characters, and contain at least one letter and number</Label>
-                    <Input
-                      type="password"
-                      placeholder="Password"
-                      onBlur={onBlur}
-                      onChange={onChange}
-                      className={cn(error && "border-destructive")}
-                      value={value}
-                    />
-                    {error && (
-                      <p className="text-destructive">{error.message}</p>
-                    )}
-                  </div>
-                )}
-                name="password"
-              />
-              <Controller
-                control={form.control}
-                rules={{ required: true }}
-                render={({
-                  field: { onChange, onBlur, value },
-                  fieldState: { error },
-                }) => (
-                  <div className="flex flex-col gap-2">
-                    <Label>Confirm Password</Label>
-                    <Input
-                      type="password"
-                      placeholder="Confirm Password"
-                      onBlur={onBlur}
-                      onChange={onChange}
-                      className={cn(error && "border-destructive")}
-                      value={value}
-                    />
-                    {error && (
-                      <p className="text-destructive">{error.message}</p>
-                    )}
-                  </div>
-                )}
-                name="confirmPassword"
+                name="bio"
               />
               <Button
                 size="lg"
@@ -252,7 +223,7 @@ function RouteComponent() {
                 disabled={isPending || isLoading}
                 className="flex-row gap-2 items-center"
               >
-                <p className="font-bold">Sign Up</p>
+                <p className="font-bold">Finish Account Creation!</p>
                 {isPending ||
                   (isLoading && (
                     <Loader className="text-foreground animate-spin" />

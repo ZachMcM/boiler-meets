@@ -2,9 +2,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { authClient } from "@/lib/auth-client";
+import { authClient, fetchUserSession } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { Loader } from "lucide-react";
 import { useState } from "react";
@@ -35,6 +36,7 @@ function RouteComponent() {
   });
 
   const [isLoading, setIsLoading] = useState(false);
+  const queryClient = useQueryClient();
 
   async function onSubmit({ email, password }: FormValues) {
     try {
@@ -57,10 +59,12 @@ function RouteComponent() {
           onRequest: () => {
             setIsLoading(true);
           },
-          onSuccess: () => {
+          onSuccess: async () => {
+            await queryClient.invalidateQueries(["session"]);
+            await queryClient.refetchQueries(['session']);
             toast.success("Successfully signed in");
             setIsLoading(false);
-            // TODO redirect
+            router.navigate({ to: "/dashboard" });
           },
         }
       );
@@ -69,9 +73,13 @@ function RouteComponent() {
     }
   }
 
-  const { data: currentUserData, isPending } = authClient.useSession();
+  const { data: userData, isLoading: sessionPending } = useQuery({
+    queryKey: ['session'],
+    queryFn: fetchUserSession
+  });
 
-  if (currentUserData?.user) {
+  if (userData?.data?.user && !sessionPending) {
+    console.log("User Session", JSON.stringify(userData))
     router.navigate({ to: "/dashboard" });
   }
 
@@ -145,11 +153,11 @@ function RouteComponent() {
               <Button
                 size="lg"
                 onClick={form.handleSubmit(onSubmit)}
-                disabled={isPending || isLoading}
+                disabled={sessionPending || isLoading}
                 className="flex-row gap-2 items-center"
               >
                 Sign In
-                {isPending ||
+                {sessionPending ||
                   (isLoading && (
                     <Loader className="text-foreground animate-spin" />
                   ))}
@@ -160,7 +168,7 @@ function RouteComponent() {
                 onClick={() => {
                   router.navigate({ to: "/register" });
                 }}
-                disabled={isPending || isLoading}
+                disabled={sessionPending || isLoading}
                 className="flex-row gap-2 items-center"
               >
                 Register For Account

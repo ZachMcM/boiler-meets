@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as Register_waitingRouteImport } from './routes/register_waiting'
+import { Route as Register_final_setupRouteImport } from './routes/register_final_setup'
 import { Route as RegisterRouteImport } from './routes/register'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as DashboardRouteImport } from './routes/dashboard'
@@ -19,6 +20,11 @@ import { Route as ChatRoomRoomIdRouteImport } from './routes/chat-room.$roomId'
 const Register_waitingRoute = Register_waitingRouteImport.update({
   id: '/register_waiting',
   path: '/register_waiting',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const Register_final_setupRoute = Register_final_setupRouteImport.update({
+  id: '/register_final_setup',
+  path: '/register_final_setup',
   getParentRoute: () => rootRouteImport,
 } as any)
 const RegisterRoute = RegisterRouteImport.update({
@@ -52,6 +58,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
+  '/register_final_setup': typeof Register_final_setupRoute
   '/register_waiting': typeof Register_waitingRoute
   '/chat-room/$roomId': typeof ChatRoomRoomIdRoute
 }
@@ -60,6 +67,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
+  '/register_final_setup': typeof Register_final_setupRoute
   '/register_waiting': typeof Register_waitingRoute
   '/chat-room/$roomId': typeof ChatRoomRoomIdRoute
 }
@@ -69,6 +77,7 @@ export interface FileRoutesById {
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
+  '/register_final_setup': typeof Register_final_setupRoute
   '/register_waiting': typeof Register_waitingRoute
   '/chat-room/$roomId': typeof ChatRoomRoomIdRoute
 }
@@ -79,6 +88,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/login'
     | '/register'
+    | '/register_final_setup'
     | '/register_waiting'
     | '/chat-room/$roomId'
   fileRoutesByTo: FileRoutesByTo
@@ -87,6 +97,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/login'
     | '/register'
+    | '/register_final_setup'
     | '/register_waiting'
     | '/chat-room/$roomId'
   id:
@@ -95,6 +106,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/login'
     | '/register'
+    | '/register_final_setup'
     | '/register_waiting'
     | '/chat-room/$roomId'
   fileRoutesById: FileRoutesById
@@ -104,6 +116,7 @@ export interface RootRouteChildren {
   DashboardRoute: typeof DashboardRoute
   LoginRoute: typeof LoginRoute
   RegisterRoute: typeof RegisterRoute
+  Register_final_setupRoute: typeof Register_final_setupRoute
   Register_waitingRoute: typeof Register_waitingRoute
   ChatRoomRoomIdRoute: typeof ChatRoomRoomIdRoute
 }
@@ -115,6 +128,13 @@ declare module '@tanstack/react-router' {
       path: '/register_waiting'
       fullPath: '/register_waiting'
       preLoaderRoute: typeof Register_waitingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/register_final_setup': {
+      id: '/register_final_setup'
+      path: '/register_final_setup'
+      fullPath: '/register_final_setup'
+      preLoaderRoute: typeof Register_final_setupRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/register': {
@@ -160,6 +180,7 @@ const rootRouteChildren: RootRouteChildren = {
   DashboardRoute: DashboardRoute,
   LoginRoute: LoginRoute,
   RegisterRoute: RegisterRoute,
+  Register_final_setupRoute: Register_final_setupRoute,
   Register_waitingRoute: Register_waitingRoute,
   ChatRoomRoomIdRoute: ChatRoomRoomIdRoute,
 }

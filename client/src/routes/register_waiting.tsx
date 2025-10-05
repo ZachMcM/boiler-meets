@@ -10,6 +10,8 @@ export const Route = createFileRoute("/register_waiting")({
 function RouteComponent() {
   const { data: currentUserData } = authClient.useSession();
 
+  console.log(JSON.stringify(currentUserData))
+
   return (
     <div className="flex flex-1 justify-center items-center w-full h-full bg-gradient-to-br from-background from-30% to-primary">
       <div className="flex flex-col gap-4">

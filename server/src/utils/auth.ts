@@ -10,6 +10,30 @@ export const auth = betterAuth({
     provider: "pg",
     schema,
   }),
+  trustedOrigins: [
+  "http://localhost:3000", // Can be replaced by other client ports depending on the user testing
+  // TODO add our domain here as well
+  ],
+  user: {
+    additionalFields: {
+      major: {
+        type: "string",
+        required: false
+      },
+      year: {
+        type: "string",
+        required: false
+      },
+      bio: {
+        type: "string",
+        required: false
+      },
+      birthdate: {
+        type: "date",
+        required: false
+      },
+    }
+  },
   emailAndPassword: {
     enabled: true,
     requireEmailVerification: true,
@@ -33,6 +57,11 @@ export const auth = betterAuth({
       // Your custom logic here, e.g., grant access to premium features
       console.log(`${user.email} has been successfully verified!`);
     },
+  },
+  session: {
+    cookieCache: {
+      enabled: false
+    }
   },
   plugins: [username()],
 });
