@@ -42,7 +42,7 @@ interface DraggableModule {
 interface ProfileModuleEditorProps {
   initialModules?: DraggableModule[];
   onSave?: (modules: DraggableModule[]) => void;
-  initialMode?: 'edit' | 'view';
+  permission?: 'edit' | 'view';
 }
 
 interface ScrollingTextProps {
@@ -277,7 +277,7 @@ function ProfileModuleContainer(profileData: ModuleDataEntry[], editable: boolea
 
 // ==================== MODULE EDITOR ====================
 
-function ProfileModuleEditor({ initialModules, onSave, initialMode = 'edit' }: ProfileModuleEditorProps) {
+function ProfileModuleEditor({ initialModules, onSave, permission = 'edit' }: ProfileModuleEditorProps) {
   const COLS = 6;
   const ROWS = 4;
   const containerRef = useRef<HTMLDivElement>(null);
@@ -288,7 +288,7 @@ function ProfileModuleEditor({ initialModules, onSave, initialMode = 'edit' }: P
     title: module.name,
   }));
 
-  const [mode, setMode] = useState<'edit' | 'view'>(initialMode);
+  const [mode, setMode] = useState<'edit' | 'view'>('view');
   const [modules, setModules] = useState<DraggableModule[]>(initialModules || []);
   const [savedModules, setSavedModules] = useState<DraggableModule[]>(initialModules || []);
   const [nextId, setNextId] = useState(() => {
@@ -573,7 +573,7 @@ function ProfileModuleEditor({ initialModules, onSave, initialMode = 'edit' }: P
           </>
         )}
 
-        {mode === 'view' && initialMode === 'edit' && (
+        {mode === 'view' && permission === 'edit' && (
           <div className="mb-4">
             <button
               onClick={enterEditMode}
@@ -690,9 +690,7 @@ function ScrollingText({ text, className = '' }: ScrollingTextProps) {
         const overflow = textWidth > containerWidth;
         
         setIsOverflowing(overflow);
-        setScrollDistance(textWidth - containerWidth);
-        
-        console.log('Text:', text, 'Container:', containerWidth, 'Text width:', textWidth, 'Overflow:', overflow);
+        setScrollDistance(textWidth - containerWidth); 
       }
     };
 
