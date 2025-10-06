@@ -54,10 +54,7 @@ interface ScrollingTextProps {
 
 const ProfileModules: ProfileModuleType[] = [
   { key: "favoriteFood", name: "My favorite food is...", elements: [
-    { id: 1, type: 'dropdown', content: 'Select your favorite food', options: ['Pizza', 'Sushi', 'Burgers', 'Tacos', 'Pasta', 'Salad', 'Other'] }
-  ]},
-  { key: "physicalStats", name: "I am", elements: [
-    { id: 1, type: 'dropdown', content: 'Select your build', options: ['Athletic', 'Average', 'Slim', 'Muscular', 'Curvy', 'Plus-sized'] }
+    { id: 1, type: 'dropdown', content: 'Select your favorite food', options: ['Pizza', 'Sushi', 'Burgers', 'Tacos', 'Pasta', 'Salad', 'Stir Fry', 'Sandwiches'] }
   ]},
   { key: "loveLanguage", name: "My love language is...", elements: [
     { id: 1, type: 'dropdown', content: 'Select your love language', options: ['Words of Affirmation', 'Acts of Service', 'Receiving Gifts', 'Quality Time', 'Physical Touch'] }
@@ -65,56 +62,107 @@ const ProfileModules: ProfileModuleType[] = [
   { key: "zodiacSign", name: "My zodiac sign is...", elements: [
     { id: 1, type: 'dropdown', content: 'Select your zodiac sign', options: ['Aries', 'Taurus', 'Gemini', 'Cancer', 'Leo', 'Virgo', 'Libra', 'Scorpio', 'Sagittarius', 'Capricorn', 'Aquarius', 'Pisces'] }
   ]},
-  { key: "purdueCourse", name: "My favorite thing about Purdue is...", elements: [
-    { id: 1, type: 'dropdown', content: 'Select your favorite thing', options: ['Campus', 'Sports', 'Academics', 'Social Life', 'Clubs', 'Location', 'Food'] }
+  { key: "purdueFavorite", name: "My favorite thing about Purdue is...", elements: [
+    { id: 1, type: 'dropdown', content: 'Select your favorite thing', options: ['Campus', 'Sports', 'Academics', 'Social Life', 'Clubs', 'Research', 'Traditions', 'People'] }
   ]},
   { key: "diningHall", name: "The best dining hall is...", elements: [
-    { id: 1, type: 'dropdown', content: 'Select dining hall', options: ['Earhart', 'Wiley', 'Ford', 'Hillenbrand', 'Windsor'] }
+    { id: 1, type: 'dropdown', content: 'Select dining hall', options: ['Earhart', 'Wiley', 'Ford', 'Hillenbrand', 'Windsor', 'They all suck'] }
   ]},
-  { key: "about", name: "About Me", elements: [
-    { id: 1, type: 'dropdown', content: 'Select personality type', options: ['Outgoing', 'Introverted', 'Adventurous', 'Homebody', 'Creative', 'Analytical'] }
+  { key: "residence", name: "I live in...", elements: [
+    { id: 1, type: 'dropdown', content: 'Select residence', options: ['Cary', 'Earhart', 'First Street Towers', 'Harrison', 'Hawkins', 'Hillenbrand', 'Honors College', 'McCutcheon', 'Meredith', 'Owen', 'Shreve', 'Tarkington', 'Third Street Suites', 'Wiley', 'Windsor', 'Off-Campus'] }
   ]},
-  { key: "skills", name: "Skills", elements: [
-    { id: 1, type: 'dropdown', content: 'Select your top skill', options: ['Programming', 'Design', 'Communication', 'Leadership', 'Problem Solving', 'Writing'] }
+  { key: "hometown", name: "I'm from...", elements: [
+    { id: 1, type: 'dropdown', content: 'Select region', options: ['Indiana', 'Midwest', 'East Coast', 'West Coast', 'South', 'International', 'Chicago Area', 'Indy Area'] }
   ]},
-  { key: "experience", name: "Experience", elements: [
-    { id: 1, type: 'dropdown', content: 'Select experience level', options: ['Beginner', 'Intermediate', 'Advanced', 'Expert'] }
+  { key: "studySpot", name: "My favorite study spot is...", elements: [
+    { id: 1, type: 'dropdown', content: 'Select study spot', options: ['WALC', 'Hicks', 'STEW', 'MATH', 'My Room', 'Coffee Shop', 'Library', 'KRACH', 'Lawson'] }
   ]},
-  { key: "projects", name: "Projects", elements: [
-    { id: 1, type: 'dropdown', content: 'Select project type', options: ['Web Development', 'Mobile App', 'Research', 'Hardware', 'AI/ML', 'Data Science'] }
+  { key: "coffeeOrder", name: "My go-to coffee order is...", elements: [
+    { id: 1, type: 'dropdown', content: 'Select coffee preference', options: ['Black Coffee', 'Latte', 'Cappuccino', 'Iced Coffee', 'Espresso', 'Frappuccino', 'Tea', "I don't drink coffee"] }
   ]},
-  { key: "education", name: "Education", elements: [
-    { id: 1, type: 'dropdown', content: 'Select education level', options: ['Freshman', 'Sophomore', 'Junior', 'Senior', 'Graduate', 'PhD'] }
+  { key: "weekendActivity", name: "On weekends I like to...", elements: [
+    { id: 1, type: 'dropdown', content: 'Select weekend activity', options: ['Go Out', 'Stay In', 'Explore Lafayette', 'Sleep', 'Study', 'Workout', 'Hang with Friends', 'Netflix'] }
   ]},
-  { key: "certifications", name: "Certifications", elements: [
-    { id: 1, type: 'dropdown', content: 'Select certification type', options: ['AWS', 'Google Cloud', 'Azure', 'CompTIA', 'Cisco', 'Other'] }
+  { key: "morningPerson", name: "I am a...", elements: [
+    { id: 1, type: 'dropdown', content: 'Select your type', options: ['Morning Person', 'Night Owl', 'Afternoon Person', 'Always Tired'] }
   ]},
-  { key: "languages", name: "Languages", elements: [
-    { id: 1, type: 'dropdown', content: 'Select language proficiency', options: ['Beginner', 'Conversational', 'Fluent', 'Native'] }
+  { key: "exercisePreference", name: "My workout style is...", elements: [
+    { id: 1, type: 'dropdown', content: 'Select exercise preference', options: ['Cardio', 'Weightlifting', 'Sports', 'Yoga', 'Running', 'Cycling', 'Swimming', "I don't work out"] }
   ]},
-  { key: "contact", name: "Contact Info", elements: [
-    { id: 1, type: 'dropdown', content: 'Select preferred contact method', options: ['Email', 'Phone', 'LinkedIn', 'Discord', 'Slack'] }
+  { key: "purdueSpirit", name: "Boiler Up means...", elements: [
+    { id: 1, type: 'dropdown', content: 'Select what Purdue spirit means to you', options: ['Everything', 'Football Season', 'Basketball Season', 'School Pride', 'Community', 'Tradition', 'Winning'] }
   ]},
-  { key: "social", name: "Social Links", elements: [
-    { id: 1, type: 'dropdown', content: 'Select primary platform', options: ['Instagram', 'Twitter/X', 'LinkedIn', 'GitHub', 'TikTok', 'Facebook'] }
+  { key: "favoriteSport", name: "My favorite sport to watch is...", elements: [
+    { id: 1, type: 'dropdown', content: 'Select sport', options: ['Football', 'Basketball', 'Volleyball', 'Soccer', 'Wrestling', 'Swimming', 'Track', "I don't watch sports"] }
   ]},
-  { key: "achievements", name: "Achievements", elements: [
-    { id: 1, type: 'dropdown', content: 'Select achievement type', options: ['Academic', 'Athletic', 'Leadership', 'Community Service', 'Competition', 'Research'] }
+  { key: "musicGenre", name: "I listen to...", elements: [
+    { id: 1, type: 'dropdown', content: 'Select music genre', options: ['Pop', 'Hip Hop', 'Rock', 'Country', 'EDM', 'Indie', 'R&B', 'Classical', 'Everything'] }
   ]},
-  { key: "hobbies", name: "Hobbies", elements: [
-    { id: 1, type: 'dropdown', content: 'Select hobby', options: ['Gaming', 'Reading', 'Sports', 'Music', 'Art', 'Cooking', 'Travel'] }
+  { key: "movieGenre", name: "My favorite movies are...", elements: [
+    { id: 1, type: 'dropdown', content: 'Select movie genre', options: ['Action', 'Comedy', 'Drama', 'Horror', 'Sci-Fi', 'Romance', 'Thriller', 'Documentary', 'Animated'] }
   ]},
-  { key: "music", name: "Music Taste", elements: [
-    { id: 1, type: 'dropdown', content: 'Select music genre', options: ['Pop', 'Rock', 'Hip Hop', 'Country', 'Electronic', 'Classical', 'Jazz', 'R&B'] }
+  { key: "stressRelief", name: "When stressed, I...", elements: [
+    { id: 1, type: 'dropdown', content: 'Select stress relief', options: ['Exercise', 'Sleep', 'Eat', 'Talk to Friends', 'Watch TV', 'Listen to Music', 'Go for a Walk', 'Cry'] }
   ]},
-  { key: "movies", name: "Favorite Movies", elements: [
-    { id: 1, type: 'dropdown', content: 'Select movie genre', options: ['Action', 'Comedy', 'Drama', 'Sci-Fi', 'Horror', 'Romance', 'Documentary'] }
+  { key: "petPreference", name: "I'm a...", elements: [
+    { id: 1, type: 'dropdown', content: 'Select preference', options: ['Dog Person', 'Cat Person', 'Both', 'Neither', 'Reptile Person', 'Bird Person'] }
   ]},
-  { key: "books", name: "Reading List", elements: [
-    { id: 1, type: 'dropdown', content: 'Select book genre', options: ['Fiction', 'Non-Fiction', 'Fantasy', 'Mystery', 'Biography', 'Self-Help', 'Science'] }
+  { key: "travelStyle", name: "My ideal vacation is...", elements: [
+    { id: 1, type: 'dropdown', content: 'Select travel style', options: ['Beach', 'Mountains', 'City', 'Road Trip', 'Camping', 'International', 'Staycation', 'Adventure'] }
   ]},
-  { key: "travel", name: "Travel", elements: [
-    { id: 1, type: 'dropdown', content: 'Select travel preference', options: ['Beach', 'Mountains', 'City', 'Countryside', 'Adventure', 'Relaxation'] }
+  { key: "phoneChoice", name: "I use...", elements: [
+    { id: 1, type: 'dropdown', content: 'Select phone', options: ['iPhone', 'Android', 'Other'] }
+  ]},
+  { key: "socialMedia", name: "My most used app is...", elements: [
+    { id: 1, type: 'dropdown', content: 'Select social media', options: ['Instagram', 'TikTok', 'Snapchat', 'Twitter/X', 'Clash Royale', 'LinkedIn', 'Facebook', 'Reddit', 'YouTube'] }
+  ]},
+  { key: "sleepSchedule", name: "I usually sleep...", elements: [
+    { id: 1, type: 'dropdown', content: 'Select sleep schedule', options: ['Before 10pm', '10pm-12am', '12am-2am', 'After 2am', 'Whenever I Can', 'All Day'] }
+  ]},
+  { key: "campusTransport", name: "I get around campus by...", elements: [
+    { id: 1, type: 'dropdown', content: 'Select transportation', options: ['Walking', 'Bike', 'Scooter', 'Bus', 'Car', 'Skateboard', 'Longboard'] }
+  ]},
+  { key: "seasonPreference", name: "My favorite season is...", elements: [
+    { id: 1, type: 'dropdown', content: 'Select season', options: ['Spring', 'Summer', 'Fall', 'Winter'] }
+  ]},
+  { key: "internshipStatus", name: "For internships, I...", elements: [
+    { id: 1, type: 'dropdown', content: 'Select status', options: ['Have One Lined Up', 'Currently Searching', 'Not Looking Yet', 'Have Had Multiple', 'Not Interested'] }
+  ]},
+  { key: "careerGoal", name: "After graduation, I want to...", elements: [
+    { id: 1, type: 'dropdown', content: 'Select career goal', options: ['Industry Job', 'Grad School', 'Start a Business', 'Travel', 'Undecided', 'Research', 'Government'] }
+  ]},
+  { key: "groupProject", name: "In group projects, I'm the...", elements: [
+    { id: 1, type: 'dropdown', content: 'Select role', options: ['Leader', 'Organizer', 'Worker', 'Creative', 'Procrastinator', 'Communicator', 'Free Rider (jk)'] }
+  ]},
+  { key: "examStrategy", name: "Before exams, I...", elements: [
+    { id: 1, type: 'dropdown', content: 'Select exam strategy', options: ['Study Days in Advance', 'All-Nighter', 'Study Groups', 'Practice Problems', 'Review Notes', 'Wing It', 'Panic'] }
+  ]},
+  { key: "courseLoad", name: "My typical course load is...", elements: [
+    { id: 1, type: 'dropdown', content: 'Select course load', options: ['12-14 Credits', '15-16 Credits', '17-18 Credits', '19+ Credits', 'Part-Time'] }
+  ]},
+  { key: "clubInvolvement", name: "I'm involved in...", elements: [
+    { id: 1, type: 'dropdown', content: 'Select involvement level', options: ['Multiple Clubs', 'One Main Club', 'Greek Life', 'Sports Team', 'Research', 'Job', 'Not Much', 'Everything'] }
+  ]},
+  { key: "foodieLevel", name: "My cooking skills are...", elements: [
+    { id: 1, type: 'dropdown', content: 'Select cooking level', options: ['Master Chef', 'Pretty Good', 'Basic', 'Microwave Expert', 'Ramen Only', "Can't Cook"] }
+  ]},
+  { key: "purdueMemory", name: "My best Purdue memory is...", elements: [
+    { id: 1, type: 'dropdown', content: 'Select memory type', options: ['Football Game', 'Basketball Game', 'Grand Prix', 'Friend Moments', 'Academic Achievement', 'Club Event', 'First Day', 'Homecoming'] }
+  ]},
+  { key: "breakfastHabit", name: "For breakfast, I...", elements: [
+    { id: 1, type: 'dropdown', content: 'Select breakfast habit', options: ['Never Skip', 'Sometimes Eat', 'Coffee Only', 'Skip It', 'Big Meal', 'Grab and Go'] }
+  ]},
+  { key: "libraryNoise", name: "I study best with...", elements: [
+    { id: 1, type: 'dropdown', content: 'Select noise preference', options: ['Complete Silence', 'White Noise', 'Music', 'Background Chatter', 'Anything Works', 'TV On'] }
+  ]},
+  { key: "procrastination", name: "I'm a...", elements: [
+    { id: 1, type: 'dropdown', content: 'Select procrastination level', options: ['Plan Ahead', 'Slight Procrastinator', 'Major Procrastinator', 'Last Minute Hero', 'Deadline is Tomorrow?!'] }
+  ]},
+  { key: "purdueBuilding", name: "My favorite building is...", elements: [
+    { id: 1, type: 'dropdown', content: 'Select building', options: ['WALC', 'Union', 'STEW', 'ARMS', 'LILY', 'HSSE', 'MATH', 'PHYS', 'CIVL', 'ME', 'CL50', 'LWSN'] }
+  ]},
+  { key: "relationshipStatus", name: "My relationship status is...", elements: [
+    { id: 1, type: 'dropdown', content: 'Select status', options: ['Single', 'Taken', 'Complicated', 'Talking to Someone', 'Situationship', 'Married to My Studies'] }
   ]},
 ];
 

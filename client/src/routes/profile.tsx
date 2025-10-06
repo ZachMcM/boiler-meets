@@ -23,32 +23,10 @@ function RouteComponent() {
       gridWidth: 2,
       gridHeight: 1,
       visible: true,
-      data: [{ id: 1, content: 'Pizza', selectedOption: 'Pizza' }]
+      data: [{ id: 1, content: 'Tacos', selectedOption: 'Tacos' }]
     },
     {
       id: 2,
-      type: 'zodiacSign',
-      title: 'My zodiac sign is...',
-      gridX: 2,
-      gridY: 0,
-      gridWidth: 2,
-      gridHeight: 1,
-      visible: true,
-      data: [{ id: 1, content: 'Leo', selectedOption: 'Leo' }]
-    },
-    {
-      id: 3,
-      type: 'loveLanguage',
-      title: 'My love language is...',
-      gridX: 4,
-      gridY: 0,
-      gridWidth: 2,
-      gridHeight: 1,
-      visible: true,
-      data: [{ id: 1, content: 'Quality Time', selectedOption: 'Quality Time' }]
-    },
-    {
-      id: 4,
       type: 'diningHall',
       title: 'The best dining hall is...',
       gridX: 0,
@@ -59,27 +37,82 @@ function RouteComponent() {
       data: [{ id: 1, content: 'Earhart', selectedOption: 'Earhart' }]
     },
     {
-      id: 5,
-      type: 'hobbies',
-      title: 'Hobbies',
+      id: 3,
+      type: 'residence',
+      title: 'I live in...',
       gridX: 2,
       gridY: 1,
       gridWidth: 2,
       gridHeight: 1,
       visible: true,
-      data: [{ id: 1, content: 'Gaming', selectedOption: 'Gaming' }]
+      data: [{ id: 1, content: 'Hillenbrand', selectedOption: 'Hillenbrand' }]
     },
     {
-      id: 6,
-      type: 'music',
-      title: 'Music Taste',
+      id: 4,
+      type: 'studySpot',
+      title: 'My favorite study spot is...',
       gridX: 4,
       gridY: 1,
       gridWidth: 2,
       gridHeight: 1,
       visible: true,
+      data: [{ id: 1, content: 'WALC', selectedOption: 'WALC' }]
+    },
+    {
+      id: 5,
+      type: 'loveLanguage',
+      title: 'My love language is...',
+      gridX: 0,
+      gridY: 2,
+      gridWidth: 3,
+      gridHeight: 1,
+      visible: true,
+      data: [{ id: 1, content: 'Quality Time', selectedOption: 'Quality Time' }]
+    },
+    {
+      id: 6,
+      type: 'musicGenre',
+      title: 'I listen to...',
+      gridX: 3,
+      gridY: 2,
+      gridWidth: 3,
+      gridHeight: 1,
+      visible: true,
       data: [{ id: 1, content: 'Hip Hop', selectedOption: 'Hip Hop' }]
-    }
+    },
+    {
+      id: 7,
+      type: 'morningPerson',
+      title: 'I am a...',
+      gridX: 0,
+      gridY: 3,
+      gridWidth: 2,
+      gridHeight: 1,
+      visible: true,
+      data: [{ id: 1, content: 'Night Owl', selectedOption: 'Night Owl' }]
+    },
+    {
+      id: 8,
+      type: 'purdueSpirit',
+      title: 'Boiler Up means...',
+      gridX: 2,
+      gridY: 3,
+      gridWidth: 2,
+      gridHeight: 1,
+      visible: true,
+      data: [{ id: 1, content: 'Everything', selectedOption: 'Everything' }]
+    },
+    {
+      id: 9,
+      type: 'relationshipStatus',
+      title: 'My relationship status is...',
+      gridX: 4,
+      gridY: 3,
+      gridWidth: 2,
+      gridHeight: 1,
+      visible: true,
+      data: [{ id: 1, content: 'Single', selectedOption: 'Single' }]
+    },
   ];
 
   const editable = true;
