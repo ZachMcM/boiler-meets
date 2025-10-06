@@ -65,6 +65,10 @@ export async function videoChatHandler(socket: Socket) {
 
   socket.on("answer", (data: WebRTCAnswer) => {
     logger.info(`Answer received from ${userId} in room ${roomId}`);
+    setTimeout(() => { 
+      io.of("/video-chat").to(roomId).emit("timeout"); 
+      console.log("TIMING OUT ON THE SERVER");
+    }, 10000);
     socket.to(roomId).emit("answer", { answer: data.answer, from: userId });
   });
 
@@ -104,5 +108,59 @@ export async function videoChatHandler(socket: Socket) {
     }
 
     socket.disconnect();
+  });
+
+  socket.on("user-call-again", async () => {
+    try {
+      logger.info(`User ${userId} clicked call again in room ${roomId}`);
+      console.log(`User ${userId} clicked call again in room ${roomId}`);
+
+      // Set the call-again state for this user
+      await RoomManager.setCallAgainState(roomId, userId, true);
+
+      // Check the call-again state for both users
+      const callAgainState = await RoomManager.getCallAgainState(roomId);
+      const roomData = await RoomManager.getRoomData(roomId);
+
+      if (!roomData) {
+        logger.error(`Room ${roomId} not found during call again`);
+        console.log(`Room ${roomId} not found during call again`)
+        socket.emit("error", { message: "Room not found" });
+        return;
+      }
+
+      const { user1, user2 } = roomData;
+
+      logger.info(`Call again state for room ${roomId}:`, callAgainState);
+      console.log(`Call again state for room ${roomId}:`, callAgainState)
+
+      if (callAgainState[user1] && callAgainState[user2]) {
+        // Both users clicked "call again"
+        logger.info(`Both users in room ${roomId} clicked call again`);
+
+        // Notify both users
+        io.of("/video-chat").to(roomId).emit("call-again");
+
+        // Reset the call-again state
+        await RoomManager.resetCallAgainState(roomId);
+
+        // Set a timeout for reconnecting feeds
+        setTimeout(() => {
+          io.of("/video-chat").to(roomId).emit("timeout");
+        }, 10000);
+      } else {
+        // Notify the other user to click "call again"
+        logger.info(`Waiting for both users to click call again in room ${roomId}`);
+        console.log(`Waiting for both users to click call again in room ${roomId}`);
+        socket.to(roomId).emit("user-call-again", { userId });
+      }
+    } catch (error) {
+      logger.error("Error handling user-call-again event:", error);
+      socket.emit("error", { message: "An error occurred while processing call again" });
+    }
+  });
+
+  socket.on("user-match", () => {
+
   });
 }

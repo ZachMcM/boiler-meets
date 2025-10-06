@@ -73,4 +73,27 @@ export class RoomManager {
       });
     }, intervalMs);
   }
+
+  static async setCallAgainState(roomId: string, userId: string, state: boolean): Promise<void> {
+    const roomData = await this.getRoomData(roomId);
+    if (!roomData) {
+      throw new Error(`Room ${roomId} not found`);
+    }
+
+    const callAgainKey = `call-again:${roomId}`;
+    await redis.hSet(callAgainKey, userId, state.toString());
+  }
+
+  static async getCallAgainState(roomId: string): Promise<{ [userId: string]: boolean }> {
+    const callAgainKey = `call-again:${roomId}`;
+    const state = await redis.hGetAll(callAgainKey);
+    return Object.fromEntries(
+      Object.entries(state).map(([userId, value]) => [userId, value === 'true'])
+    );
+  }
+
+  static async resetCallAgainState(roomId: string): Promise<void> {
+    const callAgainKey = `call-again:${roomId}`;
+    await redis.del(callAgainKey);
+  }
 }

@@ -30,10 +30,13 @@ export function ChatRoom({ roomId }: { roomId: string }) {
   const [socket, setSocket] = useState<Socket | null>(null);
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
+  const [savedRemoteStream, setSavedRemoteStream] = useState<MediaStream | null>(null);
   const [isVideoEnabled, setIsVideoEnabled] = useState(true);
   const [isAudioEnabled, setIsAudioEnabled] = useState(true);
   const [connectionStatus, setConnectionStatus] = useState("Connecting...");
   const [otherUserId, setOtherUserId] = useState<string | null>(null);
+  const [feedbackPage, setFeedbackPage] = useState(false);
+  const [waitingOtherResponse, setWaitingOtherResponse] = useState(false);
 
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
@@ -82,6 +85,29 @@ export function ChatRoom({ roomId }: { roomId: string }) {
     }
   }, [remoteStream]);
 
+  useEffect(() => {
+    if (remoteStream) {
+      console.log("remoteStream updated:", remoteStream);
+      setSavedRemoteStream(remoteStream);
+    } else {
+      console.log("remoteStream is null");
+    }
+
+    if (remoteVideoRef.current) {
+      console.log("remoteVideoRef is set:", remoteVideoRef.current);
+    } else {
+      console.log("remoteVideoRef is null");
+    }
+  }, [remoteStream]);
+
+  useEffect(() => {
+    console.log("LOCAL STREAM: ", localStream);
+  }, [localStream])
+
+  useEffect(() => {
+    console.log("REMOTE STREAM: ", remoteStream);
+  }, [remoteStream])
+
   const initializeWebRTC = async () => {
     try {
       setConnectionStatus("Getting camera and microphone...");
@@ -91,6 +117,7 @@ export function ChatRoom({ roomId }: { roomId: string }) {
         video: true,
         audio: true,
       });
+      console.log("STREAM", stream);
       setLocalStream(stream);
       localStreamRef.current = stream;
 
@@ -326,6 +353,28 @@ export function ChatRoom({ roomId }: { roomId: string }) {
         leaveRoom();
       });
 
+      videoChatSocket.on("timeout", () => { 
+        console.log("feedbackPage: ", feedbackPage); 
+        // setFeedbackPage(true); 
+        console.log("LOCAL STREAM WHEN TOGGLING", localStream);
+        console.log("REMOTE STREAM WHEN TIMING OUT", remoteStream);
+        toggleAudio();
+        toggleVideo();
+      });
+
+      videoChatSocket.on("call-again", () => {
+        setWaitingOtherResponse(false); 
+        // setRemoteStream()
+        console.log("call-again received", remoteStream, waitingOtherResponse, remoteVideoRef.current, savedRemoteStream); 
+        toggleAudio();
+        toggleVideo();
+      });
+
+      /* TODO for when BOTH users match */
+      videoChatSocket.on("match", () => {});
+
+      videoChatSocket.on("user-call-again", () => {toast.info("The other user wants to call again!"); });
+
       videoChatSocket.on("error", ({ message }) => {
         console.error("Socket error:", message);
         toast.error(message);
@@ -349,6 +398,7 @@ export function ChatRoom({ roomId }: { roomId: string }) {
   const toggleVideo = () => {
     if (localStream) {
       const videoTrack = localStream.getVideoTracks()[0];
+      console.log("Video Track: ", videoTrack)
       if (videoTrack) {
         videoTrack.enabled = !videoTrack.enabled;
         setIsVideoEnabled(videoTrack.enabled);
@@ -375,25 +425,87 @@ export function ChatRoom({ roomId }: { roomId: string }) {
     router.navigate({ to: "/dashboard" });
   };
 
+  /* TODO for when THIS USER wants to call again */
+  const callAgain = async () => {
+    // if (localStreamRef.current) {
+    //   // Stop the current video tracks
+    //   localStreamRef.current.getVideoTracks().forEach((track) => track.stop());
+    // }
+
+    try {
+      // // Reinitialize the video feed
+      // const stream = await navigator.mediaDevices.getUserMedia({
+      //   video: true,
+      //   audio: false, // Only reinitialize video feed
+      // });
+      // setLocalStream(stream);
+      // localStreamRef.current = stream;
+
+      // // Add the new video tracks to the peer connection
+      // const pc = peerConnectionRef.current;
+      // if (pc) {
+      //   // stream.getVideoTracks().forEach((track) => {
+      //   //   pc.addTrack(track, stream);
+      //   // });
+      //   // Add tracks to peer connection
+      //   stream.getTracks().forEach((track) => {
+      //     pc.addTrack(track, stream);
+      //   });
+      // }
+
+      // // Update the local video element
+      // if (localVideoRef.current) {
+      //   localVideoRef.current.srcObject = stream;
+      // }
+
+      // Notify the server
+      if (socket) {
+        socket.emit("user-call-again");
+      }
+    } catch (error) {
+      console.error("Error reinitializing video feed:", error);
+      toast.error("Failed to reinitialize video feed. Please try again.");
+    }
+  }
+
+  /* TODO for when THIS USER wants to match */
+  const match = () => {
+    if (socket) {
+      socket.emit("user-match");
+    }
+  }
+
   const cleanup = () => {
     console.log("Cleaning up resources");
     if (localStreamRef.current) {
+      console.log("LOCAL STREAM TO NULL");
       localStreamRef.current.getTracks().forEach((track) => track.stop());
       localStreamRef.current = null;
       setLocalStream(null);
     }
     if (peerConnectionRef.current) {
+      console.log("CLOSING PEER CONNECTION");
       peerConnectionRef.current.close();
       peerConnectionRef.current = null;
     }
     if (socketRef.current) {
+      console.log("DISCONNECTING SOCKET");
       socketRef.current.disconnect();
       socketRef.current = null;
       setSocket(null);
     }
     pendingIceCandidatesRef.current = [];
+    console.log("REMOTE STREAM TO NULL");
     setRemoteStream(null);
     setOtherUserId(null);
+
+    // Ensure video refs are cleared
+    if (localVideoRef.current) {
+      localVideoRef.current.srcObject = null;
+    }
+    if (remoteVideoRef.current) {
+      remoteVideoRef.current.srcObject = null;
+    }
   };
 
   return (
@@ -414,8 +526,106 @@ export function ChatRoom({ roomId }: { roomId: string }) {
           </div>
 
           {/* Video Grid */}
-          <div className="flex w-full justify-center">
-            {/* Remote Video */}
+          {!feedbackPage ? (
+            <div className="flex w-full justify-center">
+              {/* Remote Video */}
+              <Card className="max-w-3xl flex flex-1">
+                {otherUser && !otherUserPending ? (
+                  <CardHeader>
+                    <div className="flex items-center gap-2">
+                      <Avatar>
+                        <AvatarImage src={otherUser?.image!} />
+                        <AvatarFallback>{otherUser?.name[0]}</AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="font-semibold text-foreground">
+                          {otherUser.name || "Anonymous"}
+                        </p>
+                        <p>
+                          {otherUser.year} | {otherUser.major}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {otherUser.username}
+                        </p>
+                      </div>
+                    </div>
+                  </CardHeader>
+                ) : (
+                  <CardHeader>
+                    <div className="flex items-center gap-2">
+                      <User className="w-4 h-4 text-foreground" />
+                      <p className="font-semibold text-foreground">
+                        {otherUserId
+                          ? "Connecting..."
+                          : "Waiting for participant..."}
+                      </p>
+                    </div>
+                  </CardHeader>
+                )}
+                <CardContent className="p-0 relative">
+                  {remoteStream ? (
+                    <div><video
+                      ref={remoteVideoRef}
+                      autoPlay
+                      playsInline
+                      className="w-full h-64 lg:h-96 object-cover bg-card"
+                    /><Button>HERE 1</Button></div>
+                  ) : (
+                    <div className="w-full h-64 text-center lg:h-96 flex flex-col items-center justify-center">
+                      <Video className="w-12 h-12" />
+                      <p className="text-foreground font-medium">
+                        {waitingOtherResponse
+                          ? "Waiting for other user to respond..."
+                          : "Reconnecting"}
+                        {otherUserId && !waitingOtherResponse
+                          ? "Connecting video..."
+                          : "Waiting for other user to join..."}
+                      </p>
+                      <Button>HERE 2</Button>
+                    </div>
+                  )}
+                  <div className="w-36 aspect-video absolute right-4 top-4">
+                    <video
+                      ref={localVideoRef}
+                      autoPlay
+                      playsInline
+                      muted
+                      className="w-full h-full object-cover bg-card rounded-md"
+                    />
+                    <Button>HERE 3</Button>
+                  </div>
+                </CardContent>
+                <CardFooter>
+                  <div className="flex justify-center gap-4">
+                    {/* <Button
+                      onClick={toggleVideo}
+                      variant={isVideoEnabled ? "default" : "destructive"}
+                      size="icon"
+                      className="rounded-full size-12"
+                    >
+                      {isVideoEnabled ? <Video /> : <VideoOff />}
+                    </Button>
+                    <Button
+                      onClick={toggleAudio}
+                      variant={isAudioEnabled ? "default" : "destructive"}
+                      size="icon"
+                      className="rounded-full size-12"
+                    >
+                      {isAudioEnabled ? <Mic /> : <MicOff />}
+                    </Button> */}
+                    <Button
+                      onClick={leaveRoom}
+                      variant="destructive"
+                      size="icon"
+                      className="rounded-full size-12"
+                    >
+                      <Phone />
+                    </Button>
+                  </div>
+                </CardFooter>
+              </Card>
+            </div>
+          ) : (
             <Card className="max-w-3xl flex flex-1">
               {otherUser && !otherUserPending ? (
                 <CardHeader>
@@ -437,76 +647,23 @@ export function ChatRoom({ roomId }: { roomId: string }) {
                     </div>
                   </div>
                 </CardHeader>
-              ) : (
-                <CardHeader>
-                  <div className="flex items-center gap-2">
-                    <User className="w-4 h-4 text-foreground" />
-                    <p className="font-semibold text-foreground">
-                      {otherUserId
-                        ? "Connecting..."
-                        : "Waiting for participant..."}
-                    </p>
-                  </div>
-                </CardHeader>
-              )}
-              <CardContent className="p-0 relative">
-                {remoteStream ? (
-                  <video
-                    ref={remoteVideoRef}
-                    autoPlay
-                    playsInline
-                    className="w-full h-64 lg:h-96 object-cover bg-card"
-                  />
                 ) : (
-                  <div className="w-full h-64 text-center lg:h-96 flex flex-col items-center justify-center">
-                    <Video className="w-12 h-12" />
-                    <p className="text-foreground font-medium">
-                      {otherUserId
-                        ? "Connecting video..."
-                        : "Waiting for other user to join..."}
-                    </p>
-                  </div>
+                  <CardHeader>
+                    <div className="flex items-center gap-2">
+                      <User className="w-4 h-4 text-foreground" />
+                      <p className="font-semibold text-foreground">
+                        {"Other user has left!"}
+                      </p>
+                    </div>
+                  </CardHeader>
                 )}
-                <div className="w-36 aspect-video absolute right-4 top-4">
-                  <video
-                    ref={localVideoRef}
-                    autoPlay
-                    playsInline
-                    muted
-                    className="w-full h-full object-cover bg-card rounded-md"
-                  />
-                </div>
-              </CardContent>
-              <CardFooter>
-                <div className="flex justify-center gap-4">
-                  {/* <Button
-                    onClick={toggleVideo}
-                    variant={isVideoEnabled ? "default" : "destructive"}
-                    size="icon"
-                    className="rounded-full size-12"
-                  >
-                    {isVideoEnabled ? <Video /> : <VideoOff />}
+                <CardContent>
+                  <Button onClick={() => {setFeedbackPage(false); setWaitingOtherResponse(true); callAgain()}}>
+                    Call again?
                   </Button>
-                  <Button
-                    onClick={toggleAudio}
-                    variant={isAudioEnabled ? "default" : "destructive"}
-                    size="icon"
-                    className="rounded-full size-12"
-                  >
-                    {isAudioEnabled ? <Mic /> : <MicOff />}
-                  </Button> */}
-                  <Button
-                    onClick={leaveRoom}
-                    variant="destructive"
-                    size="icon"
-                    className="rounded-full size-12"
-                  >
-                    <Phone />
-                  </Button>
-                </div>
-              </CardFooter>
+                </CardContent>
             </Card>
-          </div>
+          )}
         </div>
       </div>
     </div>
