@@ -1,7 +1,6 @@
 import express from "express";
+import { usersRoute } from "./users";
 
 export const routes = express.Router();
 
-routes.get("/", async (_req, res) => {
-  res.json({ message: "Index route" })
-})
+routes.use(usersRoute);

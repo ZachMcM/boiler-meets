@@ -9,11 +9,33 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as Register_waitingRouteImport } from './routes/register_waiting'
+import { Route as Register_final_setupRouteImport } from './routes/register_final_setup'
+import { Route as RegisterRouteImport } from './routes/register'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as DemoProfileRouteImport } from './routes/demo-profile'
 import { Route as DemoChatRouteImport } from './routes/demo-chat'
-import { Route as IndexRouteImport } from './routes/index'
+import { Route as DashboardRouteImport } from './routes/dashboard'
 
+import { Route as IndexRouteImport } from './routes/index'
+import { Route as ProfileUsernameRouteImport } from './routes/profile.$username'
+import { Route as ChatRoomRoomIdRouteImport } from './routes/chat-room.$roomId'
+
+const Register_waitingRoute = Register_waitingRouteImport.update({
+  id: '/register_waiting',
+  path: '/register_waiting',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const Register_final_setupRoute = Register_final_setupRouteImport.update({
+  id: '/register_final_setup',
+  path: '/register_final_setup',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RegisterRoute = RegisterRouteImport.update({
+  id: '/register',
+  path: '/register',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
@@ -29,48 +51,140 @@ const DemoChatRoute = DemoChatRouteImport.update({
   path: '/demo-chat',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DashboardRoute = DashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ProfileUsernameRoute = ProfileUsernameRouteImport.update({
+  id: '/profile/$username',
+  path: '/profile/$username',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ChatRoomRoomIdRoute = ChatRoomRoomIdRouteImport.update({
+  id: '/chat-room/$roomId',
+  path: '/chat-room/$roomId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/dashboard': typeof DashboardRoute
   '/demo-chat': typeof DemoChatRoute
-  '/demo-profile': typeof DemoProfileRoute
+  '/demo-profile': typeof DemoProfileRoute 
   '/login': typeof LoginRoute
+  '/register': typeof RegisterRoute
+  '/register_final_setup': typeof Register_final_setupRoute
+  '/register_waiting': typeof Register_waitingRoute
+  '/chat-room/$roomId': typeof ChatRoomRoomIdRoute
+  '/profile/$username': typeof ProfileUsernameRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/dashboard': typeof DashboardRoute
   '/demo-chat': typeof DemoChatRoute
-  '/demo-profile': typeof DemoProfileRoute
+  '/demo-profile': typeof DemoProfileRoute 
   '/login': typeof LoginRoute
+  '/register': typeof RegisterRoute
+  '/register_final_setup': typeof Register_final_setupRoute
+  '/register_waiting': typeof Register_waitingRoute
+  '/chat-room/$roomId': typeof ChatRoomRoomIdRoute
+  '/profile/$username': typeof ProfileUsernameRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/dashboard': typeof DashboardRoute
   '/demo-chat': typeof DemoChatRoute
-  '/demo-profile': typeof DemoProfileRoute
+  '/demo-profile': typeof DemoProfileRoute 
   '/login': typeof LoginRoute
+  '/register': typeof RegisterRoute
+  '/register_final_setup': typeof Register_final_setupRoute
+  '/register_waiting': typeof Register_waitingRoute
+  '/chat-room/$roomId': typeof ChatRoomRoomIdRoute
+  '/profile/$username': typeof ProfileUsernameRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/demo-chat' | '/demo-profile' | '/login'
+  fullPaths:
+    | '/'
+    | '/dashboard'
+    | '/demo-chat'
+    | '/demo-profile'
+    | '/login'
+    | '/register'
+    | '/register_final_setup'
+    | '/register_waiting'
+    | '/chat-room/$roomId'
+    | '/profile/$username' 
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/demo-chat' | '/demo-profile' | '/login'
-  id: '__root__' | '/' | '/demo-chat' | '/demo-profile' | '/login'
+  to:
+    | '/'
+    | '/dashboard'
+    | '/demo-chat'
+    | '/demo-profile'
+    | '/login'
+    | '/register'
+    | '/register_final_setup'
+    | '/register_waiting'
+    | '/chat-room/$roomId'
+    | '/profile/$username'
+  id:
+    | '__root__'
+    | '/'
+    | '/dashboard'
+    | '/demo-chat'
+    | '/demo-profile'
+    | '/login'
+    | '/register'
+    | '/register_final_setup'
+    | '/register_waiting'
+    | '/chat-room/$roomId'
+    | '/profile/$username' 
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  DashboardRoute: typeof DashboardRoute
   DemoChatRoute: typeof DemoChatRoute
-  DemoProfileRoute: typeof DemoProfileRoute
+  DemoProfileRoute: typeof DemoProfileRoute 
   LoginRoute: typeof LoginRoute
+  RegisterRoute: typeof RegisterRoute
+  Register_final_setupRoute: typeof Register_final_setupRoute
+  Register_waitingRoute: typeof Register_waitingRoute
+  ChatRoomRoomIdRoute: typeof ChatRoomRoomIdRoute
+  ProfileUsernameRoute: typeof ProfileUsernameRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/register_waiting': {
+      id: '/register_waiting'
+      path: '/register_waiting'
+      fullPath: '/register_waiting'
+      preLoaderRoute: typeof Register_waitingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/register_final_setup': {
+      id: '/register_final_setup'
+      path: '/register_final_setup'
+      fullPath: '/register_final_setup'
+      preLoaderRoute: typeof Register_final_setupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/register': {
+      id: '/register'
+      path: '/register'
+      fullPath: '/register'
+      preLoaderRoute: typeof RegisterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/login': {
       id: '/login'
       path: '/login'
@@ -90,6 +204,13 @@ declare module '@tanstack/react-router' {
       path: '/demo-chat'
       fullPath: '/demo-chat'
       preLoaderRoute: typeof DemoChatRouteImport
+      parentRoute: typeof rootRouteImport 
+    }
+    '/dashboard': {
+      id: '/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof DashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -99,14 +220,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/profile/$username': {
+      id: '/profile/$username'
+      path: '/profile/$username'
+      fullPath: '/profile/$username'
+      preLoaderRoute: typeof ProfileUsernameRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/chat-room/$roomId': {
+      id: '/chat-room/$roomId'
+      path: '/chat-room/$roomId'
+      fullPath: '/chat-room/$roomId'
+      preLoaderRoute: typeof ChatRoomRoomIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  DashboardRoute: DashboardRoute,
   DemoChatRoute: DemoChatRoute,
-  DemoProfileRoute: DemoProfileRoute,
+  DemoProfileRoute: DemoProfileRoute, 
   LoginRoute: LoginRoute,
+  RegisterRoute: RegisterRoute,
+  Register_final_setupRoute: Register_final_setupRoute,
+  Register_waitingRoute: Register_waitingRoute,
+  ChatRoomRoomIdRoute: ChatRoomRoomIdRoute,
+  ProfileUsernameRoute: ProfileUsernameRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

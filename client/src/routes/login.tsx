@@ -1,19 +1,20 @@
-import { authClient } from "@/lib/auth-client";
-import { createFileRoute, Link } from "@tanstack/react-router";
-import * as z from "zod";
-import { Controller, useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { Card, CardContent } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { useState } from "react";
-import { toast } from "sonner";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { authClient, fetchUserSession } from "@/lib/auth-client";
+import { cn } from "@/lib/utils";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { Loader } from "lucide-react";
+import { useState } from "react";
+import { Controller, useForm } from "react-hook-form";
+import { toast } from "sonner";
+import * as z from "zod";
 
 const signInSchema = z.object({
-  username: z.string().min(1, { message: "Username is required" }),
+  email: z.string().min(1, { message: "Email is required" }),
   password: z.string().min(1, { message: "Password is required" }),
 });
 
@@ -24,38 +25,46 @@ export const Route = createFileRoute("/login")({
 });
 
 function RouteComponent() {
-  const { data: currentUserData } = authClient.useSession();
+  const router = useRouter();
 
   const form = useForm({
     resolver: zodResolver(signInSchema),
     defaultValues: {
-      username: "",
+      email: "",
       password: "",
     },
   });
 
   const [isLoading, setIsLoading] = useState(false);
+  const queryClient = useQueryClient();
 
-  async function onSubmit({ username, password }: FormValues) {
+  async function onSubmit({ email, password }: FormValues) {
     try {
-      await authClient.signIn.username(
+      await authClient.signIn.email(
         {
-          username,
+          email,
           password,
         },
         {
-          onError: ({ error }) => {
-            toast.error(
-              error.message || "Login failed, invalid username or password"
-            );
+          onError: (ctx) => {
+            if (ctx.error.status === 403) {
+              toast.error("Please verify your email address");
+            } else {
+              toast.error(
+                ctx.error.message || "Login failed, invalid email or password"
+              );
+            }
             setIsLoading(false);
           },
           onRequest: () => {
             setIsLoading(true);
           },
-          onSuccess: () => {
+          onSuccess: async () => {
+            await queryClient.invalidateQueries(["session"]);
+            await queryClient.refetchQueries(['session']);
             toast.success("Successfully signed in");
             setIsLoading(false);
+            router.navigate({ to: "/dashboard" });
           },
         }
       );
@@ -64,10 +73,14 @@ function RouteComponent() {
     }
   }
 
-  const { isPending } = authClient.useSession();
+  const { data: userData, isLoading: sessionPending } = useQuery({
+    queryKey: ['session'],
+    queryFn: fetchUserSession
+  });
 
-  if (currentUserData) {
-    // TODO redirect to main dashboard
+  if (userData?.data?.user && !sessionPending) {
+    console.log("User Session", JSON.stringify(userData))
+    router.navigate({ to: "/dashboard" });
   }
 
   return (
@@ -98,9 +111,9 @@ function RouteComponent() {
                   fieldState: { error },
                 }) => (
                   <div className="flex flex-col gap-2">
-                    <Label>Username</Label>
+                    <Label>Email</Label>
                     <Input
-                      placeholder="Username"
+                      placeholder="Email"
                       onBlur={onBlur}
                       onChange={onChange}
                       className={cn(error && "border-destructive")}
@@ -111,7 +124,7 @@ function RouteComponent() {
                     )}
                   </div>
                 )}
-                name="username"
+                name="email"
               />
               <Controller
                 control={form.control}
@@ -140,18 +153,27 @@ function RouteComponent() {
               <Button
                 size="lg"
                 onClick={form.handleSubmit(onSubmit)}
-                disabled={isPending || isLoading}
+                disabled={sessionPending || isLoading}
                 className="flex-row gap-2 items-center"
               >
-                <p className="font-bold">Sign In</p>
-                {isPending ||
+                Sign In
+                {sessionPending ||
                   (isLoading && (
                     <Loader className="text-foreground animate-spin" />
                   ))}
               </Button>
-              {/* TODO <Link to="" className="text-muted-foreground text-xs text-center underline">
-                Forgot Password?
-              </Link> */}
+              <Button
+                size="lg"
+                variant="secondary"
+                onClick={() => {
+                  router.navigate({ to: "/register" });
+                }}
+                disabled={sessionPending || isLoading}
+                className="flex-row gap-2 items-center"
+              >
+                Register For Account
+              </Button>
+              {/* TODO Forgot Password Button */}
             </div>
           </CardContent>
         </Card>

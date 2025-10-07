@@ -7,9 +7,34 @@ import {
 export const authClient = createAuthClient({
   baseURL: import.meta.env.VITE_SERVER_URL,
   plugins: [
-    usernameClient(),
-    // TODO inferAdditionalFields: ({
-
-    // })
-  ]
+    inferAdditionalFields({
+      user: {
+        major: {
+          type: "string",
+          required: false
+        },
+        year: {
+          type: "string",
+          required: false
+        },
+        bio: {
+          type: "string",
+          required: false
+        },
+        birthdate: {
+          type: "date",
+          required: false
+        },
+      }
+    }),
+    usernameClient()
+  ],
 })
+
+export async function fetchUserSession() {
+  const response = await authClient.getSession({ query: {
+    disableCookieCache: true
+  }});
+
+  return response;
+}

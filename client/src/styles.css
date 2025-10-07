@@ -26,7 +26,7 @@ code {
   --popover: oklch(0.98 0.005 85);
   --popover-foreground: oklch(0.15 0.005 85);
   --primary: #CFB991;
-  --primary-foreground: oklch(0.98 0 0);
+  --primary-foreground: oklch(0.15 0.005 85);
   --secondary: oklch(0.92 0.02 85);
   --secondary-foreground: oklch(0.15 0.005 85);
   --muted: oklch(0.92 0.02 85);
@@ -135,4 +135,8 @@ code {
   body {
     @apply bg-background text-foreground;
   }
+}
+
+.field-sizing-content {
+  field-sizing: content;
 }

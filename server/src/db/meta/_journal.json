@@ -15,6 +15,41 @@
       "when": 1758071591318,
       "tag": "0001_pale_riptide",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1759029022256,
+      "tag": "0002_gigantic_hellion",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1759033196754,
+      "tag": "0003_salty_prowler",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1759636598527,
+      "tag": "0004_opposite_riptide",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1759626469323,
+      "tag": "0005_natural_xavin",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1759786719135,
+      "tag": "0006_dusty_shinobi_shaw",
+      "breakpoints": true
     }
   ]
 }
