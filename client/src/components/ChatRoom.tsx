@@ -17,7 +17,8 @@ import {
   PhoneOff,
   User,
   Phone,
-  Heart
+  Heart,
+  PhoneCall
 } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
@@ -44,7 +45,10 @@ export function ChatRoom({ roomId }: { roomId: string }) {
   const [connectionStatus, setConnectionStatus] = useState("Connecting...");
   const [otherUserId, setOtherUserId] = useState<string | null>(null);
   const [feedbackPage, setFeedbackPage] = useState(false);
-  const [waitingOtherResponse, setWaitingOtherResponse] = useState(false);
+  const [waitingUserResponse, setWaitingUserResponse] = useState(false);
+  const [passedFirstCall, setPassedFirstCall] = useState(false);
+  const [userHasMatched, setUserHasMatched] = useState(false);
+  const [callAgainButtonClicked, setCallAgainButtonClicked] = useState(false);
 
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
@@ -119,7 +123,6 @@ export function ChatRoom({ roomId }: { roomId: string }) {
     if (localStreamRef.current) {
       const videoTrack = localStreamRef.current.getVideoTracks()[0];
       if (videoTrack) {
-        console.log("TOGGLING VIDEO CURRENTLY: ", videoTrack.enabled);
         videoTrack.enabled = !videoTrack.enabled;
         setIsVideoEnabled(videoTrack.enabled);
       }
@@ -130,7 +133,6 @@ export function ChatRoom({ roomId }: { roomId: string }) {
     if (localStreamRef.current) {
       const audioTrack = localStreamRef.current.getAudioTracks()[0];
       if (audioTrack) {
-        console.log("TOGGLING AUDIO CURRENTLY: ", audioTrack.enabled);
         audioTrack.enabled = !audioTrack.enabled;
         setIsAudioEnabled(audioTrack.enabled);
       }
@@ -387,6 +389,7 @@ export function ChatRoom({ roomId }: { roomId: string }) {
 
       videoChatSocket.on("user-left", ({ userId }) => {
         console.log("User left:", userId);
+        toast("Video Chat ended by other user.");
         setOtherUserId(null);
         setRemoteStream(null);
         setConnectionStatus("Other user left");
@@ -405,13 +408,28 @@ export function ChatRoom({ roomId }: { roomId: string }) {
       });
 
       videoChatSocket.on("call-again", () => {
-        setWaitingOtherResponse(false); 
+        setWaitingUserResponse(false); 
+        setCallAgainButtonClicked(false);
+        setFeedbackPage(false);
         console.log("call-again received"); 
         timeoutTransmissions(false);
+        setPassedFirstCall(true);
       });
 
       /* TODO for when BOTH users match */
-      videoChatSocket.on("match", () => {});
+      videoChatSocket.on("match", () => {
+        setWaitingUserResponse(false);
+        setFeedbackPage(false);
+        console.log("Match received");
+        toast("It's a Match!");
+        setOtherUserId(null);
+        setRemoteStream(null);
+        if (remoteVideoRef.current) {
+          remoteVideoRef.current.srcObject = null;
+        }
+        // TODO implement actual match functionality here once ready
+        leaveRoom();
+      });
 
       videoChatSocket.on("user-call-again", () => {toast.info("The other user wants to call again!"); });
 
@@ -435,44 +453,49 @@ export function ChatRoom({ roomId }: { roomId: string }) {
     }
   };
 
+  const softLeave = () => {
+    if (socket) {
+      socket.emit("soft-leave");
+    }
+  }
+
   const leaveRoom = () => {
     if (socket) {
       socket.emit("leave-room");
     }
     cleanup();
-    toast("Video Chat ended");
     router.navigate({ to: "/dashboard" });
   };
 
-  /* TODO for when THIS USER wants to call again */
-  const callAgain = async () => {
-    setFeedbackPage(false); 
-    setWaitingOtherResponse(true); 
-
-    // Notify the server
-    if (socket) {
-      socket.emit("user-call-again");
+  const toggleCallAgain = async () => {
+    if (!callAgainButtonClicked) {
+      setWaitingUserResponse(true);
+      setCallAgainButtonClicked(true);
+      if (socket) {
+        socket.emit("user-call-again");
+      }
+    } else {
+      setWaitingUserResponse(false);
+      setCallAgainButtonClicked(false);
+      if (socket) {
+        socket.emit("user-uncall");
+      }
     }
   }
 
-  /* TODO for when THIS USER wants to match */
-  const match = async () => {
-    setFeedbackPage(false); 
-    setWaitingOtherResponse(true); 
-
-    if (socket) {
-      socket.emit("user-match");
-    }
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: true,
-      audio: true,
-    });
-    console.log("STREAM", stream);
-    setLocalStream(stream);
-    localStreamRef.current = stream;
-
-    if (localVideoRef.current) {
-      localVideoRef.current.srcObject = stream;
+  const toggleMatch = async () => {
+    if (!userHasMatched) {
+      setWaitingUserResponse(true); 
+      setUserHasMatched(true);
+      if (socket) {
+        socket.emit("user-match");
+      }
+    } else {
+      setWaitingUserResponse(false);
+      setUserHasMatched(false);
+      if (socket) {
+        socket.emit("user-unmatch");
+      }
     }
   }
 
@@ -520,12 +543,12 @@ export function ChatRoom({ roomId }: { roomId: string }) {
           </div>
 
           {/* Dialog */}
-            <Dialog open={feedbackPage} onOpenChange={setFeedbackPage}>
+            <Dialog open={feedbackPage}>
               <DialogContent 
                 className="[&>button:first-of-type]:hidden"
                 onInteractOutside={(e) => {
                   e.preventDefault();
-              }}>
+                }}>
                 <div className="flex flex-col space-y-4">
                 <DialogTitle>End of Call!</DialogTitle>
                 <Card className="max-w-3xl flex flex-1">
@@ -560,20 +583,24 @@ export function ChatRoom({ roomId }: { roomId: string }) {
                       </CardHeader>
                     )}
                     <CardContent>
-                      <DialogClose asChild>
                         <div className="flex items-center gap-2 justify-between">
-                        <Button onClick={callAgain}>
+                        <Button onClick={toggleCallAgain}>
+                          {callAgainButtonClicked ? (
+                            <PhoneCall fill="orange"/>
+                          ) : (
+                            <Phone />
+                          )}
                           Call again?
                         </Button>
                         <Button
-                          onClick={match}
-                          className="rounded-full bg-pink-500"
+                          onClick={toggleMatch}
+                          className="rounded-full bg-pink-200"
                         >
-                          <Heart />
+                          <Heart fill={userHasMatched ? "red" : 'none'}/>
                           Match?
                         </Button>
                         <Button
-                          onClick={leaveRoom}
+                          onClick={() => {toast("Video Chat ended"); leaveRoom(); }}
                           variant="destructive"
                           size="icon"
                           className="rounded-full size-12"
@@ -581,7 +608,6 @@ export function ChatRoom({ roomId }: { roomId: string }) {
                           <Phone />
                         </Button>
                         </div>
-                      </DialogClose>
                     </CardContent>
                 </Card>
                 </div>
@@ -634,7 +660,7 @@ export function ChatRoom({ roomId }: { roomId: string }) {
                       playsInline
                       className="w-full h-64 lg:h-96 object-cover bg-card"
                     />
-                    {waitingOtherResponse && (
+                    {waitingUserResponse && (
                       <p className="text-foreground font-medium">
                         "User is still responding..."
                       </p>
@@ -644,7 +670,7 @@ export function ChatRoom({ roomId }: { roomId: string }) {
                     <div className="w-full h-64 text-center lg:h-96 flex flex-col items-center justify-center">
                       <Video className="w-12 h-12" />
                       <p className="text-foreground font-medium">
-                        {waitingOtherResponse ? (
+                        {waitingUserResponse ? (
                           "User is still responding..."
                         ) : (
                           otherUserId ? (
@@ -685,13 +711,22 @@ export function ChatRoom({ roomId }: { roomId: string }) {
                       {isAudioEnabled ? <Mic /> : <MicOff />}
                     </Button> */}
                     <Button
-                      onClick={leaveRoom}
+                      onClick={softLeave}
                       variant="destructive"
                       size="icon"
                       className="rounded-full size-12"
                     >
                       <Phone />
                     </Button>
+                    {passedFirstCall && (
+                      <Button
+                      onClick={toggleMatch}
+                      className="rounded-full bg-pink-200"
+                    >
+                      <Heart fill={userHasMatched ? "red" : 'none'} />
+                      Match?
+                    </Button>
+                    )}
                   </div>
                 </CardFooter>
               </Card>
