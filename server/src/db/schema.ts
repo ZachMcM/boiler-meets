@@ -73,3 +73,13 @@ export const matches = pgTable("matches", {
   second: text("second").notNull().references(() => user.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
+
+export const profileReactions = pgTable("profile_reactions", {
+  id: serial("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+  profileOwnerId: text("profile_owner_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+  targetId: text("target_id").notNull(),
+  targetType: text("target_type").notNull(),
+  emoji: text("emoji").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
