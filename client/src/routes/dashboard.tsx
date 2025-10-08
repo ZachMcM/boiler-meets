@@ -8,7 +8,7 @@ import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { UserCircle, Sparkles, Search, User, ChevronRight, UsersRound, MessageCircle } from "lucide-react";
+import { UserCircle, Sparkles, Search, User, ChevronRight, UsersRound, MessageCircle, Users, Heart } from "lucide-react";
 import { getMatches } from "@/endpoints";
 
 export const Route = createFileRoute("/dashboard")({
@@ -29,6 +29,7 @@ function RouteComponent() {
   const router = useRouter();
   const [showWelcomeDialog, setShowWelcomeDialog] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [matchFilter, setMatchFilter] = useState<"all" | "friend" | "romantic">("all");
 
   useEffect(() => {
     if (currentUserData?.data?.user && !sessionPending) {
@@ -74,8 +75,14 @@ function RouteComponent() {
     }
   };
 
-  // Filter matches based on search query
+  // Filter matches based on search query and match type
   const filteredMatches = matches?.filter((match) => {
+    // Filter by match type
+    if (matchFilter !== "all" && match.matchType !== matchFilter) {
+      return false;
+    }
+
+    // Filter by search query
     if (!searchQuery) return true;
     const query = searchQuery.toLowerCase();
     return (
@@ -95,7 +102,8 @@ function RouteComponent() {
             </p>
           </div>
           <div className="flex gap-3">
-            <FindRoomButton />
+            <FindRoomButton matchType="friend" label="Find Friends" icon={<Users />} />
+            <FindRoomButton matchType="romantic" label="Find Romance" icon={<Heart />} />
             <Button
               onClick={() => handleVisitProfile(currentUserData?.data?.user?.username)}
               variant="outline"
@@ -126,6 +134,38 @@ function RouteComponent() {
             </div>
           </CardHeader>
           <CardContent>
+            {/* Filter Tabs */}
+            {matches && matches.length > 0 && (
+              <div className="flex gap-2 mb-4">
+                <Button
+                  variant={matchFilter === "all" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setMatchFilter("all")}
+                  className="hover:cursor-pointer"
+                >
+                  All
+                </Button>
+                <Button
+                  variant={matchFilter === "friend" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setMatchFilter("friend")}
+                  className="hover:cursor-pointer"
+                >
+                  <Users className="w-4 h-4 mr-1" />
+                  Friends
+                </Button>
+                <Button
+                  variant={matchFilter === "romantic" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setMatchFilter("romantic")}
+                  className="hover:cursor-pointer"
+                >
+                  <Heart className="w-4 h-4 mr-1" />
+                  Romantic
+                </Button>
+              </div>
+            )}
+
             {/* Search Bar */}
             {matches && matches.length > 0 && (
               <div className="relative mb-6">
@@ -155,9 +195,22 @@ function RouteComponent() {
                     <CardContent className="p-4">
                       <div className="flex items-center justify-between gap-4">
                         <div className="flex-1 min-w-0">
-                          <h3 className="font-semibold text-base truncate">
-                            {match.user?.name || "Anonymous"}
-                          </h3>
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-semibold text-base truncate">
+                              {match.user?.name || "Anonymous"}
+                            </h3>
+                            {match.matchType === "friend" ? (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                <Users className="w-3 h-3 mr-1" />
+                                Friend
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-pink-100 text-pink-800">
+                                <Heart className="w-3 h-3 mr-1" />
+                                Romantic
+                              </span>
+                            )}
+                          </div>
                           <p className="text-sm text-muted-foreground truncate">
                             {match.user?.major} • {match.user?.year}
                           </p>
@@ -205,7 +258,12 @@ function RouteComponent() {
                       ? "Don't worry, you'll find them someday!"
                       : "Start a video chat and get your first match!"}
                   </p>
-                  {!searchQuery && <FindRoomButton />}
+                  {!searchQuery && (
+                    <div className="flex gap-2 justify-center">
+                      <FindRoomButton matchType="friend" label="Find Friends" icon={<Users />} />
+                      <FindRoomButton matchType="romantic" label="Find Romance" icon={<Heart />} />
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             )}

@@ -1,11 +1,12 @@
 import { useState, useRef, useEffect } from "react"
 import { Label } from "./ui/label";
 import { Card, CardContent } from "./ui/card";
-import { GripVertical, X, Maximize2, Plus, Save, Eye, Edit2, ChevronDown, BookCopy, CopyPlus, ChevronLeft, ChevronRight } from 'lucide-react';
+import { GripVertical, X, Maximize2, Plus, Save, Eye, Edit2, ChevronDown, BookCopy, CopyPlus, ChevronLeft, ChevronRight, Smile } from 'lucide-react';
 import React from "react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./ui/dropdown-menu";
 import { Button } from "./ui/button";
 import { toast } from "sonner";
+import type { Reaction } from "@/types/user";
 
 // ==================== TYPES ====================
 
@@ -43,6 +44,9 @@ interface ProfileModuleEditorProps {
   initialModules?: DraggableModule[];
   onSave?: (modules: DraggableModule[]) => void;
   permission?: 'edit' | 'view';
+  reactions?: Reaction[];
+  onReaction?: (moduleId: string, emoji: string) => void;
+  canReact?: boolean;
 }
 
 interface ProfileModuleCarouselProps {
@@ -281,7 +285,7 @@ function ProfileModuleContainer(profileData: ModuleDataEntry[], editable: boolea
 
 // ==================== MODULE EDITOR ====================
 
-function ProfileModuleEditor({ initialModules, onSave, permission = 'edit' }: ProfileModuleEditorProps) {
+function ProfileModuleEditor({ initialModules, onSave, permission = 'edit', reactions = [], onReaction, canReact = false }: ProfileModuleEditorProps) {
   const COLS = 6;
   const ROWS = 4;
   const containerRef = useRef<HTMLDivElement>(null);
@@ -608,7 +612,7 @@ function ProfileModuleEditor({ initialModules, onSave, permission = 'edit' }: Pr
             return (
               <div
                 key={module.id}
-                className="absolute bg-white rounded-lg shadow-md border-2 border-gray-300 overflow-hidden transition-all"
+                className="absolute bg-white rounded-lg shadow-md border-2 border-gray-300 overflow-hidden transition-all flex flex-col"
                 style={{
                   left: `${module.gridX * cellWidth + padding}px`,
                   top: `${module.gridY * cellHeight + padding}px`,
@@ -617,7 +621,7 @@ function ProfileModuleEditor({ initialModules, onSave, permission = 'edit' }: Pr
                   cursor: mode === 'edit' && dragging?.id === module.id ? 'grabbing' : 'default',
                 }}
               >
-                <div 
+                <div
                   className={`text-black p-2 flex items-center justify-between ${
                     mode === 'edit' ? 'cursor-grab active:cursor-grabbing' : ''
                   }`}
@@ -636,8 +640,8 @@ function ProfileModuleEditor({ initialModules, onSave, permission = 'edit' }: Pr
                     </button>
                   )}
                 </div>
-                
-                <div className="overflow-auto" style={{ height: 'calc(100% - 52px)' }}>
+
+                <div className="overflow-auto flex-1" style={{ minHeight: 0 }}>
                   {moduleType && moduleType.elements.map((element) => (
                     <div key={element.id} className={`p-3 h-full flex ${mode !== 'edit' ? 'items-center' : ''} justify-center`}>
                       <ProfileModuleElement
@@ -649,6 +653,15 @@ function ProfileModuleEditor({ initialModules, onSave, permission = 'edit' }: Pr
                     </div>
                   ))}
                 </div>
+
+                {canReact && mode === 'view' && (
+                  <ReactionBar
+                    moduleId={module.id.toString()}
+                    reactions={reactions}
+                    onReaction={(emoji) => onReaction?.(`module-${module.id}`, emoji)}
+                    canReact={canReact}
+                  />
+                )}
 
                 {mode === 'edit' && (
                   <div
@@ -760,6 +773,84 @@ function ProfileModuleCarousel({ initialModules }: ProfileModuleCarouselProps) {
       <div className="text-center mt-4 text-slate-500 text-sm">
         {currentIndex + 1} / {visibleModules.length}
       </div>
+    </div>
+  );
+}
+
+// =================== REACTION BAR ==================
+
+interface ReactionBarProps {
+  moduleId: string;
+  reactions: Reaction[];
+  onReaction?: (emoji: string) => void;
+  canReact: boolean;
+}
+
+const EMOJI_OPTIONS = ['❤️', '👍', '😂', '🔥', '👀', '🎉'];
+
+function ReactionBar({ moduleId, reactions, onReaction, canReact }: ReactionBarProps) {
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+
+  // Get reactions for this specific module
+  const moduleReactions = reactions.filter(r => r.targetId === `module-${moduleId}`);
+
+  // Group reactions by emoji
+  const reactionGroups = moduleReactions.reduce((acc, reaction) => {
+    if (!acc[reaction.emoji]) {
+      acc[reaction.emoji] = [];
+    }
+    acc[reaction.emoji].push(reaction);
+    return acc;
+  }, {} as Record<string, Reaction[]>);
+
+  const handleEmojiClick = (emoji: string) => {
+    if (onReaction && canReact) {
+      onReaction(emoji);
+      setShowEmojiPicker(false);
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-2 flex-wrap p-2 border-t border-slate-200">
+      {Object.entries(reactionGroups).map(([emoji, reactionList]) => (
+        <div
+          key={emoji}
+          className="flex items-center gap-1 px-2 py-1 bg-slate-100 rounded-full text-sm"
+          title={reactionList.map(r => r.userName).join(', ')}
+        >
+          <span>{emoji}</span>
+          <span className="text-slate-600">{reactionList.length}</span>
+        </div>
+      ))}
+
+      {canReact && (
+        <div className="relative">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+            className="h-7 px-2 hover:bg-slate-100"
+          >
+            <Smile className="w-4 h-4" />
+          </Button>
+
+          {showEmojiPicker && (
+            <div className="absolute bottom-full left-0 mb-2 bg-white rounded-lg shadow-lg border-2 border-slate-200 p-2 z-50">
+              <div className="flex gap-1">
+                {EMOJI_OPTIONS.map(emoji => (
+                  <button
+                    key={emoji}
+                    onClick={() => handleEmojiClick(emoji)}
+                    className="hover:bg-slate-100 rounded p-1 text-xl transition-colors hover:cursor-pointer"
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
