@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, boolean, date, uuid, serial } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, boolean, date, uuid, serial, json } from "drizzle-orm/pg-core";
 
 export const user = pgTable("user", {
   id: text("id").primaryKey(),
@@ -17,7 +17,7 @@ export const user = pgTable("user", {
   major: text("major"),
   year: text("year"),
   bio: text("bio"),
-  profile: text("profile"),
+  profile: json("profile").default({}),
 });
 
 export const session = pgTable("session", {
