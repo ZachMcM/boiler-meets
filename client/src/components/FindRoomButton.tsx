@@ -6,7 +6,13 @@ import { io } from "socket.io-client";
 import { toast } from "sonner";
 import { Button } from "./ui/button";
 
-export default function FindRoomButton() {
+interface FindRoomButtonProps {
+  matchType: "friend" | "romantic";
+  label: string;
+  icon?: React.ReactNode;
+}
+
+export default function FindRoomButton({ matchType, label, icon }: FindRoomButtonProps) {
   const socketRef = useRef<ReturnType<typeof io> | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -27,7 +33,7 @@ export default function FindRoomButton() {
     }, 2000);
 
     const socket = io(`${import.meta.env.VITE_SERVER_URL}/room-finder`, {
-      auth: { userId: currentUserData?.user.id },
+      auth: { userId: currentUserData?.user.id, matchType },
       transports: ["websocket"],
     });
 
@@ -85,7 +91,7 @@ export default function FindRoomButton() {
         </>
       ) : (
         <>
-          <Video /> Start Video Chat
+          {icon || <Video />} {label}
         </>
       )}
     </Button>

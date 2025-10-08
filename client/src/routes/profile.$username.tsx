@@ -1,5 +1,4 @@
 import { ProfileModuleContainer, ProfileModuleEditor } from "@/components/ProfileModules";
-import { ProfileView } from "@/components/profile/ProfileView";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -7,12 +6,12 @@ import { authClient } from "@/lib/auth-client";
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import type { DraggableModule } from "@/components/ProfileModules";
 import { useState, useEffect } from "react";
-import { Save, Home, MessageCircle } from "lucide-react";
+import { Save, Home, MessageCircle, Users, Heart } from "lucide-react";
 import { toast } from "sonner";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import PurdueTrainHeader from '@/components/PurdueTrainAnimation';
 import { getMatches, getProfileReactions, addProfileReaction } from "@/endpoints";
-import type { Reaction, User } from "@/types";
+import type { Reaction } from "@/types/user";
 
 export const Route = createFileRoute("/profile/$username")({
   component: () => {
@@ -83,10 +82,12 @@ function RouteComponent(username: string) {
     enabled: permission === "view" && !!currentUserData?.user?.id,
   });
 
-  // Check if matched
-  const isMatched = matches?.some(
+  // Check if matched and get match type
+  const currentMatch = matches?.find(
     (match) => match.user?.username === username
-  ) || false;
+  );
+  const isMatched = !!currentMatch;
+  const matchType = currentMatch?.matchType;
 
   // Fetch reactions for this profile (only if viewing another user's profile)
   const { data: reactionsData = [], refetch: refetchReactions } = useQuery({
@@ -268,58 +269,10 @@ function RouteComponent(username: string) {
 
   const userAge = calculateAge(profileUserData.birthdate);
 
-  // Convert profile data to User format for ProfileView component
-  const userForProfileView: User = {
-    id: profileUserData.id,
-    name: profileUserData.name,
-    avatar: profileUserData.image,
-    bio: profileUserData.bio || '',
-    major: profileUserData.major || 'Undeclared',
-    year: (profileUserData.year as any) || 'Freshman',
-    interests: profileModules
-      .filter(m => m.visible)
-      .map(m => m.title)
-      .slice(0, 5), // Show first 5 modules as interests
-    isOnline: false,
-  };
-
-  // If viewing another user's profile and they are matched, show ProfileView component
-  if (permission === "view" && isMatched) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-background from-30% to-primary flex flex-col">
-        <div className="pl-10 pt-4 flex gap-3">
-          <Button
-            onClick={handleGoHome}
-            className="w-auto flex items-center gap-2 bg-slate-700 hover:bg-slate-800 text-white hover:cursor-pointer"
-            size="lg"
-          >
-            <Home size={18} />
-            Dashboard
-          </Button>
-          <Button
-            onClick={handleMessage}
-            className="w-auto flex items-center gap-2 bg-primary hover:bg-[#a19072] text-white hover:cursor-pointer"
-            size="lg"
-          >
-            <MessageCircle size={18} />
-            Message {profileUserData.name}
-          </Button>
-        </div>
-        <div className="flex-1">
-          <ProfileView
-            user={userForProfileView}
-            reactions={reactions}
-            onReaction={handleReaction}
-          />
-        </div>
-        <PurdueTrainHeader />
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background from-30% to-primary flex flex-col">
-      <div className="pl-10 pt-4 flex gap-3">
+      <div className="pl-10 pt-4 flex gap-3 items-center">
         <Button
           onClick={handleGoHome}
           className="w-auto flex items-center gap-2 bg-slate-700 hover:bg-slate-800 text-white hover:cursor-pointer"
@@ -328,7 +281,32 @@ function RouteComponent(username: string) {
           <Home size={18} />
           Dashboard
         </Button>
-        {permission == "view" && !isMatched && (
+        {permission === "view" && isMatched && (
+          <>
+            <Button
+              onClick={handleMessage}
+              className="w-auto flex items-center gap-2 bg-primary hover:bg-[#a19072] text-white hover:cursor-pointer"
+              size="lg"
+            >
+              <MessageCircle size={18} />
+              Message {profileUserData.name}
+            </Button>
+            {matchType && (
+              matchType === "friend" ? (
+                <span className="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+                  <Users className="w-4 h-4 mr-1.5" />
+                  Friend Match
+                </span>
+              ) : (
+                <span className="inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium bg-pink-100 text-pink-800">
+                  <Heart className="w-4 h-4 mr-1.5" />
+                  Romantic Match
+                </span>
+              )
+            )}
+          </>
+        )}
+        {permission === "view" && !isMatched && (
           <div className = "ml-4 text-3xl">Welcome to {profileUserData.name}'s profile!</div>
         )}
       </div>
@@ -371,10 +349,13 @@ function RouteComponent(username: string) {
         </Card>
         <Card className="flex-[2] flex flex-col">
           <CardContent className="h-full p-4">
-            <ProfileModuleEditor 
+            <ProfileModuleEditor
               initialModules={profileModules}
               onSave={handleProfileSave}
               permission={permission}
+              reactions={reactions}
+              onReaction={handleReaction}
+              canReact={isMatched && permission === "view"}
             />
           </CardContent>
         </Card>

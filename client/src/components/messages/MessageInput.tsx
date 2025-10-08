@@ -5,12 +5,16 @@ import { Send } from 'lucide-react';
 
 interface MessageInputProps {
   onSendMessage: (content: string) => void;
+  onStartTyping?: () => void;
+  onStopTyping?: () => void;
   placeholder?: string;
   maxLength?: number;
 }
 
 export function MessageInput({
   onSendMessage,
+  onStartTyping,
+  onStopTyping,
   placeholder = "Type a message...",
   maxLength = 500
 }: MessageInputProps) {
@@ -20,6 +24,16 @@ export function MessageInput({
     if (message.trim()) {
       onSendMessage(message.trim());
       setMessage('');
+      onStopTyping?.();
+    }
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setMessage(e.target.value);
+    if (e.target.value.length > 0 && !message) {
+      onStartTyping?.();
+    } else if (e.target.value.length === 0) {
+      onStopTyping?.();
     }
   };
 
@@ -35,7 +49,7 @@ export function MessageInput({
       <div className="flex gap-2">
         <Input
           value={message}
-          onChange={(e) => setMessage(e.target.value)}
+          onChange={handleChange}
           onKeyPress={handleKeyPress}
           placeholder={placeholder}
           className="flex-1"

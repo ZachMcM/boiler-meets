@@ -427,17 +427,17 @@ export function ChatRoom({ roomId }: { roomId: string }) {
       });
 
       /* TODO for when BOTH users match */
-      videoChatSocket.on("match", async () => {
+      videoChatSocket.on("match", async ({ matchType }: { matchType: "friend" | "romantic" }) => {
         setWaitingUserResponse(false);
         setFeedbackPage(false);
-        console.log("Match received");
+        console.log("Match received with type:", matchType);
         console.log("otherUserIdRef.current:", otherUserIdRef.current); // Debug log
         toast("It's a Match!");
-        
+
         // Use the ref instead of state
         try {
           if (otherUserIdRef.current && session?.user?.id && session.user.id < otherUserIdRef.current) {
-            await createMatch(session.user.id, otherUserIdRef.current);
+            await createMatch(session.user.id, otherUserIdRef.current, matchType);
             console.log("Match created successfully");
             queryClient.invalidateQueries({ queryKey: ["matches"] });
           } else {
@@ -447,14 +447,14 @@ export function ChatRoom({ roomId }: { roomId: string }) {
           console.error("Failed to create match:", error);
           toast.error("Failed to save match");
         }
-        
+
         setOtherUserId(null);
         otherUserIdRef.current = null;  // Clear the ref too
         setRemoteStream(null);
         if (remoteVideoRef.current) {
           remoteVideoRef.current.srcObject = null;
         }
-        
+
         leaveRoom();
       });
 
