@@ -66,11 +66,11 @@ export async function getUserByUsername(username: string) {
   return user;
 }
 
-export const createMatch = async (firstUserId: string, secondUserId: string) => {
+export const createMatch = async (firstUserId: string, secondUserId: string, matchType: "friend" | "romantic") => {
   return await serverRequest({
     endpoint: "/matches",
     method: "POST",
-    body: JSON.stringify({ firstUserId, secondUserId }),
+    body: JSON.stringify({ firstUserId, secondUserId, matchType }),
   });
 };
 
