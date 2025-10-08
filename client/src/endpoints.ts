@@ -57,6 +57,15 @@ export async function getUser(userId: string): Promise<User> {
   return user;
 }
 
+export async function getUserByUsername(username: string) {
+  const user = await serverRequest({
+    endpoint: `/user/username/${username}`,
+    method: "GET",
+  });
+
+  return user;
+}
+
 export const createMatch = async (firstUserId: string, secondUserId: string) => {
   return await serverRequest({
     endpoint: "/matches",
