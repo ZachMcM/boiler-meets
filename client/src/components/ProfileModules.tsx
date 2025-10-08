@@ -667,7 +667,7 @@ function ProfileModuleEditor({ initialModules, onSave, permission = 'edit' }: Pr
               <p className="text-sm">
                 {mode === 'edit' 
                   ? 'No modules visible. Click "Modules" to get started.' 
-                  : 'No modules in this profile.'}
+                  : 'Wow this guy is boring, there\'s nothing here!'}
               </p>
             </div>
           )}

@@ -21,8 +21,8 @@ import {
   PhoneCall
 } from "lucide-react";
 import { toast } from "sonner";
-import { useQuery } from "@tanstack/react-query";
-import { getUser } from "@/endpoints";
+import { QueryClientProvider, useQuery, useQueryClient } from "@tanstack/react-query";
+import { createMatch, getUser } from "@/endpoints";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import {
   Dialog,
@@ -37,6 +37,7 @@ import { ProfileModuleCarousel } from "./ProfileModules";
 export function ChatRoom({ roomId }: { roomId: string }) {
   const router = useRouter();
   const { data: session } = authClient.useSession();
+  const queryClient = useQueryClient();
 
   const [socket, setSocket] = useState<Socket | null>(null);
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
@@ -45,6 +46,7 @@ export function ChatRoom({ roomId }: { roomId: string }) {
   const [isAudioEnabled, setIsAudioEnabled] = useState(true);
   const [connectionStatus, setConnectionStatus] = useState("Connecting...");
   const [otherUserId, setOtherUserId] = useState<string | null>(null);
+  const otherUserIdRef = useRef<string | null>(null);
   const [feedbackPage, setFeedbackPage] = useState(false);
   const [waitingUserResponse, setWaitingUserResponse] = useState(false);
   const [passedFirstCall, setPassedFirstCall] = useState(false);
@@ -63,6 +65,11 @@ export function ChatRoom({ roomId }: { roomId: string }) {
     queryFn: async () => await getUser(otherUserId!),
     enabled: !!otherUserId,
   });
+
+  // To solve problems associated with React states not updating
+  useEffect(() => {
+    otherUserIdRef.current = otherUserId;
+  }, [otherUserId]);
 
   useEffect(() => {
     if (!session?.user?.id) {
@@ -161,7 +168,7 @@ export function ChatRoom({ roomId }: { roomId: string }) {
 
       // Get user media
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: true,
+        video: false,
         audio: true,
       });
       console.log("STREAM", stream);
@@ -256,6 +263,7 @@ export function ChatRoom({ roomId }: { roomId: string }) {
         // Ignore our own events
         if (userId === session?.user.id) return;
         setOtherUserId(userId);
+        otherUserIdRef.current = userId;
 
         // Only proceed if we're in stable state (not already negotiating)
         if (pc.signalingState !== "stable") {
@@ -301,6 +309,7 @@ export function ChatRoom({ roomId }: { roomId: string }) {
         // Ignore our own events
         if (from === session?.user.id) return;
         setOtherUserId(from);
+        otherUserIdRef.current = from;
 
         // Handle glare condition - if we're also trying to send an offer
         if (pc.signalingState === "have-local-offer") {
@@ -418,17 +427,34 @@ export function ChatRoom({ roomId }: { roomId: string }) {
       });
 
       /* TODO for when BOTH users match */
-      videoChatSocket.on("match", () => {
+      videoChatSocket.on("match", async () => {
         setWaitingUserResponse(false);
         setFeedbackPage(false);
         console.log("Match received");
+        console.log("otherUserIdRef.current:", otherUserIdRef.current); // Debug log
         toast("It's a Match!");
+        
+        // Use the ref instead of state
+        try {
+          if (otherUserIdRef.current && session?.user?.id && session.user.id < otherUserIdRef.current) {
+            await createMatch(session.user.id, otherUserIdRef.current);
+            console.log("Match created successfully");
+            queryClient.invalidateQueries({ queryKey: ["matches"] });
+          } else {
+            console.log("Other user will create match or otherUserId is null");
+          }
+        } catch (error) {
+          console.error("Failed to create match:", error);
+          toast.error("Failed to save match");
+        }
+        
         setOtherUserId(null);
+        otherUserIdRef.current = null;  // Clear the ref too
         setRemoteStream(null);
         if (remoteVideoRef.current) {
           remoteVideoRef.current.srcObject = null;
         }
-        // TODO implement actual match functionality here once ready
+        
         leaveRoom();
       });
 

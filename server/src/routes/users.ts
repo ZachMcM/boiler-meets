@@ -2,8 +2,8 @@
 import { Router } from "express";
 import { authMiddleware } from "../middleware";
 import { db } from "../db";
-import { eq } from "drizzle-orm";
-import { user } from "../db/schema";
+import { eq, inArray, sql } from "drizzle-orm";
+import { user, matches } from "../db/schema";
 
 export const usersRoute = Router();
 
@@ -84,6 +84,88 @@ usersRoute.put("/user/profile", authMiddleware, async (req, res) => {
     res.json({ success: true });
   } catch (error) {
     console.error("save profile error:", error);
+    res.status(500).json({ error: "server error" });
+  }
+});
+
+usersRoute.post("/matches", authMiddleware, async (req, res) => {
+  try {
+    const { firstUserId, secondUserId } = req.body;
+
+    if (!firstUserId || !secondUserId) {
+      return res.status(400).json({ error: "missing userId(s)" });
+    }
+
+    // Insert into matches table
+    const newMatch = await db.insert(matches).values({
+      first: firstUserId,
+      second: secondUserId,
+    }).returning();
+
+    res.status(201).json(newMatch[0]);
+  } catch (error) {
+    console.error("create match error:", error);
+    res.status(500).json({ error: "server error" });
+  }
+});
+
+usersRoute.get("/matches", authMiddleware, async (req, res) => {
+  try {
+    const userId = res.locals.userId;
+
+    if (!userId) {
+      return res.status(401).json({ error: "unauthorized" });
+    }
+
+    // Get all matches where user is either first or second
+    const userMatches = await db
+      .select({
+        matchId: matches.id,
+        matchedUserId: sql<string>`CASE 
+          WHEN ${matches.first} = ${userId} THEN ${matches.second}
+          ELSE ${matches.first}
+        END`,
+        createdAt: matches.createdAt,
+      })
+      .from(matches)
+      .where(
+        sql`${matches.first} = ${userId} OR ${matches.second} = ${userId}`
+      );
+
+    // Get user details for each matched user
+    const matchedUserIds = userMatches.map((m) => m.matchedUserId);
+    
+    if (matchedUserIds.length === 0) {
+      return res.json([]);
+    }
+
+    const matchedUsers = await db
+      .select({
+        id: user.id,
+        username: user.username,
+        name: user.name,
+        image: user.image,
+        major: user.major,
+        year: user.year,
+        bio: user.bio,
+      })
+      .from(user)
+      .where(inArray(user.id, matchedUserIds));
+
+    // Combine match data with user data
+    const matchesWithUsers = userMatches.map((match) => {
+      const matchedUser = matchedUsers.find(
+        (u) => u.id === match.matchedUserId
+      );
+      return {
+        ...match,
+        user: matchedUser,
+      };
+    });
+
+    res.json(matchesWithUsers);
+  } catch (error) {
+    console.error("get matches error:", error);
     res.status(500).json({ error: "server error" });
   }
 });

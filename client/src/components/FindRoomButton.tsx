@@ -77,7 +77,7 @@ export default function FindRoomButton() {
   }
 
   return (
-    <Button className="w-fit" onClick={handleOnClick}>
+    <Button className="w-fit hover:cursor-pointer hover:bg-[#a19072]" onClick={handleOnClick}>
       {isLoading ? (
         <>
           <Loader2 className="animate-spin duration-500" />

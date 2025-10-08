@@ -212,7 +212,7 @@ function RouteComponent(username: string) {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background from-30% to-primary flex flex-col">
-      <div className="pl-10 pt-4">
+      <div className="pl-10 pt-4 flex">
         <Button
           onClick={handleGoHome}
           className="w-auto flex items-center gap-2 bg-slate-700 hover:bg-slate-800 text-white hover:cursor-pointer"
@@ -221,6 +221,9 @@ function RouteComponent(username: string) {
           <Home size={18} />
           Dashboard
         </Button>
+        {permission == "view" && (
+          <div className = "ml-4 text-3xl">Welcome to {profileUserData.name}'s profile!</div>
+        )}
       </div>
       <div className="flex flex-1 justify-center w-full pr-10 pl-10 pt-4 gap-3">
         <Card className="w-full flex-1">
