@@ -83,11 +83,11 @@ export default function PurdueTrainHeader() {
             opacity: 0;
           }
           5% {
-            transform: translateX(1%);
+            transform: translateX(6%);
             opacity: 1;
           }
           95% {
-            transform: translateX(95%);
+            transform: translateX(90%);
             opacity: 1;
           }
           100% {
