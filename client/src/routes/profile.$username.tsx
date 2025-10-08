@@ -1,4 +1,5 @@
 import { ProfileModuleContainer, ProfileModuleEditor } from "@/components/ProfileModules";
+import { ProfileView } from "@/components/profile/ProfileView";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -6,10 +7,12 @@ import { authClient } from "@/lib/auth-client";
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import type { DraggableModule } from "@/components/ProfileModules";
 import { useState, useEffect } from "react";
-import { Save, Home } from "lucide-react";
+import { Save, Home, MessageCircle } from "lucide-react";
 import { toast } from "sonner";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import PurdueTrainHeader from '@/components/PurdueTrainAnimation';
+import { getMatches, getProfileReactions, addProfileReaction } from "@/endpoints";
+import type { Reaction, User } from "@/types";
 
 export const Route = createFileRoute("/profile/$username")({
   component: () => {
@@ -72,6 +75,36 @@ function RouteComponent(username: string) {
   if (currentUserData?.user.username && currentUserData.user.username == username) {
     permission = "edit";
   }
+
+  // Fetch matches to determine if current user is matched with profile owner
+  const { data: matches } = useQuery({
+    queryKey: ["matches"],
+    queryFn: getMatches,
+    enabled: permission === "view" && !!currentUserData?.user?.id,
+  });
+
+  // Check if matched
+  const isMatched = matches?.some(
+    (match) => match.user?.username === username
+  ) || false;
+
+  // Fetch reactions for this profile (only if viewing another user's profile)
+  const { data: reactionsData = [], refetch: refetchReactions } = useQuery({
+    queryKey: ["profile-reactions", profileUserData?.id],
+    queryFn: () => getProfileReactions(profileUserData?.id),
+    enabled: !!profileUserData?.id && permission === "view",
+  });
+
+  // Convert reactions data to the format expected by ProfileView component
+  const reactions: Reaction[] = reactionsData.map((r: any) => ({
+    id: r.id.toString(),
+    emoji: r.emoji,
+    userId: r.userId,
+    userName: r.userName,
+    targetId: r.targetId,
+    targetType: r.targetType as any,
+    timestamp: new Date(r.createdAt),
+  }));
 
   // State for bio text
   const [bioText, setBioText] = useState("");
@@ -190,6 +223,31 @@ function RouteComponent(username: string) {
     router.navigate({ to: "/dashboard" });
   };
 
+  // Handler for navigating to messages
+  const handleMessage = () => {
+    router.navigate({ to: `/messages/${username}` });
+  };
+
+  // Handler for adding reactions
+  const handleReaction = async (targetId: string, emoji: string) => {
+    if (!profileUserData?.id || !isMatched) return;
+
+    try {
+      await addProfileReaction(
+        profileUserData.id,
+        targetId,
+        targetId.split("-")[0], // Extract type from targetId (e.g., "bio-user123" -> "bio")
+        emoji
+      );
+      // Refetch reactions to update the UI
+      await refetchReactions();
+      toast.success("Reaction added!");
+    } catch (error) {
+      console.error("Failed to add reaction:", error);
+      toast.error("Failed to add reaction");
+    }
+  };
+
   // Loading state
   if (isLoadingProfile) {
     return (
@@ -210,9 +268,58 @@ function RouteComponent(username: string) {
 
   const userAge = calculateAge(profileUserData.birthdate);
 
+  // Convert profile data to User format for ProfileView component
+  const userForProfileView: User = {
+    id: profileUserData.id,
+    name: profileUserData.name,
+    avatar: profileUserData.image,
+    bio: profileUserData.bio || '',
+    major: profileUserData.major || 'Undeclared',
+    year: (profileUserData.year as any) || 'Freshman',
+    interests: profileModules
+      .filter(m => m.visible)
+      .map(m => m.title)
+      .slice(0, 5), // Show first 5 modules as interests
+    isOnline: false,
+  };
+
+  // If viewing another user's profile and they are matched, show ProfileView component
+  if (permission === "view" && isMatched) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-background from-30% to-primary flex flex-col">
+        <div className="pl-10 pt-4 flex gap-3">
+          <Button
+            onClick={handleGoHome}
+            className="w-auto flex items-center gap-2 bg-slate-700 hover:bg-slate-800 text-white hover:cursor-pointer"
+            size="lg"
+          >
+            <Home size={18} />
+            Dashboard
+          </Button>
+          <Button
+            onClick={handleMessage}
+            className="w-auto flex items-center gap-2 bg-primary hover:bg-[#a19072] text-white hover:cursor-pointer"
+            size="lg"
+          >
+            <MessageCircle size={18} />
+            Message {profileUserData.name}
+          </Button>
+        </div>
+        <div className="flex-1">
+          <ProfileView
+            user={userForProfileView}
+            reactions={reactions}
+            onReaction={handleReaction}
+          />
+        </div>
+        <PurdueTrainHeader />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background from-30% to-primary flex flex-col">
-      <div className="pl-10 pt-4 flex">
+      <div className="pl-10 pt-4 flex gap-3">
         <Button
           onClick={handleGoHome}
           className="w-auto flex items-center gap-2 bg-slate-700 hover:bg-slate-800 text-white hover:cursor-pointer"
@@ -221,7 +328,7 @@ function RouteComponent(username: string) {
           <Home size={18} />
           Dashboard
         </Button>
-        {permission == "view" && (
+        {permission == "view" && !isMatched && (
           <div className = "ml-4 text-3xl">Welcome to {profileUserData.name}'s profile!</div>
         )}
       </div>
