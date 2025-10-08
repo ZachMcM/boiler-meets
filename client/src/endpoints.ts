@@ -71,3 +71,30 @@ export const getMatches = async (): Promise<Match[]> => {
     method: "GET",
   });
 };
+
+export const getProfileReactions = async (profileOwnerId: string) => {
+  return await serverRequest({
+    endpoint: `/profile-reactions/${profileOwnerId}`,
+    method: "GET",
+  });
+};
+
+export const addProfileReaction = async (
+  profileOwnerId: string,
+  targetId: string,
+  targetType: string,
+  emoji: string
+) => {
+  return await serverRequest({
+    endpoint: "/profile-reactions",
+    method: "POST",
+    body: JSON.stringify({ profileOwnerId, targetId, targetType, emoji }),
+  });
+};
+
+export const removeProfileReaction = async (reactionId: string) => {
+  return await serverRequest({
+    endpoint: `/profile-reactions/${reactionId}`,
+    method: "DELETE",
+  });
+};

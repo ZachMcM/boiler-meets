@@ -2,8 +2,8 @@
 import { Router } from "express";
 import { authMiddleware } from "../middleware";
 import { db } from "../db";
-import { eq, inArray, sql } from "drizzle-orm";
-import { user, matches } from "../db/schema";
+import { eq, inArray, sql, and } from "drizzle-orm";
+import { user, matches, profileReactions } from "../db/schema";
 
 export const usersRoute = Router();
 
@@ -166,6 +166,125 @@ usersRoute.get("/matches", authMiddleware, async (req, res) => {
     res.json(matchesWithUsers);
   } catch (error) {
     console.error("get matches error:", error);
+    res.status(500).json({ error: "server error" });
+  }
+});
+
+// Get all reactions for a specific profile
+usersRoute.get("/profile-reactions/:profileOwnerId", authMiddleware, async (req, res) => {
+  try {
+    const { profileOwnerId } = req.params;
+
+    if (!profileOwnerId) {
+      return res.status(400).json({ error: "missing profileOwnerId" });
+    }
+
+    // Get all reactions for this profile with user details
+    const reactions = await db
+      .select({
+        id: profileReactions.id,
+        emoji: profileReactions.emoji,
+        userId: profileReactions.userId,
+        targetId: profileReactions.targetId,
+        targetType: profileReactions.targetType,
+        createdAt: profileReactions.createdAt,
+        userName: user.name,
+      })
+      .from(profileReactions)
+      .leftJoin(user, eq(profileReactions.userId, user.id))
+      .where(eq(profileReactions.profileOwnerId, profileOwnerId));
+
+    res.json(reactions);
+  } catch (error) {
+    console.error("get profile reactions error:", error);
+    res.status(500).json({ error: "server error" });
+  }
+});
+
+// Add or toggle a reaction
+usersRoute.post("/profile-reactions", authMiddleware, async (req, res) => {
+  try {
+    const userId = res.locals.userId;
+    const { profileOwnerId, targetId, targetType, emoji } = req.body;
+
+    if (!profileOwnerId || !targetId || !targetType || !emoji) {
+      return res.status(400).json({ error: "missing required fields" });
+    }
+
+    // Check if this exact reaction already exists
+    const existingReaction = await db
+      .select()
+      .from(profileReactions)
+      .where(
+        and(
+          eq(profileReactions.userId, userId),
+          eq(profileReactions.profileOwnerId, profileOwnerId),
+          eq(profileReactions.targetId, targetId),
+          eq(profileReactions.emoji, emoji)
+        )
+      )
+      .limit(1);
+
+    // If reaction exists, remove it (toggle off)
+    if (existingReaction.length > 0) {
+      await db
+        .delete(profileReactions)
+        .where(eq(profileReactions.id, existingReaction[0].id));
+
+      return res.json({ action: "removed", reactionId: existingReaction[0].id });
+    }
+
+    // Otherwise, add the new reaction
+    const newReaction = await db
+      .insert(profileReactions)
+      .values({
+        userId,
+        profileOwnerId,
+        targetId,
+        targetType,
+        emoji,
+      })
+      .returning();
+
+    res.status(201).json({ action: "added", reaction: newReaction[0] });
+  } catch (error) {
+    console.error("add profile reaction error:", error);
+    res.status(500).json({ error: "server error" });
+  }
+});
+
+// Delete a specific reaction
+usersRoute.delete("/profile-reactions/:reactionId", authMiddleware, async (req, res) => {
+  try {
+    const userId = res.locals.userId;
+    const { reactionId } = req.params;
+
+    if (!reactionId) {
+      return res.status(400).json({ error: "missing reactionId" });
+    }
+
+    // Only allow users to delete their own reactions
+    const reaction = await db
+      .select()
+      .from(profileReactions)
+      .where(eq(profileReactions.id, parseInt(reactionId)))
+      .limit(1);
+
+    if (reaction.length === 0) {
+      return res.status(404).json({ error: "reaction not found" });
+    }
+
+    if (reaction[0].userId !== userId) {
+      return res.status(403).json({ error: "unauthorized to delete this reaction" });
+    }
+
+    await db
+      .delete(profileReactions)
+      .where(eq(profileReactions.id, parseInt(reactionId)));
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error("delete profile reaction error:", error);
     res.status(500).json({ error: "server error" });
   }
 });
