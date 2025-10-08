@@ -13,6 +13,7 @@ export interface WebRTCIceCandidate {
 export interface RoomData {
   user1: string;
   user2: string;
+  matchType: "friend" | "romantic";
   createdAt: number;
 }
 

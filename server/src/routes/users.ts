@@ -90,16 +90,21 @@ usersRoute.put("/user/profile", authMiddleware, async (req, res) => {
 
 usersRoute.post("/matches", authMiddleware, async (req, res) => {
   try {
-    const { firstUserId, secondUserId } = req.body;
+    const { firstUserId, secondUserId, matchType } = req.body;
 
     if (!firstUserId || !secondUserId) {
       return res.status(400).json({ error: "missing userId(s)" });
+    }
+
+    if (!matchType || (matchType !== "friend" && matchType !== "romantic")) {
+      return res.status(400).json({ error: "invalid or missing matchType" });
     }
 
     // Insert into matches table
     const newMatch = await db.insert(matches).values({
       first: firstUserId,
       second: secondUserId,
+      matchType: matchType,
     }).returning();
 
     res.status(201).json(newMatch[0]);
@@ -121,10 +126,11 @@ usersRoute.get("/matches", authMiddleware, async (req, res) => {
     const userMatches = await db
       .select({
         matchId: matches.id,
-        matchedUserId: sql<string>`CASE 
+        matchedUserId: sql<string>`CASE
           WHEN ${matches.first} = ${userId} THEN ${matches.second}
           ELSE ${matches.first}
         END`,
+        matchType: matches.matchType,
         createdAt: matches.createdAt,
       })
       .from(matches)

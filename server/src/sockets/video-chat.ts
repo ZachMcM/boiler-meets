@@ -198,11 +198,11 @@ export async function videoChatHandler(socket: Socket) {
       console.log(`Match state for room ${roomId}:`, matchState)
 
       if (matchState[user1] && matchState[user2]) {
-        // Both users clicked "call again"
+        // Both users clicked "match"
         logger.info(`Both users in room ${roomId} clicked match`);
 
-        // Notify both users
-        io.of("/video-chat").to(roomId).emit("match");
+        // Notify both users with matchType
+        io.of("/video-chat").to(roomId).emit("match", { matchType: roomData.matchType });
 
       } else if ((matchState[user1] && callAgainState[user2]) || ( matchState[user2]) && (callAgainState[user1])) {
         console.log("One match one call again, sending call again.");
