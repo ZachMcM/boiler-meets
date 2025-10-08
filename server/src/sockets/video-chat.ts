@@ -12,7 +12,10 @@ export async function videoChatHandler(socket: Socket) {
   const userId = socket.handshake.auth.userId as string | undefined;
   let roomId = socket.handshake.auth.roomId as string | string[] | undefined;
   let timeoutId: ReturnType<typeof setTimeout>;
-  const timeoutMs = 10000;
+  const timeoutMs = 60000; // DEBUG TIMEOUT INTERVALS: 60,000 = 1 minute
+  const callAgainTimeout = 60000
+  // const timeoutMs = 300000; // Normal timeout intervals
+  // const callAgainTimeout = 300000 * 5
 
   logger.info(`Video chat connection - userId: ${userId}, roomId: ${JSON.stringify(roomId)}, type: ${typeof roomId}`);
 
@@ -156,7 +159,7 @@ export async function videoChatHandler(socket: Socket) {
         // Set a timeout for reconnecting feeds
         timeoutId = setTimeout(() => {
           io.of("/video-chat").to(roomId).emit("timeout");
-        }, timeoutMs);
+        }, callAgainTimeout);
       } else {
         // Notify the other user to click "call again"
         logger.info(`Waiting for both users to click call again in room ${roomId}`);
@@ -212,7 +215,7 @@ export async function videoChatHandler(socket: Socket) {
         // Set a timeout for reconnecting feeds
         timeoutId = setTimeout(() => {
           io.of("/video-chat").to(roomId).emit("timeout");
-        }, timeoutMs);
+        }, callAgainTimeout);
       }
       else {
         // Notify the other user to click "call again"
