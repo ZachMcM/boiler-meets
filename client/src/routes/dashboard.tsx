@@ -8,7 +8,7 @@ import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { UserCircle, Sparkles, Search, User, ChevronRight, UsersRound } from "lucide-react";
+import { UserCircle, Sparkles, Search, User, ChevronRight, UsersRound, MessageCircle } from "lucide-react";
 import { getMatches } from "@/endpoints";
 
 export const Route = createFileRoute("/dashboard")({
@@ -69,7 +69,9 @@ function RouteComponent() {
   };
 
   const handleMatchClick = (username: string) => {
-    // Eventually will navigate to Jason's chat rooms
+    if (username) {
+      router.navigate({ to: `/messages/${username}` });
+    }
   };
 
   // Filter matches based on search query
@@ -146,23 +148,46 @@ function RouteComponent() {
             ) : filteredMatches && filteredMatches.length > 0 ? (
               <div className="flex flex-col gap-2">
                 {filteredMatches.map((match) => (
-                  <Card 
-                    key={match.matchId} 
-                    className="hover:shadow-md transition-all hover:border-primary cursor-pointer py-0"
-                    onClick={() => handleMatchClick(match.user?.username || "")}
+                  <Card
+                    key={match.matchId}
+                    className="hover:shadow-md transition-all hover:border-primary py-0"
                   >
                     <CardContent className="p-4">
-                      <div className="flex items-center">
+                      <div className="flex items-center justify-between gap-4">
                         <div className="flex-1 min-w-0">
-                          <h3 className="font-semibold text-base truncate hover:text-primary w-fit" onClick={() => handleVisitProfile(match.user?.username)}>
+                          <h3 className="font-semibold text-base truncate">
                             {match.user?.name || "Anonymous"}
                           </h3>
                           <p className="text-sm text-muted-foreground truncate">
-                            Don't be shy, send them a message!
+                            {match.user?.major} • {match.user?.year}
                           </p>
                         </div>
-                        
-                        <ChevronRight className="w-5 h-5 text-muted-foreground flex-shrink-0" />
+
+                        <div className="flex gap-2 flex-shrink-0">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleVisitProfile(match.user?.username);
+                            }}
+                            className="hover:cursor-pointer"
+                          >
+                            <UserCircle className="w-4 h-4 mr-1" />
+                            Profile
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleMatchClick(match.user?.username || "");
+                            }}
+                            className="hover:cursor-pointer"
+                          >
+                            <MessageCircle className="w-4 h-4 mr-1" />
+                            Message
+                          </Button>
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
