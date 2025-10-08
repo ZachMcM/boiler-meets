@@ -16,7 +16,8 @@ export const user = pgTable("user", {
   birthdate: date("birthdate"),
   major: text("major"),
   year: text("year"),
-  bio: text("bio")
+  bio: text("bio"),
+  profile: text("profile"),
 });
 
 export const session = pgTable("session", {
