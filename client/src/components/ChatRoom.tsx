@@ -32,6 +32,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { ProfileModuleCarousel } from "./ProfileModules";
 
 export function ChatRoom({ roomId }: { roomId: string }) {
   const router = useRouter();
@@ -160,7 +161,7 @@ export function ChatRoom({ roomId }: { roomId: string }) {
 
       // Get user media
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: true,
+        video: false,
         audio: true,
       });
       console.log("STREAM", stream);
@@ -530,7 +531,7 @@ export function ChatRoom({ roomId }: { roomId: string }) {
       <div className="relative overflow-hidden">
         <div className="relative px-4 py-8 mx-auto max-w-7xl">
           {/* Header */}
-          <div className="mb-8">
+          <Card className="mb-8 p-2">
             <div className="space-y-2">
               <h1 className="text-3xl md:text-4xl font-bold">Video Chat</h1>
               <div className="space-y-1">
@@ -540,7 +541,7 @@ export function ChatRoom({ roomId }: { roomId: string }) {
                 </p>
               </div>
             </div>
-          </div>
+          </Card>
 
           {/* Dialog */}
             <Dialog open={feedbackPage}>
@@ -615,122 +616,136 @@ export function ChatRoom({ roomId }: { roomId: string }) {
             </Dialog>
 
           {/* Video Grid */}
-          {
-            <div className="flex w-full justify-center">
-              {/* Remote Video */}
-              <Card className="max-w-3xl flex flex-1">
-                {otherUser && !otherUserPending ? (
-                  <CardHeader>
-                    <div className="flex items-center gap-2">
-                      <Avatar>
-                        <AvatarImage src={otherUser?.image!} />
-                        <AvatarFallback>{otherUser?.name[0]}</AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <p className="font-semibold text-foreground">
-                          {otherUser.name || "Anonymous"}
-                        </p>
-                        <p>
-                          {otherUser.year} | {otherUser.major}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {otherUser.username}
-                        </p>
+          <div className = "flex">
+            {
+              <div className="flex flex-[2] w-full">
+                {/* Remote Video */}
+                <Card className="max-w-3xl flex flex-1">
+                  {otherUser && !otherUserPending ? (
+                    <CardHeader>
+                      <div className="flex items-center gap-2">
+                        <Avatar>
+                          <AvatarImage src={otherUser?.image!} />
+                          <AvatarFallback>{otherUser?.name[0]}</AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <p className="font-semibold text-foreground">
+                            {otherUser.name || "Anonymous"}
+                          </p>
+                          <p>
+                            {otherUser.year} | {otherUser.major}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {otherUser.username}
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                  </CardHeader>
-                ) : (
-                  <CardHeader>
-                    <div className="flex items-center gap-2">
-                      <User className="w-4 h-4 text-foreground" />
-                      <p className="font-semibold text-foreground">
-                        {otherUserId
-                          ? "Connecting..."
-                          : "Waiting for participant..."}
-                      </p>
-                    </div>
-                  </CardHeader>
-                )}
-                <CardContent className="p-0 relative">
-                  {remoteStream ? (
-                    <div>
-                    <video
-                      ref={remoteVideoRef}
-                      autoPlay
-                      playsInline
-                      className="w-full h-64 lg:h-96 object-cover bg-card"
-                    />
-                    {waitingUserResponse && (
-                      <p className="text-foreground font-medium">
-                        "User is still responding..."
-                      </p>
-                    )}
-                      </div>
+                    </CardHeader>
                   ) : (
-                    <div className="w-full h-64 text-center lg:h-96 flex flex-col items-center justify-center">
-                      <Video className="w-12 h-12" />
-                      <p className="text-foreground font-medium">
-                        {waitingUserResponse ? (
-                          "User is still responding..."
-                        ) : (
-                          otherUserId ? (
-                            "Connecting video..."
-                          ) : (
-                            "Waiting for other user to join..."
-                            )
-                        )}
-                      </p>
-                    </div>
+                    <CardHeader>
+                      <div className="flex items-center gap-2">
+                        <User className="w-4 h-4 text-foreground" />
+                        <p className="font-semibold text-foreground">
+                          {otherUserId
+                            ? "Connecting..."
+                            : "Waiting for participant..."}
+                        </p>
+                      </div>
+                    </CardHeader>
                   )}
-                  <div className="w-36 aspect-video absolute right-4 top-4">
-                    <video
-                      ref={localVideoRef}
-                      autoPlay
-                      playsInline
-                      muted
-                      className="w-full h-full object-cover bg-card rounded-md"
-                    />
-                  </div>
-                </CardContent>
-                <CardFooter>
-                  <div className="flex justify-center gap-4">
-                    {/* <Button
-                      onClick={toggleVideo}
-                      variant={isVideoEnabled ? "default" : "destructive"}
-                      size="icon"
-                      className="rounded-full size-12"
-                    >
-                      {isVideoEnabled ? <Video /> : <VideoOff />}
-                    </Button>
-                    <Button
-                      onClick={toggleAudio}
-                      variant={isAudioEnabled ? "default" : "destructive"}
-                      size="icon"
-                      className="rounded-full size-12"
-                    >
-                      {isAudioEnabled ? <Mic /> : <MicOff />}
-                    </Button> */}
-                    <Button
-                      onClick={softLeave}
-                      variant="destructive"
-                      size="icon"
-                      className="rounded-full size-12"
-                    >
-                      <Phone />
-                    </Button>
-                    {passedFirstCall && (
-                      <Button
-                      onClick={toggleMatch}
-                      className="rounded-full bg-pink-200"
-                    >
-                      <Heart fill={userHasMatched ? "red" : 'none'} />
-                      Match?
-                    </Button>
+                  <CardContent className="p-0 relative">
+                    {remoteStream ? (
+                      <div>
+                      <video
+                        ref={remoteVideoRef}
+                        autoPlay
+                        playsInline
+                        className="w-full h-64 lg:h-96 object-cover bg-card"
+                      />
+                      {waitingUserResponse && (
+                        <p className="text-foreground font-medium">
+                          "User is still responding..."
+                        </p>
+                      )}
+                        </div>
+                    ) : (
+                      <div className="w-full h-64 text-center lg:h-96 flex flex-col items-center justify-center">
+                        <Video className="w-12 h-12" />
+                        <p className="text-foreground font-medium">
+                          {waitingUserResponse ? (
+                            "User is still responding..."
+                          ) : (
+                            otherUserId ? (
+                              "Connecting video..."
+                            ) : (
+                              "Waiting for other user to join..."
+                              )
+                          )}
+                        </p>
+                      </div>
                     )}
-                  </div>
-                </CardFooter>
+                    <div className="w-36 aspect-video absolute right-4 top-4">
+                      <video
+                        ref={localVideoRef}
+                        autoPlay
+                        playsInline
+                        muted
+                        className="w-full h-full object-cover bg-card rounded-md"
+                      />
+                    </div>
+                  </CardContent>
+                  <CardFooter>
+                    <div className="flex justify-center gap-4">
+                      {/* <Button
+                        onClick={toggleVideo}
+                        variant={isVideoEnabled ? "default" : "destructive"}
+                        size="icon"
+                        className="rounded-full size-12"
+                      >
+                        {isVideoEnabled ? <Video /> : <VideoOff />}
+                      </Button>
+                      <Button
+                        onClick={toggleAudio}
+                        variant={isAudioEnabled ? "default" : "destructive"}
+                        size="icon"
+                        className="rounded-full size-12"
+                      >
+                        {isAudioEnabled ? <Mic /> : <MicOff />}
+                      </Button> */}
+                      <Button
+                        onClick={softLeave}
+                        variant="destructive"
+                        size="icon"
+                        className="rounded-full size-12"
+                      >
+                        <Phone />
+                      </Button>
+                      {passedFirstCall && (
+                        <Button
+                        onClick={toggleMatch}
+                        className="rounded-full bg-pink-200"
+                      >
+                        <Heart fill={userHasMatched ? "red" : 'none'} />
+                        Match?
+                      </Button>
+                      )}
+                    </div>
+                  </CardFooter>
+                </Card>
+              </div> }
+            <div className = "flex-1">
+              <Card className = "mb-4">
+                <CardContent>
+                  <div className = "text-xl">About Me</div>
+                </CardContent>
               </Card>
-            </div> }
+              {otherUser?.profile.modules ? (
+                <ProfileModuleCarousel initialModules={otherUser.profile.modules} />
+              ) : (
+                <Card className = "p-4 text-center text-3xl">No profile :(</Card>
+              )}
+            </div>
+          </div>
         </div>
       </div>
     </div>

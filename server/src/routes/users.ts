@@ -16,7 +16,8 @@ usersRoute.get("/users/:id", authMiddleware, async (req, res) => {
         image: true,
         name: true,
         major: true,
-        year: true
+        year: true,
+        profile: true
       }
     });
 
