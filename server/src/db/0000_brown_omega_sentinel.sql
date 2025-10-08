@@ -48,6 +48,11 @@ CREATE TABLE "verification" (
 	"created_at" timestamp,
 	"updated_at" timestamp
 );
+CREATE TABLE "matches" (
+	"id" text PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+	"first" UUID NOT NULL,
+	"second" UUID NOT NULL
+);
 --> statement-breakpoint
 ALTER TABLE "account" ADD CONSTRAINT "account_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "session" ADD CONSTRAINT "session_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;

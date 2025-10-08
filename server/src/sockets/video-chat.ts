@@ -11,6 +11,11 @@ import { RoomManager } from "../utils/room-manager";
 export async function videoChatHandler(socket: Socket) {
   const userId = socket.handshake.auth.userId as string | undefined;
   let roomId = socket.handshake.auth.roomId as string | string[] | undefined;
+  let timeoutId: ReturnType<typeof setTimeout>;
+  const timeoutMs = 60000; // DEBUG TIMEOUT INTERVALS: 60,000 = 1 minute
+  const callAgainTimeout = 60000
+  // const timeoutMs = 300000; // Normal timeout intervals
+  // const callAgainTimeout = 300000 * 5
 
   logger.info(`Video chat connection - userId: ${userId}, roomId: ${JSON.stringify(roomId)}, type: ${typeof roomId}`);
 
@@ -65,6 +70,10 @@ export async function videoChatHandler(socket: Socket) {
 
   socket.on("answer", (data: WebRTCAnswer) => {
     logger.info(`Answer received from ${userId} in room ${roomId}`);
+    timeoutId = setTimeout(() => { 
+      io.of("/video-chat").to(roomId).emit("timeout"); 
+      console.log("Server Timeout Event");
+    }, timeoutMs);
     socket.to(roomId).emit("answer", { answer: data.answer, from: userId });
   });
 
@@ -87,6 +96,12 @@ export async function videoChatHandler(socket: Socket) {
     }
   });
 
+  socket.on("soft-leave", () => {
+    clearTimeout(timeoutId);
+    io.of("/video-chat").to(roomId).emit("timeout"); 
+    console.log("Prematurely Ending Call");
+  })
+
   socket.on("leave-room", async () => {
     logger.info(`User ${userId} left video chat room ${roomId}`);
 
@@ -104,5 +119,139 @@ export async function videoChatHandler(socket: Socket) {
     }
 
     socket.disconnect();
+  });
+
+  socket.on("user-call-again", async () => {
+    try {
+      logger.info(`User ${userId} clicked call again in room ${roomId}`);
+      console.log(`User ${userId} clicked call again in room ${roomId}`);
+
+      // Set the call-again state for this user
+      await RoomManager.setCallAgainState(roomId, userId, true);
+
+      // Check the call-again state for both users
+      const callAgainState = await RoomManager.getCallAgainState(roomId);
+      const matchState = await RoomManager.getMatchState(roomId);
+      const roomData = await RoomManager.getRoomData(roomId);
+
+      if (!roomData) {
+        logger.error(`Room ${roomId} not found during call again`);
+        console.log(`Room ${roomId} not found during call again`)
+        socket.emit("error", { message: "Room not found" });
+        return;
+      }
+
+      const { user1, user2 } = roomData;
+
+      logger.info(`Call again state for room ${roomId}:`, callAgainState);
+      console.log(`Call again state for room ${roomId}:`, callAgainState)
+
+      if (callAgainState[user1] && callAgainState[user2] || ((matchState[user1] && callAgainState[user2]) || ( matchState[user2]) && (callAgainState[user1]))) {
+        // Both users clicked "call again"
+        logger.info(`Both users in room ${roomId} want to call again`);
+
+        // Notify both users
+        io.of("/video-chat").to(roomId).emit("call-again");
+
+        // Reset the call-again state
+        await RoomManager.resetCallAgainState(roomId);
+
+        // Set a timeout for reconnecting feeds
+        timeoutId = setTimeout(() => {
+          io.of("/video-chat").to(roomId).emit("timeout");
+        }, callAgainTimeout);
+      } else {
+        // Notify the other user to click "call again"
+        logger.info(`Waiting for both users to click call again in room ${roomId}`);
+        console.log(`Waiting for both users to click call again in room ${roomId}`);
+        socket.to(roomId).emit("user-call-again", { userId });
+      }
+    } catch (error) {
+      logger.error("Error handling user-call-again event:", error);
+      socket.emit("error", { message: "An error occurred while processing call again" });
+    }
+  });
+
+  socket.on("user-match", async () => {
+    try {
+      logger.info(`User ${userId} clicked match in room ${roomId}`);
+      console.log(`User ${userId} clicked match in room ${roomId}`);
+
+      // Set the call-again state for this user
+      await RoomManager.setMatchState(roomId, userId, true);
+
+      // Check the call-again state for both users
+      const matchState = await RoomManager.getMatchState(roomId);
+      const callAgainState = await RoomManager.getCallAgainState(roomId);
+      const roomData = await RoomManager.getRoomData(roomId);
+
+      if (!roomData) {
+        logger.error(`Room ${roomId} not found during call again`);
+        console.log(`Room ${roomId} not found during call again`)
+        socket.emit("error", { message: "Room not found" });
+        return;
+      }
+
+      const { user1, user2 } = roomData;
+
+      logger.info(`Match state for room ${roomId}:`, matchState);
+      console.log(`Match state for room ${roomId}:`, matchState)
+
+      if (matchState[user1] && matchState[user2]) {
+        // Both users clicked "call again"
+        logger.info(`Both users in room ${roomId} clicked match`);
+
+        // Notify both users
+        io.of("/video-chat").to(roomId).emit("match");
+
+      } else if ((matchState[user1] && callAgainState[user2]) || ( matchState[user2]) && (callAgainState[user1])) {
+        console.log("One match one call again, sending call again.");
+        // Notify both users
+        io.of("/video-chat").to(roomId).emit("call-again");
+
+        // Reset the call-again state
+        await RoomManager.resetCallAgainState(roomId);
+
+        // Set a timeout for reconnecting feeds
+        timeoutId = setTimeout(() => {
+          io.of("/video-chat").to(roomId).emit("timeout");
+        }, callAgainTimeout);
+      }
+      else {
+        // Notify the other user to click "call again"
+        logger.info(`Waiting for both users to match in room ${roomId}`);
+        console.log(`Waiting for both users to match in room ${roomId}`);
+        // socket.to(roomId).emit("user-match", { userId });
+      }
+    } catch (error) {
+      logger.error("Error handling user-match event:", error);
+      socket.emit("error", { message: "An error occurred while processing match" });
+    }
+  });
+
+  socket.on("user-uncall", async () => {
+    try {
+      logger.info(`User ${userId} clicked uncall in room ${roomId}`);
+      console.log(`User ${userId} clicked uncall in room ${roomId}`);
+
+      // Set the call-again state for this user
+      await RoomManager.setCallAgainState(roomId, userId, false);
+    } catch (error) {
+      logger.error("Error handling user-uncall event:", error);
+      socket.emit("error", { message: "An error occurred while processing call again" });
+    }
+  });
+
+  socket.on("user-unmatch", async () => {
+    try {
+      logger.info(`User ${userId} clicked unmatch in room ${roomId}`);
+      console.log(`User ${userId} clicked unmatch in room ${roomId}`);
+
+      // Set the call-again state for this user
+      await RoomManager.setMatchState(roomId, userId, false);
+    } catch (error) {
+      logger.error("Error handling unmatch event:", error);
+      socket.emit("error", { message: "An error occurred while processing unmatch" });
+    }
   });
 }

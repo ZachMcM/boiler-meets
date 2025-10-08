@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, boolean, date } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, boolean, date, uuid, serial } from "drizzle-orm/pg-core";
 
 export const user = pgTable("user", {
   id: text("id").primaryKey(),
@@ -65,4 +65,11 @@ export const verification = pgTable("verification", {
     .defaultNow()
     .$onUpdate(() => /* @__PURE__ */ new Date())
     .notNull(),
+});
+
+export const matches = pgTable("matches", {
+  id: serial("id").primaryKey(),
+  first: text("first").notNull().references(() => user.id),
+  second: text("second").notNull().references(() => user.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
 });

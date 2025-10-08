@@ -3,12 +3,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { authClient } from "@/lib/auth-client";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useRouter } from "@tanstack/react-router";
 import type { DraggableModule } from "@/components/ProfileModules";
 import { useState, useEffect } from "react";
-import { Save } from "lucide-react";
+import { Save, Home } from "lucide-react";
 import { toast } from "sonner";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
+import PurdueTrainHeader from '@/components/PurdueTrainAnimation';
 
 export const Route = createFileRoute("/profile/$username")({
   component: () => {
@@ -57,6 +58,7 @@ async function saveProfileData(modules: DraggableModule[]) {
 function RouteComponent(username: string) {
   const { data: currentUserData } = authClient.useSession();
   const queryClient = useQueryClient();
+  const router = useRouter();
 
   // Fetch the profile user's data
   const { data: profileUserData, isLoading: isLoadingProfile, error } = useQuery({
@@ -183,6 +185,11 @@ function RouteComponent(username: string) {
     }
   };
 
+  // Handler for navigating home
+  const handleGoHome = () => {
+    router.navigate({ to: "/dashboard" });
+  };
+
   // Loading state
   if (isLoadingProfile) {
     return (
@@ -204,52 +211,68 @@ function RouteComponent(username: string) {
   const userAge = calculateAge(profileUserData.birthdate);
 
   return (
-    <div className = "flex flex-1 justify-center w-full h-full bg-gradient-to-br from-background from-30% to-primary p-10 gap-3">
-      <Card className = "w-full flex-1">
-        <CardContent>
-          <div className = "pb-4 border-b">
-            <Label className = "text-6xl inline-block">
-              {profileUserData.name || "Anonymous User"}
-            </Label>
-            {userAge && (
-              <Label className = "text-5xl text-gray-700 inline-block ml-4">
-                {userAge}
+    <div className="min-h-screen bg-gradient-to-br from-background from-30% to-primary flex flex-col">
+      <div className="pl-10 pt-4 flex">
+        <Button
+          onClick={handleGoHome}
+          className="w-auto flex items-center gap-2 bg-slate-700 hover:bg-slate-800 text-white hover:cursor-pointer"
+          size="lg"
+        >
+          <Home size={18} />
+          Dashboard
+        </Button>
+        {permission == "view" && (
+          <div className = "ml-4 text-3xl">Welcome to {profileUserData.name}'s profile!</div>
+        )}
+      </div>
+      <div className="flex flex-1 justify-center w-full pr-10 pl-10 pt-4 gap-3">
+        <Card className="w-full flex-1">
+          <CardContent>
+            <div className="pb-4 border-b">
+              <Label className="text-6xl inline-block">
+                {profileUserData.name || "Anonymous User"}
               </Label>
+              {userAge && (
+                <Label className="text-5xl text-gray-700 inline-block ml-4">
+                  {userAge}
+                </Label>
+              )}
+              <Label className="text-3xl text-gray-500">
+                {profileUserData.major || "Undeclared"} • {profileUserData.year || "Freshman"}
+              </Label>
+            </div>
+            <textarea 
+              readOnly={permission === "view" || isLoading} 
+              disabled={permission === "view" || isLoading}
+              wrap="soft"
+              value={bioText}
+              onChange={handleBioChange}
+              placeholder="Write a bio about yourself..." 
+              className="w-full mt-8 resize-none max-h-full overflow-hidden field-sizing-content p-2"
+              style={{ overflowWrap: 'anywhere' }}
+            />
+            {permission === "edit" && hasChanged && !isLoading && (
+              <Button 
+                onClick={handleBioSave}
+                className="mt-4 hover:bg-[#a19072] text-white hover:cursor-pointer"
+              >
+                <Save size={14} />
+                Save Bio
+              </Button>
             )}
-            <Label className = "text-3xl text-gray-500">
-              {profileUserData.major || "Undeclared"} • {profileUserData.year || "Freshman"}
-            </Label>
-          </div>
-          <textarea 
-            readOnly = {permission === "view" || isLoading} 
-            disabled = {permission === "view" || isLoading}
-            wrap = "soft"
-            value = {bioText}
-            onChange = {handleBioChange}
-            placeholder = "Write a bio about yourself..." 
-            className = "w-full mt-8 resize-none max-h-full overflow-hidden field-sizing-content p-2"
-            style={{ overflowWrap: 'anywhere' }}
-          />
-          {permission === "edit" && hasChanged && !isLoading && (
-            <Button 
-              onClick={handleBioSave}
-              className="mt-4 hover:bg-[#a19072] text-white hover:cursor-pointer"
-            >
-              <Save size = {14} />
-              Save Bio
-            </Button>
-          )}
-        </CardContent>
-      </Card>
-      <Card className = "flex-[2]">
-        <CardContent className = "h-full p-4">
-          <ProfileModuleEditor 
-            initialModules={profileModules}
-            onSave={handleProfileSave}
-            permission={permission}
-          />
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+        <Card className="flex-[2] flex flex-col">
+          <CardContent className="h-full p-4">
+            <ProfileModuleEditor 
+              initialModules={profileModules}
+              onSave={handleProfileSave}
+              permission={permission}
+            />
+          </CardContent>
+        </Card>
+      </div>
+      <PurdueTrainHeader />
     </div>
   );
 }

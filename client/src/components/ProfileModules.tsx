@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react"
 import { Label } from "./ui/label";
 import { Card, CardContent } from "./ui/card";
-import { GripVertical, X, Maximize2, Plus, Save, Eye, Edit2, ChevronDown, BookCopy, CopyPlus } from 'lucide-react';
+import { GripVertical, X, Maximize2, Plus, Save, Eye, Edit2, ChevronDown, BookCopy, CopyPlus, ChevronLeft, ChevronRight } from 'lucide-react';
 import React from "react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./ui/dropdown-menu";
 import { Button } from "./ui/button";
@@ -43,6 +43,10 @@ interface ProfileModuleEditorProps {
   initialModules?: DraggableModule[];
   onSave?: (modules: DraggableModule[]) => void;
   permission?: 'edit' | 'view';
+}
+
+interface ProfileModuleCarouselProps {
+  initialModules: DraggableModule[];
 }
 
 interface ScrollingTextProps {
@@ -662,12 +666,99 @@ function ProfileModuleEditor({ initialModules, onSave, permission = 'edit' }: Pr
             <div className="flex items-center justify-center h-full text-slate-400 absolute inset-0">
               <p className="text-sm">
                 {mode === 'edit' 
-                  ? 'No modules visible. Click "Add Module" to get started.' 
-                  : 'No modules in this profile.'}
+                  ? 'No modules visible. Click "Modules" to get started.' 
+                  : 'Wow this guy is boring, there\'s nothing here!'}
               </p>
             </div>
           )}
         </div>
+      </div>
+    </div>
+  );
+}
+
+// =================== CAROUSEL VIEW ===================
+
+function ProfileModuleCarousel({ initialModules }: ProfileModuleCarouselProps) {
+  const visibleModules = initialModules.filter(m => m.visible);
+  const [currentIndex, setCurrentIndex] = useState(0);
+
+  const goToPrevious = () => {
+    setCurrentIndex((prev) => (prev === 0 ? visibleModules.length - 1 : prev - 1));
+  };
+
+  const goToNext = () => {
+    setCurrentIndex((prev) => (prev === visibleModules.length - 1 ? 0 : prev + 1));
+  };
+
+  const goToSlide = (index: number) => {
+    setCurrentIndex(index);
+  };
+
+  if (visibleModules.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-96 text-slate-400">
+        <p>No modules to display</p>
+      </div>
+    );
+  }
+
+  const currentModule = visibleModules[currentIndex];
+  const moduleType = getModuleByKey(currentModule.type);
+
+  return (
+    <div className="w-full max-w-4xl mx-auto">
+      <div className="relative bg-white rounded-lg shadow-lg border-2 border-slate-200 overflow-hidden">
+        <div className="min-h-[400px] flex flex-col items-center justify-center p-8">
+          <h2 className="text-3xl font-bold text-slate-800 mb-8 text-center">
+            {moduleType?.name}
+          </h2>
+          
+          <div className="text-6xl font-bold text-slate-700 text-center">
+            {currentModule.data[0]?.selectedOption || "Not set"}
+          </div>
+        </div>
+
+        {visibleModules.length > 1 && (
+          <>
+            <button
+              onClick={goToPrevious}
+              className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white rounded-full p-3 shadow-lg transition-all hover:scale-110"
+              aria-label="Previous module"
+            >
+              <ChevronLeft size={24} className="text-slate-700" />
+            </button>
+            
+            <button
+              onClick={goToNext}
+              className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white rounded-full p-3 shadow-lg transition-all hover:scale-110"
+              aria-label="Next module"
+            >
+              <ChevronRight size={24} className="text-slate-700" />
+            </button>
+          </>
+        )}
+
+        {visibleModules.length > 1 && (
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
+            {visibleModules.map((_, index) => (
+              <button
+                key={index}
+                onClick={() => goToSlide(index)}
+                className={`w-2 h-2 rounded-full transition-all ${
+                  index === currentIndex 
+                    ? 'bg-slate-700 w-8' 
+                    : 'bg-slate-300 hover:bg-slate-400'
+                }`}
+                aria-label={`Go to slide ${index + 1}`}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="text-center mt-4 text-slate-500 text-sm">
+        {currentIndex + 1} / {visibleModules.length}
       </div>
     </div>
   );
@@ -744,6 +835,7 @@ function ScrollingText({ text, className = '' }: ScrollingTextProps) {
 export {
   ProfileModuleContainer,
   ProfileModuleEditor,
+  ProfileModuleCarousel,
   ProfileModules,
   getModuleByKey
 }

@@ -1,4 +1,4 @@
-import type { User } from "./types/user";
+import type { Match, User } from "./types/user";
 
 export type serverRequestParams = {
   endpoint: string;
@@ -56,3 +56,18 @@ export async function getUser(userId: string): Promise<User> {
 
   return user;
 }
+
+export const createMatch = async (firstUserId: string, secondUserId: string) => {
+  return await serverRequest({
+    endpoint: "/matches",
+    method: "POST",
+    body: JSON.stringify({ firstUserId, secondUserId }),
+  });
+};
+
+export const getMatches = async (): Promise<Match[]> => {
+  return await serverRequest({
+    endpoint: "/matches",
+    method: "GET",
+  });
+};
