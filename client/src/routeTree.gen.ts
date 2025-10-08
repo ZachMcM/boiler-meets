@@ -18,6 +18,7 @@ import { Route as DemoChatRouteImport } from './routes/demo-chat'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ProfileUsernameRouteImport } from './routes/profile.$username'
+import { Route as MessagesUsernameRouteImport } from './routes/messages.$username'
 import { Route as ChatRoomRoomIdRouteImport } from './routes/chat-room.$roomId'
 
 const Register_waitingRoute = Register_waitingRouteImport.update({
@@ -65,6 +66,11 @@ const ProfileUsernameRoute = ProfileUsernameRouteImport.update({
   path: '/profile/$username',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MessagesUsernameRoute = MessagesUsernameRouteImport.update({
+  id: '/messages/$username',
+  path: '/messages/$username',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ChatRoomRoomIdRoute = ChatRoomRoomIdRouteImport.update({
   id: '/chat-room/$roomId',
   path: '/chat-room/$roomId',
@@ -81,6 +87,7 @@ export interface FileRoutesByFullPath {
   '/register_final_setup': typeof Register_final_setupRoute
   '/register_waiting': typeof Register_waitingRoute
   '/chat-room/$roomId': typeof ChatRoomRoomIdRoute
+  '/messages/$username': typeof MessagesUsernameRoute
   '/profile/$username': typeof ProfileUsernameRoute
 }
 export interface FileRoutesByTo {
@@ -93,6 +100,7 @@ export interface FileRoutesByTo {
   '/register_final_setup': typeof Register_final_setupRoute
   '/register_waiting': typeof Register_waitingRoute
   '/chat-room/$roomId': typeof ChatRoomRoomIdRoute
+  '/messages/$username': typeof MessagesUsernameRoute
   '/profile/$username': typeof ProfileUsernameRoute
 }
 export interface FileRoutesById {
@@ -106,6 +114,7 @@ export interface FileRoutesById {
   '/register_final_setup': typeof Register_final_setupRoute
   '/register_waiting': typeof Register_waitingRoute
   '/chat-room/$roomId': typeof ChatRoomRoomIdRoute
+  '/messages/$username': typeof MessagesUsernameRoute
   '/profile/$username': typeof ProfileUsernameRoute
 }
 export interface FileRouteTypes {
@@ -120,6 +129,7 @@ export interface FileRouteTypes {
     | '/register_final_setup'
     | '/register_waiting'
     | '/chat-room/$roomId'
+    | '/messages/$username'
     | '/profile/$username'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -132,6 +142,7 @@ export interface FileRouteTypes {
     | '/register_final_setup'
     | '/register_waiting'
     | '/chat-room/$roomId'
+    | '/messages/$username'
     | '/profile/$username'
   id:
     | '__root__'
@@ -144,6 +155,7 @@ export interface FileRouteTypes {
     | '/register_final_setup'
     | '/register_waiting'
     | '/chat-room/$roomId'
+    | '/messages/$username'
     | '/profile/$username'
   fileRoutesById: FileRoutesById
 }
@@ -157,6 +169,7 @@ export interface RootRouteChildren {
   Register_final_setupRoute: typeof Register_final_setupRoute
   Register_waitingRoute: typeof Register_waitingRoute
   ChatRoomRoomIdRoute: typeof ChatRoomRoomIdRoute
+  MessagesUsernameRoute: typeof MessagesUsernameRoute
   ProfileUsernameRoute: typeof ProfileUsernameRoute
 }
 
@@ -225,6 +238,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProfileUsernameRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/messages/$username': {
+      id: '/messages/$username'
+      path: '/messages/$username'
+      fullPath: '/messages/$username'
+      preLoaderRoute: typeof MessagesUsernameRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/chat-room/$roomId': {
       id: '/chat-room/$roomId'
       path: '/chat-room/$roomId'
@@ -245,6 +265,7 @@ const rootRouteChildren: RootRouteChildren = {
   Register_final_setupRoute: Register_final_setupRoute,
   Register_waitingRoute: Register_waitingRoute,
   ChatRoomRoomIdRoute: ChatRoomRoomIdRoute,
+  MessagesUsernameRoute: MessagesUsernameRoute,
   ProfileUsernameRoute: ProfileUsernameRoute,
 }
 export const routeTree = rootRouteImport
