@@ -13,8 +13,6 @@ import { Route as Register_waitingRouteImport } from './routes/register_waiting'
 import { Route as Register_final_setupRouteImport } from './routes/register_final_setup'
 import { Route as RegisterRouteImport } from './routes/register'
 import { Route as LoginRouteImport } from './routes/login'
-import { Route as DemoProfileRouteImport } from './routes/demo-profile'
-import { Route as DemoChatRouteImport } from './routes/demo-chat'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ProfileUsernameRouteImport } from './routes/profile.$username'
@@ -39,16 +37,6 @@ const RegisterRoute = RegisterRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DemoProfileRoute = DemoProfileRouteImport.update({
-  id: '/demo-profile',
-  path: '/demo-profile',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DemoChatRoute = DemoChatRouteImport.update({
-  id: '/demo-chat',
-  path: '/demo-chat',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DashboardRoute = DashboardRouteImport.update({
@@ -80,8 +68,6 @@ const ChatRoomRoomIdRoute = ChatRoomRoomIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
-  '/demo-chat': typeof DemoChatRoute
-  '/demo-profile': typeof DemoProfileRoute
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
   '/register_final_setup': typeof Register_final_setupRoute
@@ -93,8 +79,6 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
-  '/demo-chat': typeof DemoChatRoute
-  '/demo-profile': typeof DemoProfileRoute
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
   '/register_final_setup': typeof Register_final_setupRoute
@@ -107,8 +91,6 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
-  '/demo-chat': typeof DemoChatRoute
-  '/demo-profile': typeof DemoProfileRoute
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
   '/register_final_setup': typeof Register_final_setupRoute
@@ -122,8 +104,6 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/dashboard'
-    | '/demo-chat'
-    | '/demo-profile'
     | '/login'
     | '/register'
     | '/register_final_setup'
@@ -135,8 +115,6 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/dashboard'
-    | '/demo-chat'
-    | '/demo-profile'
     | '/login'
     | '/register'
     | '/register_final_setup'
@@ -148,8 +126,6 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/dashboard'
-    | '/demo-chat'
-    | '/demo-profile'
     | '/login'
     | '/register'
     | '/register_final_setup'
@@ -162,8 +138,6 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DashboardRoute: typeof DashboardRoute
-  DemoChatRoute: typeof DemoChatRoute
-  DemoProfileRoute: typeof DemoProfileRoute
   LoginRoute: typeof LoginRoute
   RegisterRoute: typeof RegisterRoute
   Register_final_setupRoute: typeof Register_final_setupRoute
@@ -201,20 +175,6 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/demo-profile': {
-      id: '/demo-profile'
-      path: '/demo-profile'
-      fullPath: '/demo-profile'
-      preLoaderRoute: typeof DemoProfileRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/demo-chat': {
-      id: '/demo-chat'
-      path: '/demo-chat'
-      fullPath: '/demo-chat'
-      preLoaderRoute: typeof DemoChatRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dashboard': {
@@ -258,8 +218,6 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DashboardRoute: DashboardRoute,
-  DemoChatRoute: DemoChatRoute,
-  DemoProfileRoute: DemoProfileRoute,
   LoginRoute: LoginRoute,
   RegisterRoute: RegisterRoute,
   Register_final_setupRoute: Register_final_setupRoute,
