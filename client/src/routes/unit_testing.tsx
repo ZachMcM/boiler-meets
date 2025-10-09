@@ -27,6 +27,12 @@ function RouteComponent() {
             count: 3,
             func: testMessagingAndAPI,
         },
+        {
+            id: 3,
+            name: "End Call UI & Home Page Summaries",
+            count: 4,
+            func: testEndCallFlow,
+        },
     ];
 
     return (
