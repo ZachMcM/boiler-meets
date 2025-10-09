@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as Unit_testingRouteImport } from './routes/unit_testing'
 import { Route as Register_waitingRouteImport } from './routes/register_waiting'
 import { Route as Register_final_setupRouteImport } from './routes/register_final_setup'
 import { Route as RegisterRouteImport } from './routes/register'
@@ -18,6 +19,11 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as ProfileUsernameRouteImport } from './routes/profile.$username'
 import { Route as ChatRoomRoomIdRouteImport } from './routes/chat-room.$roomId'
 
+const Unit_testingRoute = Unit_testingRouteImport.update({
+  id: '/unit_testing',
+  path: '/unit_testing',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const Register_waitingRoute = Register_waitingRouteImport.update({
   id: '/register_waiting',
   path: '/register_waiting',
@@ -66,6 +72,7 @@ export interface FileRoutesByFullPath {
   '/register': typeof RegisterRoute
   '/register_final_setup': typeof Register_final_setupRoute
   '/register_waiting': typeof Register_waitingRoute
+  '/unit_testing': typeof Unit_testingRoute
   '/chat-room/$roomId': typeof ChatRoomRoomIdRoute
   '/profile/$username': typeof ProfileUsernameRoute
 }
@@ -76,6 +83,7 @@ export interface FileRoutesByTo {
   '/register': typeof RegisterRoute
   '/register_final_setup': typeof Register_final_setupRoute
   '/register_waiting': typeof Register_waitingRoute
+  '/unit_testing': typeof Unit_testingRoute
   '/chat-room/$roomId': typeof ChatRoomRoomIdRoute
   '/profile/$username': typeof ProfileUsernameRoute
 }
@@ -87,6 +95,7 @@ export interface FileRoutesById {
   '/register': typeof RegisterRoute
   '/register_final_setup': typeof Register_final_setupRoute
   '/register_waiting': typeof Register_waitingRoute
+  '/unit_testing': typeof Unit_testingRoute
   '/chat-room/$roomId': typeof ChatRoomRoomIdRoute
   '/profile/$username': typeof ProfileUsernameRoute
 }
@@ -99,6 +108,7 @@ export interface FileRouteTypes {
     | '/register'
     | '/register_final_setup'
     | '/register_waiting'
+    | '/unit_testing'
     | '/chat-room/$roomId'
     | '/profile/$username'
   fileRoutesByTo: FileRoutesByTo
@@ -109,6 +119,7 @@ export interface FileRouteTypes {
     | '/register'
     | '/register_final_setup'
     | '/register_waiting'
+    | '/unit_testing'
     | '/chat-room/$roomId'
     | '/profile/$username'
   id:
@@ -119,6 +130,7 @@ export interface FileRouteTypes {
     | '/register'
     | '/register_final_setup'
     | '/register_waiting'
+    | '/unit_testing'
     | '/chat-room/$roomId'
     | '/profile/$username'
   fileRoutesById: FileRoutesById
@@ -130,12 +142,20 @@ export interface RootRouteChildren {
   RegisterRoute: typeof RegisterRoute
   Register_final_setupRoute: typeof Register_final_setupRoute
   Register_waitingRoute: typeof Register_waitingRoute
+  Unit_testingRoute: typeof Unit_testingRoute
   ChatRoomRoomIdRoute: typeof ChatRoomRoomIdRoute
   ProfileUsernameRoute: typeof ProfileUsernameRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/unit_testing': {
+      id: '/unit_testing'
+      path: '/unit_testing'
+      fullPath: '/unit_testing'
+      preLoaderRoute: typeof Unit_testingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/register_waiting': {
       id: '/register_waiting'
       path: '/register_waiting'
@@ -202,6 +222,7 @@ const rootRouteChildren: RootRouteChildren = {
   RegisterRoute: RegisterRoute,
   Register_final_setupRoute: Register_final_setupRoute,
   Register_waitingRoute: Register_waitingRoute,
+  Unit_testingRoute: Unit_testingRoute,
   ChatRoomRoomIdRoute: ChatRoomRoomIdRoute,
   ProfileUsernameRoute: ProfileUsernameRoute,
 }
