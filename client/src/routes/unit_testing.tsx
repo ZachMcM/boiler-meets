@@ -4,6 +4,7 @@ import {
     testProfileDataIntegrity,
     testMessagingAndAPI,
     testEndCallFlow,
+    testFeedback,
     UnitTestModule,
     type UnitTestType
 } from "@/components/UnitTest";
