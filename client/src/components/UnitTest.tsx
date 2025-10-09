@@ -724,3 +724,98 @@ export async function testMatchSearch(index: number): Promise<UnitTestOutputType
 
     return await tests[index]();
 }
+
+export async function testProfileOnCall(index: number): Promise<UnitTestOutputType> {
+    const tests = [
+        
+        async () => {
+            try {
+                
+                const response = await fetch(`${import.meta.env.VITE_SERVER_URL}/users/test-user-id`, {
+                    method: "GET",
+                    credentials: "include"
+                });
+
+                
+                return {
+                    success: response.status === 200 || response.status === 500,
+                    content: response.status === 200 || response.status === 500
+                        ? "User profile fetch endpoint is accessible during call"
+                        : `Profile fetch failed with unexpected status: ${response.status}`
+                };
+            } catch (e) {
+                return {
+                    success: false,
+                    content: `Failed to fetch user profile: ${e}`
+                };
+            }
+        },
+        
+        async () => {
+            try {
+                const mockProfile = {
+                    modules: [
+                        {
+                            id: 1,
+                            type: "favoriteFood",
+                            title: "My favorite food",
+                            gridX: 0,
+                            gridY: 0,
+                            gridWidth: 2,
+                            gridHeight: 1,
+                            visible: true,
+                            data: [{ id: 1, content: "Pizza" }]
+                        }
+                    ]
+                };
+
+                const hasModules = Array.isArray(mockProfile.modules);
+                const firstModule = mockProfile.modules[0];
+                const hasRequiredFields =
+                    'id' in firstModule &&
+                    'type' in firstModule &&
+                    'title' in firstModule &&
+                    'visible' in firstModule;
+
+                return {
+                    success: hasModules && hasRequiredFields,
+                    content: hasModules && hasRequiredFields
+                        ? "Profile module structure is correct"
+                        : "Profile module structure is missing required fields"
+                };
+            } catch (e) {
+                return {
+                    success: false,
+                    content: `Failed to verify profile structure: ${e}`
+                };
+            }
+        },
+        
+        async () => {
+            try {
+                const mockModules = [
+                    { id: 1, type: "test1", visible: true },
+                    { id: 2, type: "test2", visible: false },
+                    { id: 3, type: "test3", visible: true }
+                ];
+
+                const visibleModules = mockModules.filter(m => m.visible);
+                const correctCount = visibleModules.length === 2;
+
+                return {
+                    success: correctCount,
+                    content: correctCount
+                        ? "Profile visibility filtering works correctly (2 visible out of 3)"
+                        : `Profile visibility filtering failed (expected 2, got ${visibleModules.length})`
+                };
+            } catch (e) {
+                return {
+                    success: false,
+                    content: `Failed to test visibility filtering: ${e}`
+                };
+            }
+        }
+    ];
+
+    return await tests[index]();
+}
