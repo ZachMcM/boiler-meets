@@ -1,4 +1,5 @@
 import { Toaster } from "@/components/ui/sonner";
+import { VideoCallContextProvider } from "@/contexts/VideoCallContext";
 import {
   QueryClient,
   QueryClientProvider
@@ -9,12 +10,14 @@ function RootComponent() {
   const queryClient = new QueryClient()
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <div className="min-h-screen flex flex-col">
-        <Outlet />
-        <Toaster />
-      </div>
-    </QueryClientProvider>
+    <VideoCallContextProvider>
+      <QueryClientProvider client={queryClient}>
+        <div className="min-h-screen flex flex-col">
+          <Outlet />
+          <Toaster />
+        </div>
+      </QueryClientProvider>
+    </VideoCallContextProvider>
   );
 }
 

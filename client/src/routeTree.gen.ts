@@ -9,16 +9,23 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as Unit_testingRouteImport } from './routes/unit_testing'
 import { Route as Register_waitingRouteImport } from './routes/register_waiting'
 import { Route as Register_final_setupRouteImport } from './routes/register_final_setup'
 import { Route as RegisterRouteImport } from './routes/register'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as End_of_callRouteImport } from './routes/end_of_call'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ProfileUsernameRouteImport } from './routes/profile.$username'
 import { Route as MessagesUsernameRouteImport } from './routes/messages.$username'
 import { Route as ChatRoomRoomIdRouteImport } from './routes/chat-room.$roomId'
 
+const Unit_testingRoute = Unit_testingRouteImport.update({
+  id: '/unit_testing',
+  path: '/unit_testing',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const Register_waitingRoute = Register_waitingRouteImport.update({
   id: '/register_waiting',
   path: '/register_waiting',
@@ -37,6 +44,11 @@ const RegisterRoute = RegisterRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const End_of_callRoute = End_of_callRouteImport.update({
+  id: '/end_of_call',
+  path: '/end_of_call',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DashboardRoute = DashboardRouteImport.update({
@@ -68,10 +80,12 @@ const ChatRoomRoomIdRoute = ChatRoomRoomIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
+  '/end_of_call': typeof End_of_callRoute
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
   '/register_final_setup': typeof Register_final_setupRoute
   '/register_waiting': typeof Register_waitingRoute
+  '/unit_testing': typeof Unit_testingRoute
   '/chat-room/$roomId': typeof ChatRoomRoomIdRoute
   '/messages/$username': typeof MessagesUsernameRoute
   '/profile/$username': typeof ProfileUsernameRoute
@@ -79,10 +93,12 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
+  '/end_of_call': typeof End_of_callRoute
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
   '/register_final_setup': typeof Register_final_setupRoute
   '/register_waiting': typeof Register_waitingRoute
+  '/unit_testing': typeof Unit_testingRoute
   '/chat-room/$roomId': typeof ChatRoomRoomIdRoute
   '/messages/$username': typeof MessagesUsernameRoute
   '/profile/$username': typeof ProfileUsernameRoute
@@ -91,10 +107,12 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
+  '/end_of_call': typeof End_of_callRoute
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
   '/register_final_setup': typeof Register_final_setupRoute
   '/register_waiting': typeof Register_waitingRoute
+  '/unit_testing': typeof Unit_testingRoute
   '/chat-room/$roomId': typeof ChatRoomRoomIdRoute
   '/messages/$username': typeof MessagesUsernameRoute
   '/profile/$username': typeof ProfileUsernameRoute
@@ -104,10 +122,12 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/dashboard'
+    | '/end_of_call'
     | '/login'
     | '/register'
     | '/register_final_setup'
     | '/register_waiting'
+    | '/unit_testing'
     | '/chat-room/$roomId'
     | '/messages/$username'
     | '/profile/$username'
@@ -115,10 +135,12 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/dashboard'
+    | '/end_of_call'
     | '/login'
     | '/register'
     | '/register_final_setup'
     | '/register_waiting'
+    | '/unit_testing'
     | '/chat-room/$roomId'
     | '/messages/$username'
     | '/profile/$username'
@@ -126,10 +148,12 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/dashboard'
+    | '/end_of_call'
     | '/login'
     | '/register'
     | '/register_final_setup'
     | '/register_waiting'
+    | '/unit_testing'
     | '/chat-room/$roomId'
     | '/messages/$username'
     | '/profile/$username'
@@ -138,10 +162,12 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DashboardRoute: typeof DashboardRoute
+  End_of_callRoute: typeof End_of_callRoute
   LoginRoute: typeof LoginRoute
   RegisterRoute: typeof RegisterRoute
   Register_final_setupRoute: typeof Register_final_setupRoute
   Register_waitingRoute: typeof Register_waitingRoute
+  Unit_testingRoute: typeof Unit_testingRoute
   ChatRoomRoomIdRoute: typeof ChatRoomRoomIdRoute
   MessagesUsernameRoute: typeof MessagesUsernameRoute
   ProfileUsernameRoute: typeof ProfileUsernameRoute
@@ -149,6 +175,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/unit_testing': {
+      id: '/unit_testing'
+      path: '/unit_testing'
+      fullPath: '/unit_testing'
+      preLoaderRoute: typeof Unit_testingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/register_waiting': {
       id: '/register_waiting'
       path: '/register_waiting'
@@ -175,6 +208,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/end_of_call': {
+      id: '/end_of_call'
+      path: '/end_of_call'
+      fullPath: '/end_of_call'
+      preLoaderRoute: typeof End_of_callRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dashboard': {
@@ -218,10 +258,12 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DashboardRoute: DashboardRoute,
+  End_of_callRoute: End_of_callRoute,
   LoginRoute: LoginRoute,
   RegisterRoute: RegisterRoute,
   Register_final_setupRoute: Register_final_setupRoute,
   Register_waitingRoute: Register_waitingRoute,
+  Unit_testingRoute: Unit_testingRoute,
   ChatRoomRoomIdRoute: ChatRoomRoomIdRoute,
   MessagesUsernameRoute: MessagesUsernameRoute,
   ProfileUsernameRoute: ProfileUsernameRoute,

@@ -1,3 +1,4 @@
+import type { DraggableModule } from "./components/ProfileModules";
 import type { Match, User } from "./types/user";
 
 export type serverRequestParams = {
@@ -107,3 +108,17 @@ export const removeProfileReaction = async (reactionId: string) => {
     method: "DELETE",
   });
 };
+export const unitTestModifyProfile = async (profile: DraggableModule[]) => {
+  return await serverRequest({
+    endpoint: "/unit_testing/modify_profile",
+    method: "POST",
+    body: JSON.stringify(profile),
+  });
+}
+
+export const unitTestGetProfile = async () => {
+  return await serverRequest({
+    endpoint: "/unit_testing/get_profile",
+    method: "GET"
+  });
+}

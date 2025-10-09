@@ -7,8 +7,9 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { UserCircle, Sparkles, Search, User, ChevronRight, UsersRound, MessageCircle, Users, Heart } from "lucide-react";
+import { UserCircle, Sparkles, Search, User, ChevronRight, UsersRound, MessageCircle, Users, Heart, HouseIcon, PhoneCall } from "lucide-react";
 import { getMatches } from "@/endpoints";
+import { useVideoCallContext } from "@/contexts/VideoCallContext";
 
 export const Route = createFileRoute("/dashboard")({
   component: RouteComponent,
@@ -29,6 +30,8 @@ function RouteComponent() {
   const [showWelcomeDialog, setShowWelcomeDialog] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [matchFilter, setMatchFilter] = useState<"all" | "friend" | "romantic">("all");
+
+  const {callSession, clearCallSession} = useVideoCallContext();
 
   useEffect(() => {
     if (currentUserData?.data?.user && !sessionPending) {
@@ -320,6 +323,94 @@ function RouteComponent() {
                   </div>
                 </CardContent>
               </Card>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Post-Call Dialog */}
+        <Dialog open={callSession !== null}>
+          <DialogContent 
+            className="[&>button:first-of-type]:hidden"
+            onInteractOutside={(e) => {
+              clearCallSession();
+            }}
+          >
+            <div className="flex flex-col space-y-4">
+              <DialogTitle className="flex items-center gap-2">
+                <PhoneCall className="w-5 h-5 text-green-500" />
+                Video Call Summary!
+              </DialogTitle>
+                <Card className="max-w-3xl flex flex-1">
+                    <CardContent> {/* Card for matches on top */}
+                      {callSession && callSession.filter((singleCallData => {return singleCallData.matched})).map((singleCallData) => (
+                        <Card 
+                          key={`${singleCallData.otherUser}-${crypto.randomUUID()}`} 
+                          className="hover:shadow-md transition-all hover:border-primary cursor-pointer py-0 mb-2"
+                          onClick={() => { handleMatchClick(singleCallData.otherUser?.username || ""); clearCallSession(); }}
+                        >
+                          <CardContent className="p-4 bg-pink-100 rounded-xl">
+                            <div className="flex items-center">
+                              <div className="flex-1 min-w-0">
+                                <h3 className="font-semibold text-base truncate hover:text-primary w-fit" onClick={() => { handleVisitProfile(singleCallData.otherUser?.username); clearCallSession(); }}>
+                                  {singleCallData.otherUser?.name || "Anonymous"} {"-- Matched!"}
+                                </h3>
+                                <p className="text-sm text-muted-foreground truncate">
+                                  {singleCallData.callLength >= 60000 ? (
+                                    `The call was ${Math.floor(singleCallData.callLength / 60000)} minutes and ${Math.floor((singleCallData.callLength % 60000) / 1000)} seconds`
+                                  ) : (
+                                    `The call was ${Math.floor(singleCallData.callLength / 1000)} seconds`
+                                  )}
+                                  {/* TODO fix call extensions bug */}
+                                  {/* {` with ${singleCallData.numberCallExtensions} call extensions`} */}
+                                </p>
+                                <p className="text-sm text-muted-foreground truncate">
+                                  Don't be shy, send them a message!
+                                </p>
+                              </div>                              
+                              <ChevronRight className="w-5 h-5 text-muted-foreground flex-shrink-0" />
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                      {/* Card for non-matches on bottom */}
+                      {callSession && callSession.filter((singleCallData => {return !singleCallData.matched})).map((singleCallData) => (
+                        <Card 
+                          key={`${singleCallData.otherUser}-${singleCallData.callLength}`} 
+                          className="transition-all py-0 mb-2"
+                        >
+                          <CardContent className="p-4">
+                            <div className="flex items-center">
+                              <div className="flex-1 min-w-0">
+                                <h3 className="font-semibold text-base truncate w-fit">
+                                  {singleCallData.otherUser?.name || "Anonymous"} {"-- No match"}
+                                </h3>
+                                <p className="text-sm text-muted-foreground truncate">
+                                  {`Call was ended by ${singleCallData.callEndedByUser ? "you" : (singleCallData.otherUser?.name || "Anonymous")}`}
+                                </p>
+                                <p className="text-sm text-muted-foreground truncate">
+                                  {singleCallData.callLength >= 60000 ? (
+                                    `The call was ${Math.floor(singleCallData.callLength / 60000)} minutes and ${Math.floor((singleCallData.callLength % 60000) / 1000)} seconds`
+                                  ) : (
+                                    `The call was ${Math.floor(singleCallData.callLength / 1000)} seconds`
+                                  )}
+                                  {/* {` with ${singleCallData.numberCallExtensions} call extensions`} */}
+                                </p>
+                              </div>                              
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                      <div className="flex items-center gap-2 justify-center">
+                        <Button
+                          onClick={clearCallSession}
+                          className="rounded-full hover:bg-[#a19072]"
+                        >
+                          <HouseIcon />
+                          Back To Dashboard
+                        </Button>
+                      </div>
+                    </CardContent>
+                </Card>
             </div>
           </DialogContent>
         </Dialog>

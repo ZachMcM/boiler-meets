@@ -17,6 +17,8 @@ export async function videoChatHandler(socket: Socket) {
   // const timeoutMs = 300000; // Normal timeout intervals
   // const callAgainTimeout = 300000 * 5
 
+  let callStart = (new Date()).getTime();
+
   logger.info(`Video chat connection - userId: ${userId}, roomId: ${JSON.stringify(roomId)}, type: ${typeof roomId}`);
 
   if (!userId || typeof userId !== "string") {

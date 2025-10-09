@@ -33,6 +33,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { ProfileModuleCarousel } from "./ProfileModules";
+import { useVideoCallContext } from "@/contexts/VideoCallContext";
+import type { VideoCallData } from "@/types/video_call";
+import type { User as User_Type } from "@/types/user";
 
 export function ChatRoom({ roomId }: { roomId: string }) {
   const router = useRouter();
@@ -52,6 +55,7 @@ export function ChatRoom({ roomId }: { roomId: string }) {
   const [passedFirstCall, setPassedFirstCall] = useState(false);
   const [userHasMatched, setUserHasMatched] = useState(false);
   const [callAgainButtonClicked, setCallAgainButtonClicked] = useState(false);
+  const [callStart] = useState((new Date).getTime());
 
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
@@ -65,6 +69,16 @@ export function ChatRoom({ roomId }: { roomId: string }) {
     queryFn: async () => await getUser(otherUserId!),
     enabled: !!otherUserId,
   });
+
+  const videoCallData : VideoCallData = {
+    otherUser: null,
+    matched: false,
+    callLength: 0,
+    numberCallExtensions: 0,
+    callEndedByUser: false
+  };
+
+  const {callSession, addNewCall} = useVideoCallContext();
 
   // To solve problems associated with React states not updating
   useEffect(() => {
@@ -168,7 +182,7 @@ export function ChatRoom({ roomId }: { roomId: string }) {
 
       // Get user media
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: false,
+        video: true,
         audio: true,
       });
       console.log("STREAM", stream);
@@ -418,6 +432,7 @@ export function ChatRoom({ roomId }: { roomId: string }) {
       });
 
       videoChatSocket.on("call-again", () => {
+        videoCallData.numberCallExtensions = videoCallData.numberCallExtensions + 1;
         setWaitingUserResponse(false); 
         setCallAgainButtonClicked(false);
         setFeedbackPage(false);
@@ -428,10 +443,16 @@ export function ChatRoom({ roomId }: { roomId: string }) {
 
       /* TODO for when BOTH users match */
       videoChatSocket.on("match", async ({ matchType }: { matchType: "friend" | "romantic" }) => {
+        /* Do not delete or alter this if statement, it fixes a critical bug where matching with a user causes 
+           the user who clicked match second to not receive the other user's data in the after-call summary */
+        if (otherUserIdRef.current) {
+          videoCallData.otherUser = await getUser(otherUserIdRef.current);
+        }
         setWaitingUserResponse(false);
         setFeedbackPage(false);
         console.log("Match received with type:", matchType);
         console.log("otherUserIdRef.current:", otherUserIdRef.current); // Debug log
+        videoCallData.matched = true;
         toast("It's a Match!");
 
         // Use the ref instead of state
@@ -486,12 +507,24 @@ export function ChatRoom({ roomId }: { roomId: string }) {
     }
   }
 
-  const leaveRoom = () => {
+  const leaveRoom = async (toDashboard: boolean = false) => {
     if (socket) {
       socket.emit("leave-room");
     }
+    const now = (new Date()).getTime()
+    videoCallData.callLength = now - callStart;
+    console.log(now, callStart);
+    if (otherUserIdRef.current) {
+      videoCallData.otherUser = await getUser(otherUserIdRef.current);
+    }
+    addNewCall(videoCallData);
     cleanup();
-    router.navigate({ to: "/dashboard" });
+    console.log("Leaving call with data:", videoCallData);
+    if (toDashboard) {
+      router.navigate({ to: "/dashboard" });
+    } else {
+      router.navigate({ to: "/end_of_call" });
+    }
   };
 
   const toggleCallAgain = async () => {
@@ -610,6 +643,11 @@ export function ChatRoom({ roomId }: { roomId: string }) {
                       </CardHeader>
                     )}
                     <CardContent>
+                      {waitingUserResponse && (
+                        <p className="text-foreground font-medium">
+                          "User is still responding..."
+                        </p>
+                      )}
                         <div className="flex items-center gap-2 justify-between">
                         <Button onClick={toggleCallAgain}>
                           {callAgainButtonClicked ? (
@@ -627,7 +665,7 @@ export function ChatRoom({ roomId }: { roomId: string }) {
                           Match?
                         </Button>
                         <Button
-                          onClick={() => {toast("Video Chat ended"); leaveRoom(); }}
+                          onClick={() => {toast("Video Chat ended"); videoCallData.callEndedByUser = true; leaveRoom(); }}
                           variant="destructive"
                           size="icon"
                           className="rounded-full size-12"
@@ -688,11 +726,6 @@ export function ChatRoom({ roomId }: { roomId: string }) {
                         playsInline
                         className="w-full h-64 lg:h-96 object-cover bg-card"
                       />
-                      {waitingUserResponse && (
-                        <p className="text-foreground font-medium">
-                          "User is still responding..."
-                        </p>
-                      )}
                         </div>
                     ) : (
                       <div className="w-full h-64 text-center lg:h-96 flex flex-col items-center justify-center">

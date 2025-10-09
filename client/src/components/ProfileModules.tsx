@@ -736,7 +736,7 @@ function ProfileModuleCarousel({ initialModules }: ProfileModuleCarouselProps) {
           <>
             <button
               onClick={goToPrevious}
-              className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white rounded-full p-3 shadow-lg transition-all hover:scale-110"
+              className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white rounded-full p-3 shadow-lg transition-all hover:scale-110 hover:cursor-pointer"
               aria-label="Previous module"
             >
               <ChevronLeft size={24} className="text-slate-700" />
@@ -744,7 +744,7 @@ function ProfileModuleCarousel({ initialModules }: ProfileModuleCarouselProps) {
             
             <button
               onClick={goToNext}
-              className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white rounded-full p-3 shadow-lg transition-all hover:scale-110"
+              className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white rounded-full p-3 shadow-lg transition-all hover:scale-110 hover:cursor-pointer"
               aria-label="Next module"
             >
               <ChevronRight size={24} className="text-slate-700" />
