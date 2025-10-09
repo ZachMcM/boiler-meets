@@ -122,3 +122,10 @@ export const unitTestGetProfile = async () => {
     method: "GET"
   });
 }
+
+export const getMatchMessages = async (matchId: string) => {
+  return await serverRequest({
+    endpoint: `/messages/match/${matchId}`,
+    method: "GET"
+  });
+};

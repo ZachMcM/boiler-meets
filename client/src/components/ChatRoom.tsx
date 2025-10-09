@@ -182,7 +182,7 @@ export function ChatRoom({ roomId }: { roomId: string }) {
 
       // Get user media
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: true,
+        video: false,
         audio: true,
       });
       console.log("STREAM", stream);

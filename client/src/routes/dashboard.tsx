@@ -8,7 +8,7 @@ import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { UserCircle, Sparkles, Search, User, ChevronRight, UsersRound, MessageCircle, Users, Heart, HouseIcon, PhoneCall } from "lucide-react";
-import { getMatches } from "@/endpoints";
+import { getMatches, getMatchMessages } from "@/endpoints";
 import { useVideoCallContext } from "@/contexts/VideoCallContext";
 
 export const Route = createFileRoute("/dashboard")({
@@ -32,6 +32,39 @@ function RouteComponent() {
   const [matchFilter, setMatchFilter] = useState<"all" | "friend" | "romantic">("all");
 
   const {callSession, clearCallSession} = useVideoCallContext();
+
+  const matchUserIds = matches?.map(match => match.user?.id).filter(Boolean) || [];
+
+  const messagesQueries = useQuery({
+    queryKey: ["recentMessages", matchUserIds],
+    queryFn: async () => {
+      if (!matches || matches.length === 0) return {};
+      
+      const messagePromises = matches.map(async (match) => {
+        if (!match.user?.id) return null;
+        try {
+          const messages = await getMatchMessages(match.user.username);
+          // Get the most recent message
+          const mostRecent = messages.sort((a: any, b: any) => 
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+          )[0];
+          return { userId: match.user.id, message: mostRecent };
+        } catch (error) {
+          return { userId: match.user.id, message: null };
+        }
+      });
+      
+      const results = await Promise.all(messagePromises);
+      // Convert to object for easy lookup
+      return results.reduce((acc, result) => {
+        if (result) {
+          acc[result.userId] = result.message;
+        }
+        return acc;
+      }, {} as Record<string, any>);
+    },
+    enabled: !!matches && matches.length > 0,
+  });
 
   useEffect(() => {
     if (currentUserData?.data?.user && !sessionPending) {
@@ -212,9 +245,12 @@ function RouteComponent() {
                                 Romantic
                               </span>
                             )}
+                            <p className="text-sm text-muted-foreground truncate">
+                              {match.user?.major} • {match.user?.year}
+                            </p>
                           </div>
                           <p className="text-sm text-muted-foreground truncate">
-                            {match.user?.major} • {match.user?.year}
+                            {messagesQueries.data?.[match.user?.id]?.content || "Don't be shy! Send them a message."}
                           </p>
                         </div>
 
