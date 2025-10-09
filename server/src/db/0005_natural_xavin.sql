@@ -1,1 +1,0 @@
-ALTER TABLE "user" ALTER COLUMN "birthdate" SET DATA TYPE date;

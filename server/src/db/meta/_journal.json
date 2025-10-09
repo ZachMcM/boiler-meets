@@ -5,71 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1758071390807,
-      "tag": "0000_brown_omega_sentinel",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1758071591318,
-      "tag": "0001_pale_riptide",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1759029022256,
-      "tag": "0002_gigantic_hellion",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1759033196754,
-      "tag": "0003_salty_prowler",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "7",
-      "when": 1759636598527,
-      "tag": "0004_opposite_riptide",
-      "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "7",
-      "when": 1759626469323,
-      "tag": "0005_natural_xavin",
-      "breakpoints": true
-    },
-    {
-      "idx": 6,
-      "version": "7",
-      "when": 1759786719135,
-      "tag": "0006_dusty_shinobi_shaw",
-      "breakpoints": true
-    },
-    {
-      "idx": 7,
-      "version": "7",
-      "when": 1759907833194,
-      "tag": "0007_mature_george_stacy",
-      "breakpoints": true
-    },
-    {
-      "idx": 8,
-      "version": "7",
-      "when": 1759909552043,
-      "tag": "0008_elite_master_chief",
-      "breakpoints": true
-    },
-    {
-      "idx": 9,
-      "version": "7",
-      "when": 1759927159992,
-      "tag": "0009_free_longshot",
+      "when": 1760026571103,
+      "tag": "0000_mute_starfox",
       "breakpoints": true
     }
   ]
