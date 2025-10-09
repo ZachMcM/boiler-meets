@@ -765,7 +765,7 @@ export function ChatRoom({ roomId }: { roomId: string }) {
                   <div className = "text-xl">About Me</div>
                 </CardContent>
               </Card>
-              {otherUser?.profile.modules ? (
+              {otherUser?.profile?.modules ? (
                 <ProfileModuleCarousel initialModules={otherUser.profile.modules} />
               ) : (
                 <Card className = "p-4 text-center text-3xl">No profile :(</Card>
