@@ -7,7 +7,6 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { UserCircle, Sparkles, Search, User, ChevronRight, UsersRound, MessageCircle, Users, Heart } from "lucide-react";
 import { getMatches } from "@/endpoints";
 
