@@ -14,6 +14,7 @@ import { Route as Register_waitingRouteImport } from './routes/register_waiting'
 import { Route as Register_final_setupRouteImport } from './routes/register_final_setup'
 import { Route as RegisterRouteImport } from './routes/register'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as End_of_callRouteImport } from './routes/end_of_call'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ProfileUsernameRouteImport } from './routes/profile.$username'
@@ -44,6 +45,11 @@ const LoginRoute = LoginRouteImport.update({
   path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
+const End_of_callRoute = End_of_callRouteImport.update({
+  id: '/end_of_call',
+  path: '/end_of_call',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DashboardRoute = DashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -68,6 +74,7 @@ const ChatRoomRoomIdRoute = ChatRoomRoomIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
+  '/end_of_call': typeof End_of_callRoute
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
   '/register_final_setup': typeof Register_final_setupRoute
@@ -79,6 +86,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
+  '/end_of_call': typeof End_of_callRoute
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
   '/register_final_setup': typeof Register_final_setupRoute
@@ -91,6 +99,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
+  '/end_of_call': typeof End_of_callRoute
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
   '/register_final_setup': typeof Register_final_setupRoute
@@ -104,6 +113,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/dashboard'
+    | '/end_of_call'
     | '/login'
     | '/register'
     | '/register_final_setup'
@@ -115,6 +125,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/dashboard'
+    | '/end_of_call'
     | '/login'
     | '/register'
     | '/register_final_setup'
@@ -126,6 +137,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/dashboard'
+    | '/end_of_call'
     | '/login'
     | '/register'
     | '/register_final_setup'
@@ -138,6 +150,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DashboardRoute: typeof DashboardRoute
+  End_of_callRoute: typeof End_of_callRoute
   LoginRoute: typeof LoginRoute
   RegisterRoute: typeof RegisterRoute
   Register_final_setupRoute: typeof Register_final_setupRoute
@@ -184,6 +197,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/end_of_call': {
+      id: '/end_of_call'
+      path: '/end_of_call'
+      fullPath: '/end_of_call'
+      preLoaderRoute: typeof End_of_callRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/dashboard': {
       id: '/dashboard'
       path: '/dashboard'
@@ -218,6 +238,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DashboardRoute: DashboardRoute,
+  End_of_callRoute: End_of_callRoute,
   LoginRoute: LoginRoute,
   RegisterRoute: RegisterRoute,
   Register_final_setupRoute: Register_final_setupRoute,

@@ -432,13 +432,13 @@ export function ChatRoom({ roomId }: { roomId: string }) {
       });
 
       videoChatSocket.on("call-again", () => {
+        videoCallData.numberCallExtensions = videoCallData.numberCallExtensions + 1;
         setWaitingUserResponse(false); 
         setCallAgainButtonClicked(false);
         setFeedbackPage(false);
         console.log("call-again received"); 
         timeoutTransmissions(false);
         setPassedFirstCall(true);
-        videoCallData.numberCallExtensions += 1;
       });
 
       videoChatSocket.on("match", async () => {
@@ -506,7 +506,7 @@ export function ChatRoom({ roomId }: { roomId: string }) {
     }
   }
 
-  const leaveRoom = async () => {
+  const leaveRoom = async (toDashboard: boolean = false) => {
     if (socket) {
       socket.emit("leave-room");
     }
@@ -519,7 +519,11 @@ export function ChatRoom({ roomId }: { roomId: string }) {
     addNewCall(videoCallData);
     cleanup();
     console.log("Leaving call with data:", videoCallData);
-    router.navigate({ to: "/dashboard" });
+    if (toDashboard) {
+      router.navigate({ to: "/dashboard" });
+    } else {
+      router.navigate({ to: "/end_of_call" });
+    }
   };
 
   const toggleCallAgain = async () => {

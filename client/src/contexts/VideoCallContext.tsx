@@ -20,6 +20,7 @@ export function VideoCallContextProvider({ children }: { children: ReactNode }) 
             setCallSession([data] as VideoCallData[]);
         } else {
             setCallSession([...callSession, data]);
+            console.log("callSession: ", callSession);
         }
     }
 
