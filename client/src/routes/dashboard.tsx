@@ -44,7 +44,6 @@ function RouteComponent() {
         if (!match.user?.id) return null;
         try {
           const messages = await getMatchMessages(match.user.username);
-          // Get the most recent message
           const mostRecent = messages.sort((a: any, b: any) => 
             new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
           )[0];
@@ -55,7 +54,6 @@ function RouteComponent() {
       });
       
       const results = await Promise.all(messagePromises);
-      // Convert to object for easy lookup
       return results.reduce((acc, result) => {
         if (result) {
           acc[result.userId] = result.message;
@@ -123,7 +121,19 @@ function RouteComponent() {
     return (
       match.user?.name?.toLowerCase().includes(query)
     );
-  });
+  }).sort((a, b) => {
+    const aMessage = messagesQueries.data?.[a.user?.id];
+    const bMessage = messagesQueries.data?.[b.user?.id];
+
+    if (aMessage?.createdAt && bMessage?.createdAt) {
+      return new Date(bMessage.createdAt).getTime() - new Date(aMessage.createdAt).getTime();
+    }
+
+    if (aMessage?.createdAt) return -1;
+    if (bMessage?.createdAt) return 1;
+
+    return 0;
+  });;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-accent to-secondary">
