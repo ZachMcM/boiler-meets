@@ -11,6 +11,7 @@ export type User = {
 export type Match = {
   matchId: number;
   matchedUserId: string;
+  matchType: "friend" | "romantic";
   createdAt: string;
   user: {
     id: string;
@@ -21,4 +22,14 @@ export type Match = {
     year: string | null;
     bio: string | null;
   };
+};
+
+export type Reaction = {
+  id: string;
+  emoji: string;
+  userId: string;
+  userName: string;
+  targetId: string;
+  targetType: 'bio' | 'module';
+  timestamp: Date;
 };
