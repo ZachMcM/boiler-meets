@@ -1,5 +1,5 @@
 {
-  "id": "8135ce65-b014-4a99-926c-9fafc6c9e3c5",
+  "id": "97f1a889-689a-475b-b903-c5a19ec8e293",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -514,9 +514,10 @@
         },
         "profile": {
           "name": "profile",
-          "type": "text",
+          "type": "json",
           "primaryKey": false,
-          "notNull": false
+          "notNull": false,
+          "default": "'{}'::json"
         }
       },
       "indexes": {},

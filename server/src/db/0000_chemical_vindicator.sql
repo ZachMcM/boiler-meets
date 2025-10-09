@@ -67,7 +67,7 @@ CREATE TABLE "user" (
 	"major" text,
 	"year" text,
 	"bio" text,
-	"profile" text,
+	"profile" json DEFAULT '{}'::json,
 	CONSTRAINT "user_email_unique" UNIQUE("email"),
 	CONSTRAINT "user_username_unique" UNIQUE("username")
 );
