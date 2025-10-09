@@ -5,6 +5,7 @@ import {
     testMessagingAndAPI,
     testEndCallFlow,
     testFeedback,
+    testMatchSearch,
     UnitTestModule,
     type UnitTestType
 } from "@/components/UnitTest";
@@ -39,6 +40,12 @@ function RouteComponent() {
             name: "Feedback Functionality",
             count: 3,
             func: testFeedback,
+        },
+        {
+            id: 5,
+            name: "Match Search & Filtering",
+            count: 3,
+            func: testMatchSearch,
         },
     ];
 

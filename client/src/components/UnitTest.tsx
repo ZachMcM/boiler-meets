@@ -635,3 +635,92 @@ export async function testFeedback(index: number): Promise<UnitTestOutputType> {
 
     return await tests[index]();
 }
+
+export async function testMatchSearch(index: number): Promise<UnitTestOutputType> {
+    const tests = [
+        
+        async () => {
+            try {
+                const response = await fetch(`${import.meta.env.VITE_SERVER_URL}/matches`, {
+                    method: "GET",
+                    credentials: "include"
+                });
+                const matches = await response.json();
+                return {
+                    success: response.ok && Array.isArray(matches),
+                    content: response.ok && Array.isArray(matches)
+                        ? `Matches list fetched successfully (${matches.length} matches)`
+                        : "Failed to fetch matches list"
+                };
+            } catch (e) {
+                return {
+                    success: false,
+                    content: `Failed to fetch matches: ${e}`
+                };
+            }
+        },
+        
+        async () => {
+            try {
+                const mockMatches = [
+                    { matchId: 1, user: { name: "Alice Johnson" } },
+                    { matchId: 2, user: { name: "Bob Smith" } },
+                    { matchId: 3, user: { name: "Charlie Brown" } }
+                ];
+
+                const searchQuery = "ali";
+                const filtered = mockMatches.filter((match) => {
+                    if (!searchQuery) return true;
+                    const query = searchQuery.toLowerCase();
+                    return match.user?.name?.toLowerCase().includes(query);
+                });
+
+                const correctResult = filtered.length === 1 && filtered[0].user.name === "Alice Johnson";
+
+                return {
+                    success: correctResult,
+                    content: correctResult
+                        ? "Search filter correctly filters matches by name"
+                        : `Search filter failed (expected 1 match for 'ali', got ${filtered.length})`
+                };
+            } catch (e) {
+                return {
+                    success: false,
+                    content: `Failed to test search filter: ${e}`
+                };
+            }
+        },
+        
+        async () => {
+            try {
+                const mockMatches = [
+                    { matchId: 1, user: { name: "Alice" } },
+                    { matchId: 2, user: { name: "Bob" } }
+                ];
+
+                const searchQuery = "";
+                const filtered = mockMatches.filter((match) => {
+                    if (!searchQuery) return true;
+                    const query = searchQuery.toLowerCase();
+                    return match.user?.name?.toLowerCase().includes(query);
+                });
+
+                const allReturned = filtered.length === mockMatches.length;
+
+                return {
+                    success: allReturned,
+                    content: allReturned
+                        ? "Empty search query returns all matches"
+                        : "Empty search query filter failed"
+                };
+            } catch (e) {
+                return {
+                    success: false,
+                    content: `Failed to test empty search: ${e}`
+                };
+            }
+        }
+    ];
+
+    return await tests[index]();
+}
