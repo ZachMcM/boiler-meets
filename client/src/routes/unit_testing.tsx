@@ -3,6 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import {
     testProfileDataIntegrity,
     testMessagingAndAPI,
+    testEndCallFlow,
     UnitTestModule,
     type UnitTestType
 } from "@/components/UnitTest";

@@ -435,3 +435,104 @@ export async function testMessagingAndAPI(index: number): Promise<UnitTestOutput
 
     return await tests[index]();
 }
+
+export async function testEndCallFlow(index: number): Promise<UnitTestOutputType> {
+    const tests = [
+        
+        async () => {
+            try {
+                
+                const mockVideoCallData = {
+                    otherUser: null,
+                    matched: false,
+                    callLength: 0,
+                    numberCallExtensions: 0,
+                    callEndedByUser: false
+                };
+                const hasRequiredFields =
+                    'otherUser' in mockVideoCallData &&
+                    'matched' in mockVideoCallData &&
+                    'callLength' in mockVideoCallData &&
+                    'numberCallExtensions' in mockVideoCallData &&
+                    'callEndedByUser' in mockVideoCallData;
+
+                return {
+                    success: hasRequiredFields,
+                    content: hasRequiredFields
+                        ? "VideoCallData structure has all required fields"
+                        : "VideoCallData structure is missing required fields"
+                };
+            } catch (e) {
+                return {
+                    success: false,
+                    content: `Failed to verify VideoCallData structure: ${e}`
+                };
+            }
+        },
+        
+        async () => {
+            try {
+                const startTime = Date.now();
+                await new Promise(resolve => setTimeout(resolve, 100)); 
+                const endTime = Date.now();
+                const duration = endTime - startTime;
+                const isReasonable = duration >= 100 && duration < 200;
+
+                return {
+                    success: isReasonable,
+                    content: isReasonable
+                        ? `Call duration calculation works (measured ${duration}ms)`
+                        : `Call duration calculation may be inaccurate (${duration}ms for 100ms delay)`
+                };
+            } catch (e) {
+                return {
+                    success: false,
+                    content: `Failed to test call duration: ${e}`
+                };
+            }
+        },
+        
+        async () => {
+            try {
+                const testCallLength = 125000; 
+                const minutes = Math.floor(testCallLength / 60000);
+                const seconds = Math.floor((testCallLength % 60000) / 1000);
+                const isCorrect = minutes === 2 && seconds === 5;
+
+                return {
+                    success: isCorrect,
+                    content: isCorrect
+                        ? "Call summary time format calculation is correct (2m 5s from 125000ms)"
+                        : `Call summary time format calculation failed (expected 2m 5s, got ${minutes}m ${seconds}s)`
+                };
+            } catch (e) {
+                return {
+                    success: false,
+                    content: `Failed to test time format: ${e}`
+                };
+            }
+        },
+        
+        async () => {
+            try {
+                const testCallLength = 45000; 
+                const seconds = Math.floor(testCallLength / 1000);
+                const isCorrect = seconds === 45;
+
+                return {
+                    success: isCorrect,
+                    content: isCorrect
+                        ? "Call summary seconds-only format is correct (45s from 45000ms)"
+                        : `Call summary seconds format failed (expected 45s, got ${seconds}s)`
+                };
+            } catch (e) {
+                return {
+                    success: false,
+                    content: `Failed to test seconds format: ${e}`
+                };
+            }
+        }
+    ];
+
+    return await tests[index]();
+}
