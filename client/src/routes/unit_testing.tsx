@@ -33,6 +33,12 @@ function RouteComponent() {
             count: 4,
             func: testEndCallFlow,
         },
+        {
+            id: 4,
+            name: "Feedback Functionality",
+            count: 3,
+            func: testFeedback,
+        },
     ];
 
     return (

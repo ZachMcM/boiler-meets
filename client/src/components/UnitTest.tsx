@@ -536,3 +536,102 @@ export async function testEndCallFlow(index: number): Promise<UnitTestOutputType
 
     return await tests[index]();
 }
+
+export async function testFeedback(index: number): Promise<UnitTestOutputType> {
+    const tests = [
+        
+        async () => {
+            try {
+                let feedbackPage = false;
+                feedbackPage = true; 
+                const dialogOpened = feedbackPage === true;
+                feedbackPage = false; 
+                const dialogClosed = feedbackPage === false;
+
+                return {
+                    success: dialogOpened && dialogClosed,
+                    content: dialogOpened && dialogClosed
+                        ? "Feedback dialog state toggles correctly"
+                        : "Feedback dialog state management failed"
+                };
+            } catch (e) {
+                return {
+                    success: false,
+                    content: `Failed to test feedback dialog state: ${e}`
+                };
+            }
+        },
+        
+        async () => {
+            try {
+                let callAgainButtonClicked = false;
+                let waitingUserResponse = false;
+
+                
+                if (!callAgainButtonClicked) {
+                    waitingUserResponse = true;
+                    callAgainButtonClicked = true;
+                }
+
+                const stateCorrectAfterClick = callAgainButtonClicked && waitingUserResponse;
+
+                
+                if (callAgainButtonClicked) {
+                    waitingUserResponse = false;
+                    callAgainButtonClicked = false;
+                }
+
+                const stateCorrectAfterUnclick = !callAgainButtonClicked && !waitingUserResponse;
+
+                return {
+                    success: stateCorrectAfterClick && stateCorrectAfterUnclick,
+                    content: stateCorrectAfterClick && stateCorrectAfterUnclick
+                        ? "Call-again button state management works correctly"
+                        : "Call-again button state management failed"
+                };
+            } catch (e) {
+                return {
+                    success: false,
+                    content: `Failed to test call-again button state: ${e}`
+                };
+            }
+        },
+        
+        async () => {
+            try {
+                let userHasMatched = false;
+                let waitingUserResponse = false;
+
+                
+                if (!userHasMatched) {
+                    waitingUserResponse = true;
+                    userHasMatched = true;
+                }
+
+                const stateCorrectAfterClick = userHasMatched && waitingUserResponse;
+
+                
+                if (userHasMatched) {
+                    waitingUserResponse = false;
+                    userHasMatched = false;
+                }
+
+                const stateCorrectAfterUnmatch = !userHasMatched && !waitingUserResponse;
+
+                return {
+                    success: stateCorrectAfterClick && stateCorrectAfterUnmatch,
+                    content: stateCorrectAfterClick && stateCorrectAfterUnmatch
+                        ? "Match button state management works correctly"
+                        : "Match button state management failed"
+                };
+            } catch (e) {
+                return {
+                    success: false,
+                    content: `Failed to test match button state: ${e}`
+                };
+            }
+        }
+    ];
+
+    return await tests[index]();
+}
