@@ -54,7 +54,7 @@ export function UnitTestModule({ test }: { test: UnitTestType }) {
         setOutputs(results);
         setTestsComplete(true);
         setIsRunning(false);
-        setIsExpanded(true); // Auto-expand after running tests
+        setIsExpanded(true); 
     }
 
     const allSuccess = outputs.length > 0 && outputs.every(output => output.success);
@@ -338,6 +338,96 @@ export async function testProfileDataIntegrity(index: number): Promise<UnitTestO
                 return {
                     success: false,
                     content: `Test failed: ${e}`
+                };
+            }
+        }
+    ];
+
+    return await tests[index]();
+}
+
+export async function testMessagingAndAPI(index: number): Promise<UnitTestOutputType> {
+    const tests = [
+
+        
+        async () => {
+            try {
+                const response = await fetch(`${import.meta.env.VITE_SERVER_URL}/matches`, {
+                    method: "GET",
+                    credentials: "include"
+                });
+                const data = await response.json();
+                return {
+                    success: response.ok && Array.isArray(data),
+                    content: response.ok && Array.isArray(data)
+                        ? `GET /matches endpoint returns array (${data.length} matches)`
+                        : "GET /matches endpoint failed or returned invalid data"
+                };
+            } catch (e) {
+                return {
+                    success: false,
+                    content: `Failed to call GET /matches: ${e}`
+                };
+            }
+        },
+        
+        async () => {
+            try {
+                const testProfile = {
+                    modules: [
+                        {
+                            id: 1,
+                            type: "test",
+                            title: "Test Module",
+                            gridX: 0,
+                            gridY: 0,
+                            gridWidth: 1,
+                            gridHeight: 1,
+                            visible: true,
+                            data: []
+                        }
+                    ]
+                };
+                const response = await fetch(`${import.meta.env.VITE_SERVER_URL}/user/profile`, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    credentials: "include",
+                    body: JSON.stringify({ profile: testProfile })
+                });
+                const data = await response.json();
+                return {
+                    success: response.ok && data.success === true,
+                    content: response.ok && data.success === true
+                        ? "PUT /user/profile endpoint saves profile successfully"
+                        : `PUT /user/profile failed: ${data.error || 'Unknown error'}`
+                };
+            } catch (e) {
+                return {
+                    success: false,
+                    content: `Failed to call PUT /user/profile: ${e}`
+                };
+            }
+        },
+        
+        async () => {
+            try {
+                const response = await fetch(`${import.meta.env.VITE_SERVER_URL}/user/username/test-username`, {
+                    method: "GET",
+                    credentials: "include"
+                });
+                
+                return {
+                    success: response.ok || response.status === 404,
+                    content: response.ok
+                        ? "GET /user/username/:username endpoint responds correctly"
+                        : response.status === 404
+                            ? "GET /user/username/:username endpoint handles missing users correctly (404)"
+                            : `GET /user/username/:username failed with status ${response.status}`
+                };
+            } catch (e) {
+                return {
+                    success: false,
+                    content: `Failed to call GET /user/username/:username: ${e}`
                 };
             }
         }
