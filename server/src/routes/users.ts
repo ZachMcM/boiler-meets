@@ -79,7 +79,7 @@ usersRoute.put("/user/profile", authMiddleware, async (req, res) => {
 
     await db.update(user)
       .set({ profile: profileJson })
-      .where(eq(user.id, userId));
+      .where(eq(user.id, userId!));
 
     res.json({ success: true });
   } catch (error) {
@@ -223,7 +223,7 @@ usersRoute.post("/profile-reactions", authMiddleware, async (req, res) => {
       .from(profileReactions)
       .where(
         and(
-          eq(profileReactions.userId, userId),
+          eq(profileReactions.userId, userId!),
           eq(profileReactions.profileOwnerId, profileOwnerId),
           eq(profileReactions.targetId, targetId),
           eq(profileReactions.emoji, emoji)
@@ -244,7 +244,7 @@ usersRoute.post("/profile-reactions", authMiddleware, async (req, res) => {
     const newReaction = await db
       .insert(profileReactions)
       .values({
-        userId,
+        userId: userId!,
         profileOwnerId,
         targetId,
         targetType,
