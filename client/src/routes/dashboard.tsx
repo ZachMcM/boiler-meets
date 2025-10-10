@@ -348,7 +348,7 @@ function RouteComponent() {
                           className="hover:shadow-md transition-all hover:border-primary cursor-pointer py-0 mb-2"
                           onClick={() => { handleMatchClick(singleCallData.otherUser?.username || ""); clearCallSession(); }}
                         >
-                          <CardContent className="p-4 bg-pink-100 rounded-xl">
+                          <CardContent className="p-4 rounded-xl">
                             <div className="flex items-center">
                               <div className="flex-1 min-w-0">
                                 <h3 className="font-semibold text-base truncate hover:text-primary w-fit" onClick={() => { handleVisitProfile(singleCallData.otherUser?.username); clearCallSession(); }}>

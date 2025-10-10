@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useVideoCallContext } from "@/contexts/VideoCallContext";
 import { createFileRoute, useRouter } from "@tanstack/react-router";
+import { Heart, Users } from "lucide-react";
 
 export const Route = createFileRoute("/end_of_call")({
   component: RouteComponent,
@@ -41,7 +42,10 @@ function RouteComponent() {
             </div>
             <div className="flex items-center gap-2 justify-center">
               {callSession && callSession.length < maxCallHistoryLength && (
-                <FindRoomButton />
+                <div>
+                <FindRoomButton matchType="friend" label="Find Friends" icon={<Users />} />
+                <FindRoomButton matchType="romantic" label="Find Romance" icon={<Heart />} />
+                </div>
               )}
               <Button
                 size="lg"
