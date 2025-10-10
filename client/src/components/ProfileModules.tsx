@@ -811,46 +811,30 @@ function ReactionBar({ moduleId, reactions, onReaction, canReact }: ReactionBarP
   };
 
   return (
-    <div className="flex items-center gap-2 flex-wrap p-2 border-t border-slate-200">
-      {Object.entries(reactionGroups).map(([emoji, reactionList]) => (
-        <div
-          key={emoji}
-          className="flex items-center gap-1 px-2 py-1 bg-slate-100 rounded-full text-sm"
-          title={reactionList.map(r => r.userName).join(', ')}
-        >
-          <span>{emoji}</span>
-          <span className="text-slate-600">{reactionList.length}</span>
-        </div>
-      ))}
+    <div className="border-t border-slate-200 p-3 bg-slate-50">
+      <div className="flex items-center gap-2">
+        {EMOJI_OPTIONS.map(emoji => {
+          const count = reactionGroups[emoji]?.length || 0;
+          const users = reactionGroups[emoji]?.map(r => r.userName).join(', ') || '';
 
-      {canReact && (
-        <div className="relative">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-            className="h-7 px-2 hover:bg-slate-100"
-          >
-            <Smile className="w-4 h-4" />
-          </Button>
-
-          {showEmojiPicker && (
-            <div className="absolute bottom-full left-0 mb-2 bg-white rounded-lg shadow-lg border-2 border-slate-200 p-2 z-50">
-              <div className="flex gap-1">
-                {EMOJI_OPTIONS.map(emoji => (
-                  <button
-                    key={emoji}
-                    onClick={() => handleEmojiClick(emoji)}
-                    className="hover:bg-slate-100 rounded p-1 text-xl transition-colors hover:cursor-pointer"
-                  >
-                    {emoji}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
+          return (
+            <button
+              key={emoji}
+              onClick={() => canReact && handleEmojiClick(emoji)}
+              disabled={!canReact}
+              className={`px-3 py-1 rounded-lg transition-colors ${
+                count > 0
+                  ? 'bg-white border-2 border-slate-300'
+                  : 'bg-white border border-slate-200 opacity-50'
+              } ${canReact ? 'hover:border-slate-400 hover:cursor-pointer' : ''}`}
+              title={users || 'React'}
+            >
+              <span className="text-lg">{emoji}</span>
+              {count > 0 && <span className="ml-1 text-sm font-medium text-slate-700">{count}</span>}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }

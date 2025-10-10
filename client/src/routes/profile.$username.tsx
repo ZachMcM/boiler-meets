@@ -229,7 +229,6 @@ function RouteComponent(username: string) {
     router.navigate({ to: `/messages/${username}` });
   };
 
-  // Handler for adding reactions
   const handleReaction = async (targetId: string, emoji: string) => {
     if (!profileUserData?.id || !isMatched) return;
 
@@ -237,16 +236,19 @@ function RouteComponent(username: string) {
       await addProfileReaction(
         profileUserData.id,
         targetId,
-        targetId.split("-")[0], // Extract type from targetId (e.g., "bio-user123" -> "bio")
+        targetId.split("-")[0],
         emoji
       );
-      // Refetch reactions to update the UI
       await refetchReactions();
-      toast.success("Reaction added!");
     } catch (error) {
       console.error("Failed to add reaction:", error);
       toast.error("Failed to add reaction");
     }
+  };
+
+
+  const handleBioReaction = async (emoji: string) => {
+    await handleReaction(`bio-${profileUserData.id}`, emoji);
   };
 
   // Loading state
@@ -269,6 +271,15 @@ function RouteComponent(username: string) {
 
   const userAge = calculateAge(profileUserData.birthdate);
 
+  const bioReactions = reactions.filter(r => r.targetId === `bio-${profileUserData?.id}`);
+
+  const bioReactionGroups = bioReactions.reduce((acc, reaction) => {
+    if (!acc[reaction.emoji]) {
+      acc[reaction.emoji] = [];
+    }
+    acc[reaction.emoji].push(reaction);
+    return acc;
+  }, {} as Record<string, Reaction[]>);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background from-30% to-primary flex flex-col">
@@ -337,13 +348,39 @@ function RouteComponent(username: string) {
               style={{ overflowWrap: 'anywhere' }}
             />
             {permission === "edit" && hasChanged && !isLoading && (
-              <Button 
+              <Button
                 onClick={handleBioSave}
                 className="mt-4 hover:bg-[#a19072] text-white hover:cursor-pointer"
               >
                 <Save size={14} />
                 Save Bio
               </Button>
+            )}
+            {permission === "view" && isMatched && (
+              <div className="mt-4 border-t pt-3 bg-slate-50 -mx-6 px-6 py-3">
+                <div className="flex items-center gap-2">
+                  {['❤️', '👍', '😂', '🔥', '👀', '🎉'].map(emoji => {
+                    const count = bioReactionGroups[emoji]?.length || 0;
+                    const users = bioReactionGroups[emoji]?.map(r => r.userName).join(', ') || '';
+
+                    return (
+                      <button
+                        key={emoji}
+                        onClick={() => handleBioReaction(emoji)}
+                        className={`px-3 py-1 rounded-lg transition-colors ${
+                          count > 0
+                            ? 'bg-white border-2 border-slate-300'
+                            : 'bg-white border border-slate-200 opacity-50'
+                        } hover:border-slate-400 hover:cursor-pointer`}
+                        title={users || 'React'}
+                      >
+                        <span className="text-lg">{emoji}</span>
+                        {count > 0 && <span className="ml-1 text-sm font-medium text-slate-700">{count}</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             )}
           </CardContent>
         </Card>
