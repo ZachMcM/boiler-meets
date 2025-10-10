@@ -18,6 +18,9 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
   },
+  server: {
+    allowedHosts: [import.meta.env.HOST_URL]
+  },
   resolve: {
     alias: {
       '@': resolve(fileURLToPath(new URL('.', import.meta.url)), './src'),
