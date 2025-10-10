@@ -185,3 +185,59 @@ messagesRoute.get("/conversations", authMiddleware, async (req, res) => {
     res.status(500).json({ error: "server error" });
   }
 });
+
+messagesRoute.get("/messages/match/:username", authMiddleware, async (req, res) => {
+  try {
+    const currentUserId = res.locals.userId;
+    const { username } = req.params;
+
+    if (!currentUserId) {
+      return res.status(401).json({ error: "unauthorized" });
+    }
+
+    if (!username) {
+      return res.status(400).json({ error: "missing username" });
+    }
+
+    const otherUserResult = await db
+      .select({ id: user.id })
+      .from(user)
+      .where(eq(user.username, username))
+      .limit(1);
+
+    if (otherUserResult.length === 0) {
+      return res.status(404).json({ error: "user not found" });
+    }
+
+    const otherUserId = otherUserResult[0].id;
+
+    const conversation = await db
+      .select({
+        id: messages.id,
+        senderId: messages.senderId,
+        receiverId: messages.receiverId,
+        content: messages.content,
+        isRead: messages.isRead,
+        createdAt: messages.createdAt,
+      })
+      .from(messages)
+      .where(
+        or(
+          and(
+            eq(messages.senderId, currentUserId),
+            eq(messages.receiverId, otherUserId)
+          ),
+          and(
+            eq(messages.senderId, otherUserId),
+            eq(messages.receiverId, currentUserId)
+          )
+        )
+      )
+      .orderBy(desc(messages.createdAt));
+
+    res.json(conversation);
+  } catch (error) {
+    console.error("get match messages error:", error);
+    res.status(500).json({ error: "server error" });
+  }
+});
