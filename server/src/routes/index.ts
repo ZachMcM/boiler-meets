@@ -9,6 +9,6 @@ routes.use(usersRoute);
 routes.use(messagesRoute);
 routes.use(unitTestsRoute);
 
-routes.get("/login", async(_req, res) => {
-    res.redirect(`${process.env.CLIENT_URL!}/login`)
-})
+routes.get("/login", async (_req, res) => {
+  res.redirect(`${process.env.CLIENT_URL!}/login`);
+});
