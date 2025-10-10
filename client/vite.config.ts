@@ -19,7 +19,7 @@ export default defineConfig({
     environment: 'jsdom',
   },
   server: {
-    allowedHosts: ["client-production-5712.up.railway.app"]
+    allowedHosts: ["https://boiler-meets.vercel.app"]
   },
   resolve: {
     alias: {
