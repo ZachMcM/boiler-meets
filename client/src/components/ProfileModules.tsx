@@ -727,8 +727,11 @@ function ProfileModuleCarousel({ initialModules }: ProfileModuleCarouselProps) {
             {moduleType?.name}
           </h2>
           
-          <div className="text-6xl font-bold text-slate-700 text-center">
-            {currentModule.data[0]?.selectedOption || "Not set"}
+          <div className="w-full max-w-2xl mx-auto px-4">
+            <ScrollingText 
+              text={currentModule.data[0]?.selectedOption || "Not set"}
+              className="text-6xl font-bold text-slate-700 py-6"
+            />
           </div>
         </div>
 

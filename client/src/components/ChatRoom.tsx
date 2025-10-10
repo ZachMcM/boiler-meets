@@ -792,16 +792,16 @@ export function ChatRoom({ roomId }: { roomId: string }) {
                   </CardFooter>
                 </Card>
               </div> }
-            <div className = "flex-1">
-              <Card className = "mb-4">
+            <div className="flex-1 min-w-0 max-w-md">
+              <Card className="mb-4">
                 <CardContent>
-                  <div className = "text-xl">About Me</div>
+                  <div className="text-xl">About Me</div>
                 </CardContent>
               </Card>
               {otherUser?.profile?.modules ? (
                 <ProfileModuleCarousel initialModules={otherUser.profile.modules} />
               ) : (
-                <Card className = "p-4 text-center text-3xl">No profile :(</Card>
+                <Card className="p-4 text-center text-3xl">No profile :(</Card>
               )}
             </div>
           </div>

@@ -1,7 +1,7 @@
 import FindRoomButton from "@/components/FindRoomButton";
 import { fetchUserSession } from "@/lib/auth-client";
 import { createFileRoute, useRouter } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
@@ -10,12 +10,15 @@ import { Input } from "@/components/ui/input";
 import { UserCircle, Sparkles, Search, User, ChevronRight, UsersRound, MessageCircle, Users, Heart, HouseIcon, PhoneCall } from "lucide-react";
 import { getMatches, getMatchMessages } from "@/endpoints";
 import { useVideoCallContext } from "@/contexts/VideoCallContext";
+import { io } from "socket.io-client";
 
 export const Route = createFileRoute("/dashboard")({
   component: RouteComponent,
 });
 
 function RouteComponent() {
+  const queryClient = useQueryClient();
+
   const { data: currentUserData, isLoading: sessionPending } = useQuery({
     queryKey: ['session'],
     queryFn: fetchUserSession
@@ -63,6 +66,22 @@ function RouteComponent() {
     },
     enabled: !!matches && matches.length > 0,
   });
+
+  useEffect(() => {
+    const socket = io(`${import.meta.env.VITE_SERVER_URL}/messaging`, {
+      auth: { userId: currentUserData?.data?.user?.id },
+      withCredentials: true,
+    });
+
+    socket.on('message-received', () => {
+      // Invalidate queries when any message is received
+      queryClient.invalidateQueries({ queryKey: ["recentMessages"] });
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [currentUserData?.data?.user?.id, queryClient]);
 
   useEffect(() => {
     if (currentUserData?.data?.user && !sessionPending) {
