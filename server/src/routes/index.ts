@@ -10,5 +10,5 @@ routes.use(messagesRoute);
 routes.use(unitTestsRoute);
 
 routes.get("/login", async(_req, res) => {
-    res.redirect("http://localhost:3000/login")
+    res.redirect(`${process.env.CLIENT_URL!}/login`)
 })

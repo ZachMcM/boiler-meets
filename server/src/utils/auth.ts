@@ -11,7 +11,7 @@ export const auth = betterAuth({
     schema,
   }),
   trustedOrigins: [
-  "http://localhost:3000", // Can be replaced by other client ports depending on the user testing
+  process.env.CLIENT_URL!, // Can be replaced by other client ports depending on the user testing
   // TODO add our domain here as well
   ],
   user: {
