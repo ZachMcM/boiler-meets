@@ -19,7 +19,7 @@ export default defineConfig({
     environment: 'jsdom',
   },
   server: {
-    allowedHosts: [import.meta.env.HOST_URL]
+    allowedHosts: [import.meta.env.VITE_HOST_URL]
   },
   resolve: {
     alias: {
