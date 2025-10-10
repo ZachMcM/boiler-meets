@@ -13,7 +13,7 @@ export async function videoChatHandler(socket: Socket) {
   let roomId = socket.handshake.auth.roomId as string | string[] | undefined;
   let timeoutId: ReturnType<typeof setTimeout>;
   const timeoutMs = 60000; // DEBUG TIMEOUT INTERVALS: 60,000 = 1 minute
-  const callAgainTimeout = 60000
+  const callAgainTimeout = 60000 * 5
   // const timeoutMs = 300000; // Normal timeout intervals
   // const callAgainTimeout = 300000 * 5
 

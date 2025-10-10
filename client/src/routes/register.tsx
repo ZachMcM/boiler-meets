@@ -68,10 +68,13 @@ function RouteComponent() {
         },
         {
           onError: ({ error }) => {
+            if (error.status === 422) {
+              toast.error("Email already taken, please use another");
+            } else {
             toast.error(
               error.message || "Registration Failed"
             );
-            toast.error(error.message)
+            }
             setIsLoading(false);
           },
           onRequest: () => {
