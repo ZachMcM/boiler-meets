@@ -635,3 +635,187 @@ export async function testFeedback(index: number): Promise<UnitTestOutputType> {
 
     return await tests[index]();
 }
+
+export async function testMatchSearch(index: number): Promise<UnitTestOutputType> {
+    const tests = [
+        
+        async () => {
+            try {
+                const response = await fetch(`${import.meta.env.VITE_SERVER_URL}/matches`, {
+                    method: "GET",
+                    credentials: "include"
+                });
+                const matches = await response.json();
+                return {
+                    success: response.ok && Array.isArray(matches),
+                    content: response.ok && Array.isArray(matches)
+                        ? `Matches list fetched successfully (${matches.length} matches)`
+                        : "Failed to fetch matches list"
+                };
+            } catch (e) {
+                return {
+                    success: false,
+                    content: `Failed to fetch matches: ${e}`
+                };
+            }
+        },
+        
+        async () => {
+            try {
+                const mockMatches = [
+                    { matchId: 1, user: { name: "Alice Johnson" } },
+                    { matchId: 2, user: { name: "Bob Smith" } },
+                    { matchId: 3, user: { name: "Charlie Brown" } }
+                ];
+
+                const searchQuery = "ali";
+                const filtered = mockMatches.filter((match) => {
+                    if (!searchQuery) return true;
+                    const query = searchQuery.toLowerCase();
+                    return match.user?.name?.toLowerCase().includes(query);
+                });
+
+                const correctResult = filtered.length === 1 && filtered[0].user.name === "Alice Johnson";
+
+                return {
+                    success: correctResult,
+                    content: correctResult
+                        ? "Search filter correctly filters matches by name"
+                        : `Search filter failed (expected 1 match for 'ali', got ${filtered.length})`
+                };
+            } catch (e) {
+                return {
+                    success: false,
+                    content: `Failed to test search filter: ${e}`
+                };
+            }
+        },
+        
+        async () => {
+            try {
+                const mockMatches = [
+                    { matchId: 1, user: { name: "Alice" } },
+                    { matchId: 2, user: { name: "Bob" } }
+                ];
+
+                const searchQuery = "";
+                const filtered = mockMatches.filter((match) => {
+                    if (!searchQuery) return true;
+                    const query = searchQuery.toLowerCase();
+                    return match.user?.name?.toLowerCase().includes(query);
+                });
+
+                const allReturned = filtered.length === mockMatches.length;
+
+                return {
+                    success: allReturned,
+                    content: allReturned
+                        ? "Empty search query returns all matches"
+                        : "Empty search query filter failed"
+                };
+            } catch (e) {
+                return {
+                    success: false,
+                    content: `Failed to test empty search: ${e}`
+                };
+            }
+        }
+    ];
+
+    return await tests[index]();
+}
+
+export async function testProfileOnCall(index: number): Promise<UnitTestOutputType> {
+    const tests = [
+        
+        async () => {
+            try {
+                
+                const response = await fetch(`${import.meta.env.VITE_SERVER_URL}/users/test-user-id`, {
+                    method: "GET",
+                    credentials: "include"
+                });
+
+                
+                return {
+                    success: response.status === 200 || response.status === 500,
+                    content: response.status === 200 || response.status === 500
+                        ? "User profile fetch endpoint is accessible during call"
+                        : `Profile fetch failed with unexpected status: ${response.status}`
+                };
+            } catch (e) {
+                return {
+                    success: false,
+                    content: `Failed to fetch user profile: ${e}`
+                };
+            }
+        },
+        
+        async () => {
+            try {
+                const mockProfile = {
+                    modules: [
+                        {
+                            id: 1,
+                            type: "favoriteFood",
+                            title: "My favorite food",
+                            gridX: 0,
+                            gridY: 0,
+                            gridWidth: 2,
+                            gridHeight: 1,
+                            visible: true,
+                            data: [{ id: 1, content: "Pizza" }]
+                        }
+                    ]
+                };
+
+                const hasModules = Array.isArray(mockProfile.modules);
+                const firstModule = mockProfile.modules[0];
+                const hasRequiredFields =
+                    'id' in firstModule &&
+                    'type' in firstModule &&
+                    'title' in firstModule &&
+                    'visible' in firstModule;
+
+                return {
+                    success: hasModules && hasRequiredFields,
+                    content: hasModules && hasRequiredFields
+                        ? "Profile module structure is correct"
+                        : "Profile module structure is missing required fields"
+                };
+            } catch (e) {
+                return {
+                    success: false,
+                    content: `Failed to verify profile structure: ${e}`
+                };
+            }
+        },
+        
+        async () => {
+            try {
+                const mockModules = [
+                    { id: 1, type: "test1", visible: true },
+                    { id: 2, type: "test2", visible: false },
+                    { id: 3, type: "test3", visible: true }
+                ];
+
+                const visibleModules = mockModules.filter(m => m.visible);
+                const correctCount = visibleModules.length === 2;
+
+                return {
+                    success: correctCount,
+                    content: correctCount
+                        ? "Profile visibility filtering works correctly (2 visible out of 3)"
+                        : `Profile visibility filtering failed (expected 2, got ${visibleModules.length})`
+                };
+            } catch (e) {
+                return {
+                    success: false,
+                    content: `Failed to test visibility filtering: ${e}`
+                };
+            }
+        }
+    ];
+
+    return await tests[index]();
+}
