@@ -19,7 +19,7 @@ export default defineConfig({
     environment: 'jsdom',
   },
   server: {
-    allowedHosts: [import.meta.env.VITE_HOST_URL]
+    allowedHosts: ["client-production-5712.up.railway.app"]
   },
   resolve: {
     alias: {
