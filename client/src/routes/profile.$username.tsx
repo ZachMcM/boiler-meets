@@ -352,7 +352,7 @@ function RouteComponent(username: string) {
             <ProfileModuleEditor
               initialModules={profileModules}
               onSave={handleProfileSave}
-              permission={permission}
+              permission={permission as "view" | "edit" | undefined}
               reactions={reactions}
               onReaction={handleReaction}
               canReact={isMatched && permission === "view"}

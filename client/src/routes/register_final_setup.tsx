@@ -67,8 +67,12 @@ function RouteComponent() {
             setIsLoading(true);
           },
           onSuccess: async () => {
-            await queryClient.invalidateQueries(["session"]);
-            await queryClient.refetchQueries(['session']);
+            await queryClient.invalidateQueries({
+              queryKey: ["session"]
+            });
+            await queryClient.refetchQueries({
+              queryKey: ["session"]
+            });
             toast.success("Welcome to BoilerMeets!");
             setIsLoading(false);
             router.navigate( {to: "/dashboard"} )

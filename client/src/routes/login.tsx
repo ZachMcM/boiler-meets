@@ -60,8 +60,12 @@ function RouteComponent() {
             setIsLoading(true);
           },
           onSuccess: async () => {
-            await queryClient.invalidateQueries(["session"]);
-            await queryClient.refetchQueries(['session']);
+            await queryClient.invalidateQueries({
+              queryKey: ["session"]
+            });
+            await queryClient.refetchQueries({
+              queryKey: ["session"]
+            });
             toast.success("Successfully signed in");
             setIsLoading(false);
             router.navigate({ to: "/dashboard" });
