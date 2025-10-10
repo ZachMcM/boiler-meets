@@ -33,7 +33,7 @@ export const authClient = createAuthClient({
 
 export async function fetchUserSession() {
   const response = await authClient.getSession({ query: {
-    disableCookieCache: true
+    disableCookieCache: false
   }});
 
   return response;

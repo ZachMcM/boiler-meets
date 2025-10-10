@@ -60,7 +60,7 @@ export const auth = betterAuth({
   },
   session: {
     cookieCache: {
-      enabled: false
+      enabled: true
     }
   },
   plugins: [username()],
