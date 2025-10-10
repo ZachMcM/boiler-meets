@@ -42,7 +42,7 @@ function RouteComponent() {
             </div>
             <div className="flex items-center gap-2 justify-center">
               {callSession && callSession.length < maxCallHistoryLength && (
-                <div>
+                <div className="flex flex-row items-center gap-2">
                 <FindRoomButton matchType="friend" label="Find Friends" icon={<Users />} />
                 <FindRoomButton matchType="romantic" label="Find Romance" icon={<Heart />} />
                 </div>
