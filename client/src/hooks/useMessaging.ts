@@ -22,7 +22,7 @@ export function useMessaging({ userId, otherUserId }: UseMessagingProps): UseMes
   const [isConnected, setIsConnected] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   const socketRef = useRef<Socket | null>(null);
-  const typingTimeoutRef = useRef<NodeJS.Timeout>();
+  const typingTimeoutRef = useRef<NodeJS.Timeout>(null);
 
   // Initialize Socket.IO connection
   useEffect(() => {
