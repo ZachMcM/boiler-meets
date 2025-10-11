@@ -104,6 +104,7 @@ function RouteComponent() {
 
   const handleSetupProfile = () => {
     if (currentUserData?.data?.user?.username) {
+      localStorage.setItem(`welcome_dismissed_${currentUserData.data.user.id}`, 'true');
       router.navigate({ to: `/profile/${currentUserData.data.user.username}` });
     }
   };
