@@ -6,6 +6,7 @@ import * as schema from "../db/schema";
 import { sendEmail } from "./mailer";
 
 export const auth = betterAuth({
+  baseURL: process.env.BETTER_AUTH_URL!,
   database: drizzleAdapter(db, {
     provider: "pg",
     schema,
@@ -62,6 +63,12 @@ export const auth = betterAuth({
     cookieCache: {
       enabled: true
     }
+  },
+  advanced: {
+    useSecureCookies: process.env.NODE_ENV === "production",
+    crossSubdomainCookies: {
+      enabled: true,
+    },
   },
   plugins: [username()],
 });
