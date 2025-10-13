@@ -6,9 +6,6 @@ import {
 
 export const authClient = createAuthClient({
   baseURL: import.meta.env.VITE_SERVER_URL,
-  fetchOptions: {
-    credentials: "include",
-  },
   plugins: [
     inferAdditionalFields({
       user: {
