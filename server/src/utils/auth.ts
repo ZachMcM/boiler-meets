@@ -6,13 +6,13 @@ import * as schema from "../db/schema";
 import { sendEmail } from "./mailer";
 
 export const auth = betterAuth({
+  baseURL: process.env.BETTER_AUTH_URL!,
   database: drizzleAdapter(db, {
     provider: "pg",
     schema,
   }),
   trustedOrigins: [
-  process.env.CLIENT_URL!, // Can be replaced by other client ports depending on the user testing
-  // TODO add our domain here as well
+    process.env.CLIENT_URL!,
   ],
   user: {
     additionalFields: {
