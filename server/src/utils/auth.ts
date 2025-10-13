@@ -14,6 +14,12 @@ export const auth = betterAuth({
   trustedOrigins: [
     process.env.CLIENT_URL!,
   ],
+  advanced: {
+    defaultCookieAttributes: {
+      sameSite: "none",
+      secure: true
+    }
+  },
   user: {
     additionalFields: {
       major: {
@@ -60,7 +66,7 @@ export const auth = betterAuth({
   },
   session: {
     cookieCache: {
-      enabled: true
+      enabled: true,
     }
   },
   plugins: [username()],
