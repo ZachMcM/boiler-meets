@@ -6,6 +6,7 @@ import { r2, R2_BUCKET_NAME, R2_PUBLIC_URL } from "../utils/r2";
 import { db } from "../db";
 import { report } from "../db/schema";
 import { logger } from "../logger";
+import { enqueueReportHandlerWorker } from "../workers/reportWorker";
 
 export const reportsRoute = Router();
 
@@ -37,7 +38,8 @@ reportsRoute.post(
       // Validate required fields
       if (!submissionDetails || !incomingUserId || !outgoingUserId) {
         return res.status(400).json({
-          error: "Missing required fields: submissionDetails, incomingUserId, outgoingUserId",
+          error:
+            "Missing required fields: submissionDetails, incomingUserId, outgoingUserId",
         });
       }
 
@@ -51,6 +53,8 @@ reportsRoute.post(
       const timestamp = Date.now();
       const filename = `reports/${outgoingUserId}-${incomingUserId}-${timestamp}.webm`;
 
+      logger.info(`Uploading to bucket: ${R2_BUCKET_NAME}`);
+
       // Upload to Cloudflare R2
       const uploadCommand = new PutObjectCommand({
         Bucket: R2_BUCKET_NAME,
@@ -60,7 +64,9 @@ reportsRoute.post(
       });
 
       await r2.send(uploadCommand);
-      logger.info(`Audio file uploaded to R2: ${filename}`);
+      logger.info(
+        `Audio file uploaded to R2 bucket "${R2_BUCKET_NAME}": ${filename}`
+      );
 
       // Construct public URL for the audio file
       const audioFileUrl = `${R2_PUBLIC_URL}/${filename}`;
@@ -82,6 +88,8 @@ reportsRoute.post(
         message: "Report submitted successfully",
         reportId: newReport.id,
       });
+
+      await enqueueReportHandlerWorker(newReport.id);
     } catch (error) {
       logger.error("Error submitting report:", error);
       res.status(500).json({

@@ -7,6 +7,8 @@ import {
   uuid,
   serial,
   json,
+  integer,
+  pgEnum,
 } from "drizzle-orm/pg-core";
 
 export const user = pgTable("user", {
@@ -89,12 +91,33 @@ export const matches = pgTable("matches", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const reportInvestigationSeverity = pgEnum("report_investigation_severity", [
+  "none",
+  "low",
+  "medium",
+  "high",
+  "ban"
+]);
+
 export const report = pgTable("report", {
   id: serial("id").primaryKey(),
-  incomingUserId: text("incoming_user_id").references(() => user.id, { onDelete: "cascade" }),
-  outgoingUserId: text("outgoing_user_id").references(() => user.id, { onDelete: "cascade" }),
+  incomingUserId: text("incoming_user_id")
+    .references(() => user.id, { onDelete: "cascade" })
+    .notNull(),
+  outgoingUserId: text("outgoing_user_id")
+    .references(() => user.id, { onDelete: "cascade" })
+    .notNull(),
   submissionDetails: text("submission_details").notNull(),
-  audioFileUrl: text("audio_file_url").notNull()
+  audioFileUrl: text("audio_file_url").notNull(),
+});
+
+export const reportInvestigations = pgTable("report_investigations", {
+  id: serial("id").primaryKey(),
+  reportId: integer("report_id")
+    .references(() => report.id, { onDelete: "cascade" })
+    .notNull(),
+  botComments: text("bot_comments").notNull(),
+  severity: reportInvestigationSeverity().notNull()
 });
 
 export const profileReactions = pgTable("profile_reactions", {

@@ -158,7 +158,7 @@ export function ChatRoom({ roomId }: { roomId: string }) {
   // Start recording when both streams are available
   useEffect(() => {
     if (localStream && remoteStream && !mediaRecorderRef.current) {
-      console.log('Both streams available, starting recording');
+      console.log("Both streams available, starting recording");
       startRecording();
     }
   }, [localStream, remoteStream]);
@@ -213,7 +213,7 @@ export function ChatRoom({ roomId }: { roomId: string }) {
 
       // Create MediaRecorder with the mixed stream
       const mediaRecorder = new MediaRecorder(destination.stream, {
-        mimeType: 'audio/webm',
+        mimeType: "audio/webm",
       });
 
       audioChunksRef.current = [];
@@ -221,28 +221,57 @@ export function ChatRoom({ roomId }: { roomId: string }) {
       mediaRecorder.ondataavailable = (event) => {
         if (event.data.size > 0) {
           audioChunksRef.current.push(event.data);
+          console.log("Audio data chunk received:", event.data.size, "bytes");
         }
       };
 
       mediaRecorder.onstop = () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        const audioBlob = new Blob(audioChunksRef.current, {
+          type: "audio/webm",
+        });
         recordedAudioBlobRef.current = audioBlob;
-        console.log('Recording stopped, blob size:', audioBlob.size);
+        console.log(
+          "Recording stopped, blob size:",
+          audioBlob.size,
+          "chunks:",
+          audioChunksRef.current.length
+        );
       };
 
-      mediaRecorder.start();
+      // Request data every second to ensure we capture audio
+      mediaRecorder.start(1000);
       mediaRecorderRef.current = mediaRecorder;
-      console.log('Started recording audio');
+      console.log("Started recording audio");
     } catch (error) {
-      console.error('Error starting audio recording:', error);
+      console.error("Error starting audio recording:", error);
     }
   };
 
-  const stopRecording = () => {
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-      mediaRecorderRef.current.stop();
-      console.log('Stopped recording audio');
-    }
+  const stopRecording = (): Promise<Blob | null> => {
+    return new Promise((resolve) => {
+      if (
+        mediaRecorderRef.current &&
+        mediaRecorderRef.current.state !== "inactive"
+      ) {
+        mediaRecorderRef.current.onstop = () => {
+          const audioBlob = new Blob(audioChunksRef.current, {
+            type: "audio/webm",
+          });
+          recordedAudioBlobRef.current = audioBlob;
+          console.log("Recording stopped, blob size:", audioBlob.size);
+          resolve(audioBlob);
+        };
+        mediaRecorderRef.current.stop();
+        console.log("Stopped recording audio");
+      } else if (recordedAudioBlobRef.current) {
+        // Already stopped, return existing blob
+        console.log("Recording already stopped, using existing blob");
+        resolve(recordedAudioBlobRef.current);
+      } else {
+        console.log("No active recording to stop");
+        resolve(null);
+      }
+    });
   };
 
   const timeoutTransmissions = (disconnect: boolean) => {
@@ -609,7 +638,7 @@ export function ChatRoom({ roomId }: { roomId: string }) {
 
   const leaveRoom = async (toDashboard: boolean = false) => {
     // Stop recording before leaving
-    stopRecording();
+    await stopRecording();
 
     if (socket) {
       socket.emit("leave-room");
@@ -665,8 +694,17 @@ export function ChatRoom({ roomId }: { roomId: string }) {
   const cleanup = () => {
     console.log("Cleaning up resources");
 
-    // Stop recording if still active
-    stopRecording();
+    // Stop recording if still active (don't await to avoid blocking cleanup)
+    if (
+      mediaRecorderRef.current &&
+      mediaRecorderRef.current.state !== "inactive"
+    ) {
+      try {
+        mediaRecorderRef.current.stop();
+      } catch (error) {
+        console.error("Error stopping recording during cleanup:", error);
+      }
+    }
 
     if (localStreamRef.current) {
       localStreamRef.current.getTracks().forEach((track) => track.stop());
@@ -703,6 +741,7 @@ export function ChatRoom({ roomId }: { roomId: string }) {
     onSuccess: () => {
       toast.success("Report submitted successfully");
       setReportDetails("");
+      leaveRoom();
     },
     onError: (error: Error) => {
       console.error("Error submitting report:", error);
@@ -710,9 +749,13 @@ export function ChatRoom({ roomId }: { roomId: string }) {
     },
   });
 
-  function onReportSubmit() {
-    if (!recordedAudioBlobRef.current) {
+  async function onReportSubmit() {
+    // Ensure recording is stopped and blob is created
+    const audioBlob = await stopRecording();
+
+    if (!audioBlob || audioBlob.size === 0) {
       toast.error("No audio recording available");
+      console.error("Audio blob missing or empty:", audioBlob);
       return;
     }
 
@@ -726,8 +769,10 @@ export function ChatRoom({ roomId }: { roomId: string }) {
       return;
     }
 
+    console.log("Submitting report with audio blob size:", audioBlob.size);
+
     reportMutation.mutate({
-      audioBlob: recordedAudioBlobRef.current,
+      audioBlob: audioBlob,
       submissionDetails: reportDetails,
       incomingUserId: otherUserId,
       outgoingUserId: session.user.id,
@@ -839,7 +884,7 @@ export function ChatRoom({ roomId }: { roomId: string }) {
                           onSubmit={onReportSubmit}
                           otherUser={otherUser!}
                           isSubmitting={reportMutation.isPending}
-                         />
+                        />
                       </Dialog>
                     </div>
                   </CardContent>
@@ -1007,21 +1052,20 @@ export function ReportDialogContent({
   onSubmit: () => void;
   isSubmitting?: boolean;
 }) {
-
-  console.log(otherUser)
   return (
     <DialogContent>
       <DialogHeader>
         <DialogTitle>Report User</DialogTitle>
         <DialogDescription>
-          Report this user for violating our terms. The call audio will be included for review.
+          Report this user for violating our terms. The call audio will be
+          included for review.
         </DialogDescription>
       </DialogHeader>
       <div className="space-y-4">
         <div>
           <Label>Reporting: {otherUser?.name || "Unknown User"}</Label>
         </div>
-        <div>
+        <div className="space-y-2">
           <Label>Report Details</Label>
           <Input
             value={details}
@@ -1032,8 +1076,14 @@ export function ReportDialogContent({
         </div>
       </div>
       <DialogFooter>
-        <DialogClose onClick={() => setDetails("")} asChild disabled={isSubmitting}>
-          <Button variant="outline" disabled={isSubmitting}>Cancel</Button>
+        <DialogClose
+          onClick={() => setDetails("")}
+          asChild
+          disabled={isSubmitting}
+        >
+          <Button variant="outline" disabled={isSubmitting}>
+            Cancel
+          </Button>
         </DialogClose>
         <DialogClose asChild>
           <Button

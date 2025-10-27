@@ -1,5 +1,5 @@
 import { relations } from "drizzle-orm";
-import { report, user } from "./schema";
+import { report, reportInvestigations, user } from "./schema";
 
 // TODO as we add more tables and fields
 
@@ -16,4 +16,5 @@ export const reportRelations = relations(report, ({ one }) => ({
     references: [user.id],
     relationName: "outgoingReports",
   }),
+  reportInvestigation: one(reportInvestigations),
 }));
