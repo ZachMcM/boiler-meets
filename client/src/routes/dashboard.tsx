@@ -1,18 +1,42 @@
 import FindRoomButton from "@/components/FindRoomButton";
 import { fetchUserSession } from "@/lib/auth-client";
-import { createFileRoute, useRouter } from "@tanstack/react-router";
+import { createFileRoute, redirect, useRouter } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { UserCircle, Sparkles, Search, User, ChevronRight, UsersRound, MessageCircle, Users, Heart, HouseIcon, PhoneCall } from "lucide-react";
+import {
+  UserCircle,
+  Sparkles,
+  Search,
+  User,
+  ChevronRight,
+  UsersRound,
+  MessageCircle,
+  Users,
+  Heart,
+  HouseIcon,
+  PhoneCall,
+} from "lucide-react";
 import { getMatches, getMatchMessages } from "@/endpoints";
 import { useVideoCallContext } from "@/contexts/VideoCallContext";
 import { io } from "socket.io-client";
 
 export const Route = createFileRoute("/dashboard")({
+  beforeLoad: async ({ context }) => {
+    if (!context.currentUserData) {
+      throw redirect({
+        to: "/login",
+      });
+    }
+    if (context.currentUserData.user.isBanned) {
+      throw redirect({
+        to: "/banned",
+      });
+    }
+  },
   component: RouteComponent,
 });
 
@@ -20,8 +44,8 @@ function RouteComponent() {
   const queryClient = useQueryClient();
 
   const { data: currentUserData, isLoading: sessionPending } = useQuery({
-    queryKey: ['session'],
-    queryFn: fetchUserSession
+    queryKey: ["session"],
+    queryFn: fetchUserSession,
   });
 
   const { data: matches, isPending: matchesPending } = useQuery({
@@ -32,37 +56,45 @@ function RouteComponent() {
   const router = useRouter();
   const [showWelcomeDialog, setShowWelcomeDialog] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [matchFilter, setMatchFilter] = useState<"all" | "friend" | "romantic">("all");
+  const [matchFilter, setMatchFilter] = useState<"all" | "friend" | "romantic">(
+    "all"
+  );
 
-  const {callSession, clearCallSession} = useVideoCallContext();
+  const { callSession, clearCallSession } = useVideoCallContext();
 
-  const matchUserIds = matches?.map(match => match.user?.id).filter(Boolean) || [];
+  const matchUserIds =
+    matches?.map((match) => match.user?.id).filter(Boolean) || [];
 
   const messagesQueries = useQuery({
     queryKey: ["recentMessages", matchUserIds],
     queryFn: async () => {
       if (!matches || matches.length === 0) return {};
-      
+
       const messagePromises = matches.map(async (match) => {
         if (!match.user?.id) return null;
         try {
           const messages = await getMatchMessages(match.user.username);
-          const mostRecent = messages.sort((a: any, b: any) => 
-            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+          const mostRecent = messages.sort(
+            (a: any, b: any) =>
+              new Date(b.created_at).getTime() -
+              new Date(a.created_at).getTime()
           )[0];
           return { userId: match.user.id, message: mostRecent };
         } catch (error) {
           return { userId: match.user.id, message: null };
         }
       });
-      
+
       const results = await Promise.all(messagePromises);
-      return results.reduce((acc, result) => {
-        if (result) {
-          acc[result.userId] = result.message;
-        }
-        return acc;
-      }, {} as Record<string, any>);
+      return results.reduce(
+        (acc, result) => {
+          if (result) {
+            acc[result.userId] = result.message;
+          }
+          return acc;
+        },
+        {} as Record<string, any>
+      );
     },
     enabled: !!matches && matches.length > 0,
   });
@@ -73,7 +105,7 @@ function RouteComponent() {
       withCredentials: true,
     });
 
-    socket.on('message-received', () => {
+    socket.on("message-received", () => {
       // Invalidate queries when any message is received
       queryClient.invalidateQueries({ queryKey: ["recentMessages"] });
     });
@@ -83,9 +115,33 @@ function RouteComponent() {
     };
   }, [currentUserData?.data?.user?.id, queryClient]);
 
+  // Listen for user-banned event to immediately log out banned users
+  useEffect(() => {
+    if (!currentUserData?.data?.user?.id) return;
+
+    const socket = io(import.meta.env.VITE_SERVER_URL, {
+      auth: { userId: currentUserData.data.user.id },
+      withCredentials: true,
+    });
+
+    socket.on("user-banned", (data: { userId: string }) => {
+      if (data.userId === currentUserData?.data?.user?.id) {
+        // Clear session and redirect to banned page
+        queryClient.clear();
+        router.navigate({ to: "/banned" });
+      }
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [currentUserData?.data?.user?.id, router, queryClient]);
+
   useEffect(() => {
     if (currentUserData?.data?.user && !sessionPending) {
-      const hasSeenWelcome = localStorage.getItem(`welcome_dismissed_${currentUserData.data.user.id}`);
+      const hasSeenWelcome = localStorage.getItem(
+        `welcome_dismissed_${currentUserData.data.user.id}`
+      );
       if (!hasSeenWelcome) {
         setShowWelcomeDialog(true);
       }
@@ -97,21 +153,35 @@ function RouteComponent() {
     router.navigate({ to: "/login" });
   }
 
-  if (currentUserData?.data?.user && (!currentUserData?.data?.user.year || !currentUserData?.data?.user.major || !currentUserData?.data?.user.birthdate) && !sessionPending) {
-    console.log("Detected user has not completed account setup, redirecting to register_final_setup");
+  if (
+    currentUserData?.data?.user &&
+    (!currentUserData?.data?.user.year ||
+      !currentUserData?.data?.user.major ||
+      !currentUserData?.data?.user.birthdate) &&
+    !sessionPending
+  ) {
+    console.log(
+      "Detected user has not completed account setup, redirecting to register_final_setup"
+    );
     router.navigate({ to: "/register_final_setup" });
   }
 
   const handleSetupProfile = () => {
     if (currentUserData?.data?.user?.username) {
-      localStorage.setItem(`welcome_dismissed_${currentUserData.data.user.id}`, 'true');
+      localStorage.setItem(
+        `welcome_dismissed_${currentUserData.data.user.id}`,
+        "true"
+      );
       router.navigate({ to: `/profile/${currentUserData.data.user.username}` });
     }
   };
 
   const handleDismiss = () => {
     if (currentUserData?.data?.user?.id) {
-      localStorage.setItem(`welcome_dismissed_${currentUserData.data.user.id}`, 'true');
+      localStorage.setItem(
+        `welcome_dismissed_${currentUserData.data.user.id}`,
+        "true"
+      );
     }
     setShowWelcomeDialog(false);
   };
@@ -129,31 +199,34 @@ function RouteComponent() {
   };
 
   // Filter matches based on search query and match type
-  const filteredMatches = matches?.filter((match) => {
-    // Filter by match type
-    if (matchFilter !== "all" && match.matchType !== matchFilter) {
-      return false;
-    }
+  const filteredMatches = matches
+    ?.filter((match) => {
+      // Filter by match type
+      if (matchFilter !== "all" && match.matchType !== matchFilter) {
+        return false;
+      }
 
-    // Filter by search query
-    if (!searchQuery) return true;
-    const query = searchQuery.toLowerCase();
-    return (
-      match.user?.name?.toLowerCase().includes(query)
-    );
-  }).sort((a, b) => {
-    const aMessage = messagesQueries.data?.[a.user?.id];
-    const bMessage = messagesQueries.data?.[b.user?.id];
+      // Filter by search query
+      if (!searchQuery) return true;
+      const query = searchQuery.toLowerCase();
+      return match.user?.name?.toLowerCase().includes(query);
+    })
+    .sort((a, b) => {
+      const aMessage = messagesQueries.data?.[a.user?.id];
+      const bMessage = messagesQueries.data?.[b.user?.id];
 
-    if (aMessage?.createdAt && bMessage?.createdAt) {
-      return new Date(bMessage.createdAt).getTime() - new Date(aMessage.createdAt).getTime();
-    }
+      if (aMessage?.createdAt && bMessage?.createdAt) {
+        return (
+          new Date(bMessage.createdAt).getTime() -
+          new Date(aMessage.createdAt).getTime()
+        );
+      }
 
-    if (aMessage?.createdAt) return -1;
-    if (bMessage?.createdAt) return 1;
+      if (aMessage?.createdAt) return -1;
+      if (bMessage?.createdAt) return 1;
 
-    return 0;
-  });;
+      return 0;
+    });
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-accent to-secondary">
@@ -167,10 +240,20 @@ function RouteComponent() {
             </p>
           </div>
           <div className="flex gap-3">
-            <FindRoomButton matchType="friend" label="Find Friends" icon={<Users />} />
-            <FindRoomButton matchType="romantic" label="Find Romance" icon={<Heart />} />
+            <FindRoomButton
+              matchType="friend"
+              label="Find Friends"
+              icon={<Users />}
+            />
+            <FindRoomButton
+              matchType="romantic"
+              label="Find Romance"
+              icon={<Heart />}
+            />
             <Button
-              onClick={() => handleVisitProfile(currentUserData?.data?.user?.username)}
+              onClick={() =>
+                handleVisitProfile(currentUserData?.data?.user?.username)
+              }
               variant="outline"
               className="hover:cursor-pointer"
             >
@@ -194,7 +277,8 @@ function RouteComponent() {
                 </div>
               </div>
               <div className="text-sm text-muted-foreground">
-                {matches?.length || 0} {matches?.length === 1 ? "match" : "matches"}
+                {matches?.length || 0}{" "}
+                {matches?.length === 1 ? "match" : "matches"}
               </div>
             </div>
           </CardHeader>
@@ -280,7 +364,8 @@ function RouteComponent() {
                             </p>
                           </div>
                           <p className="text-sm text-muted-foreground truncate">
-                            {messagesQueries.data?.[match.user?.id]?.content || "Don't be shy! Send them a message."}
+                            {messagesQueries.data?.[match.user?.id]?.content ||
+                              "Don't be shy! Send them a message."}
                           </p>
                         </div>
 
@@ -328,8 +413,16 @@ function RouteComponent() {
                   </p>
                   {!searchQuery && (
                     <div className="flex gap-2 justify-center">
-                      <FindRoomButton matchType="friend" label="Find Friends" icon={<Users />} />
-                      <FindRoomButton matchType="romantic" label="Find Romance" icon={<Heart />} />
+                      <FindRoomButton
+                        matchType="friend"
+                        label="Find Friends"
+                        icon={<Users />}
+                      />
+                      <FindRoomButton
+                        matchType="romantic"
+                        label="Find Romance"
+                        icon={<Heart />}
+                      />
                     </div>
                   )}
                 </CardContent>
@@ -340,7 +433,7 @@ function RouteComponent() {
 
         {/* Welcome Dialog */}
         <Dialog open={showWelcomeDialog}>
-          <DialogContent 
+          <DialogContent
             className="[&>button:first-of-type]:hidden"
             onInteractOutside={(e) => {
               e.preventDefault();
@@ -360,7 +453,8 @@ function RouteComponent() {
                         Set Up Your Profile
                       </p>
                       <p className="text-sm text-muted-foreground">
-                        Make your profile stand out and help others get to know you!
+                        Make your profile stand out and help others get to know
+                        you!
                       </p>
                     </div>
                   </div>
@@ -368,7 +462,8 @@ function RouteComponent() {
                 <CardContent>
                   <div className="flex flex-col gap-3">
                     <p className="text-sm text-muted-foreground mb-2">
-                      Add modules to your profile to share your interests, favorites, and personality with the community.
+                      Add modules to your profile to share your interests,
+                      favorites, and personality with the community.
                     </p>
                     <div className="flex items-center gap-2 justify-end">
                       <Button
@@ -395,7 +490,7 @@ function RouteComponent() {
 
         {/* Post-Call Dialog */}
         <Dialog open={callSession !== null}>
-          <DialogContent 
+          <DialogContent
             className="[&>button:first-of-type]:hidden"
             onInteractOutside={(e) => {
               clearCallSession();
@@ -406,77 +501,102 @@ function RouteComponent() {
                 <PhoneCall className="w-5 h-5 text-green-500" />
                 Video Call Summary!
               </DialogTitle>
-                <Card className="max-w-3xl flex flex-1">
-                    <CardContent> {/* Card for matches on top */}
-                      {callSession && callSession.filter((singleCallData => {return singleCallData.matched})).map((singleCallData) => (
-                        <Card 
-                          key={`${singleCallData.otherUser}-${crypto.randomUUID()}`} 
+              <Card className="max-w-3xl flex flex-1">
+                <CardContent>
+                  {" "}
+                  {/* Card for matches on top */}
+                  {callSession &&
+                    callSession
+                      .filter((singleCallData) => {
+                        return singleCallData.matched;
+                      })
+                      .map((singleCallData) => (
+                        <Card
+                          key={`${singleCallData.otherUser}-${crypto.randomUUID()}`}
                           className="hover:shadow-md transition-all hover:border-primary cursor-pointer py-0 mb-2"
-                          onClick={() => { handleMatchClick(singleCallData.otherUser?.username || ""); clearCallSession(); }}
+                          onClick={() => {
+                            handleMatchClick(
+                              singleCallData.otherUser?.username || ""
+                            );
+                            clearCallSession();
+                          }}
                         >
                           <CardContent className="p-4 rounded-xl">
                             <div className="flex items-center">
                               <div className="flex-1 min-w-0">
-                                <h3 className="font-semibold text-base truncate hover:text-primary w-fit" onClick={() => { handleVisitProfile(singleCallData.otherUser?.username); clearCallSession(); }}>
-                                  {singleCallData.otherUser?.name || "Anonymous"} {"-- Matched!"}
+                                <h3
+                                  className="font-semibold text-base truncate hover:text-primary w-fit"
+                                  onClick={() => {
+                                    handleVisitProfile(
+                                      singleCallData.otherUser?.username
+                                    );
+                                    clearCallSession();
+                                  }}
+                                >
+                                  {singleCallData.otherUser?.name ||
+                                    "Anonymous"}{" "}
+                                  {"-- Matched!"}
                                 </h3>
                                 <p className="text-sm text-muted-foreground truncate">
-                                  {singleCallData.callLength >= 60000 ? (
-                                    `The call was ${Math.floor(singleCallData.callLength / 60000)} minutes and ${Math.floor((singleCallData.callLength % 60000) / 1000)} seconds`
-                                  ) : (
-                                    `The call was ${Math.floor(singleCallData.callLength / 1000)} seconds`
-                                  )}
+                                  {singleCallData.callLength >= 60000
+                                    ? `The call was ${Math.floor(singleCallData.callLength / 60000)} minutes and ${Math.floor((singleCallData.callLength % 60000) / 1000)} seconds`
+                                    : `The call was ${Math.floor(singleCallData.callLength / 1000)} seconds`}
                                   {/* TODO fix call extensions bug */}
                                   {/* {` with ${singleCallData.numberCallExtensions} call extensions`} */}
                                 </p>
                                 <p className="text-sm text-muted-foreground truncate">
                                   Don't be shy, send them a message!
                                 </p>
-                              </div>                              
+                              </div>
                               <ChevronRight className="w-5 h-5 text-muted-foreground flex-shrink-0" />
                             </div>
                           </CardContent>
                         </Card>
                       ))}
-                      {/* Card for non-matches on bottom */}
-                      {callSession && callSession.filter((singleCallData => {return !singleCallData.matched})).map((singleCallData) => (
-                        <Card 
-                          key={`${singleCallData.otherUser}-${singleCallData.callLength}`} 
+                  {/* Card for non-matches on bottom */}
+                  {callSession &&
+                    callSession
+                      .filter((singleCallData) => {
+                        return !singleCallData.matched;
+                      })
+                      .map((singleCallData) => (
+                        <Card
+                          key={`${singleCallData.otherUser}-${singleCallData.callLength}`}
                           className="transition-all py-0 mb-2"
                         >
                           <CardContent className="p-4">
                             <div className="flex items-center">
                               <div className="flex-1 min-w-0">
                                 <h3 className="font-semibold text-base truncate w-fit">
-                                  {singleCallData.otherUser?.name || "Anonymous"} {"-- No match"}
+                                  {singleCallData.otherUser?.name ||
+                                    "Anonymous"}{" "}
+                                  {"-- No match"}
                                 </h3>
                                 <p className="text-sm text-muted-foreground truncate">
-                                  {`Call was ended by ${singleCallData.callEndedByUser ? "you" : (singleCallData.otherUser?.name || "Anonymous")}`}
+                                  {`Call was ended by ${singleCallData.callEndedByUser ? "you" : singleCallData.otherUser?.name || "Anonymous"}`}
                                 </p>
                                 <p className="text-sm text-muted-foreground truncate">
-                                  {singleCallData.callLength >= 60000 ? (
-                                    `The call was ${Math.floor(singleCallData.callLength / 60000)} minutes and ${Math.floor((singleCallData.callLength % 60000) / 1000)} seconds`
-                                  ) : (
-                                    `The call was ${Math.floor(singleCallData.callLength / 1000)} seconds`
-                                  )}
+                                  {singleCallData.callLength >= 60000
+                                    ? `The call was ${Math.floor(singleCallData.callLength / 60000)} minutes and ${Math.floor((singleCallData.callLength % 60000) / 1000)} seconds`
+                                    : `The call was ${Math.floor(singleCallData.callLength / 1000)} seconds`}
                                   {/* {` with ${singleCallData.numberCallExtensions} call extensions`} */}
                                 </p>
-                              </div>                              
+                              </div>
                             </div>
                           </CardContent>
                         </Card>
                       ))}
-                      <div className="flex items-center gap-2 justify-center">
-                        <Button
-                          onClick={clearCallSession}
-                          className="rounded-full hover:bg-[#a19072]"
-                        >
-                          <HouseIcon />
-                          Back To Dashboard
-                        </Button>
-                      </div>
-                    </CardContent>
-                </Card>
+                  <div className="flex items-center gap-2 justify-center">
+                    <Button
+                      onClick={clearCallSession}
+                      className="rounded-full hover:bg-[#a19072]"
+                    >
+                      <HouseIcon />
+                      Back To Dashboard
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           </DialogContent>
         </Dialog>

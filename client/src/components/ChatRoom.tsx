@@ -18,24 +18,35 @@ import {
   User,
   Phone,
   Heart,
-  PhoneCall
+  PhoneCall,
+  Flag,
+  Check,
 } from "lucide-react";
 import { toast } from "sonner";
-import { QueryClientProvider, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createMatch, getUser } from "@/endpoints";
+import {
+  QueryClientProvider,
+  useQuery,
+  useQueryClient,
+  useMutation,
+} from "@tanstack/react-query";
+import { createMatch, getUser, submitReport } from "@/endpoints";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import {
   Dialog,
   DialogClose,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { ProfileModuleCarousel } from "./ProfileModules";
 import { useVideoCallContext } from "@/contexts/VideoCallContext";
 import type { VideoCallData } from "@/types/video_call";
 import type { User as User_Type } from "@/types/user";
+import { Label } from "./ui/label";
+import { Input } from "./ui/input";
 
 export function ChatRoom({ roomId }: { roomId: string }) {
   const router = useRouter();
@@ -55,7 +66,7 @@ export function ChatRoom({ roomId }: { roomId: string }) {
   const [passedFirstCall, setPassedFirstCall] = useState(false);
   const [userHasMatched, setUserHasMatched] = useState(false);
   const [callAgainButtonClicked, setCallAgainButtonClicked] = useState(false);
-  const [callStart] = useState((new Date).getTime());
+  const [callStart] = useState(new Date().getTime());
 
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
@@ -63,6 +74,9 @@ export function ChatRoom({ roomId }: { roomId: string }) {
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
   const pendingIceCandidatesRef = useRef<RTCIceCandidate[]>([]);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const recordedAudioBlobRef = useRef<Blob | null>(null);
 
   const { data: otherUser, isPending: otherUserPending } = useQuery({
     queryKey: ["user", otherUserId],
@@ -70,15 +84,15 @@ export function ChatRoom({ roomId }: { roomId: string }) {
     enabled: !!otherUserId,
   });
 
-  const videoCallData : VideoCallData = {
+  const videoCallData: VideoCallData = {
     otherUser: null,
     matched: false,
     callLength: 0,
     numberCallExtensions: 0,
-    callEndedByUser: false
+    callEndedByUser: false,
   };
 
-  const {callSession, addNewCall} = useVideoCallContext();
+  const { callSession, addNewCall } = useVideoCallContext();
 
   // To solve problems associated with React states not updating
   useEffect(() => {
@@ -135,13 +149,21 @@ export function ChatRoom({ roomId }: { roomId: string }) {
 
   useEffect(() => {
     console.log("LOCAL STREAM: ", localStream);
-  }, [localStream])
+  }, [localStream]);
 
   useEffect(() => {
     console.log("REMOTE STREAM: ", remoteStream);
-  }, [remoteStream])
+  }, [remoteStream]);
 
-    const toggleVideo = () => {
+  // Start recording when both streams are available
+  useEffect(() => {
+    if (localStream && remoteStream && !mediaRecorderRef.current) {
+      console.log("Both streams available, starting recording");
+      startRecording();
+    }
+  }, [localStream, remoteStream]);
+
+  const toggleVideo = () => {
     if (localStreamRef.current) {
       const videoTrack = localStreamRef.current.getVideoTracks()[0];
       if (videoTrack) {
@@ -161,6 +183,97 @@ export function ChatRoom({ roomId }: { roomId: string }) {
     }
   };
 
+  const startRecording = () => {
+    try {
+      // Create a mixed audio stream from both local and remote audio
+      const audioContext = new AudioContext();
+      const destination = audioContext.createMediaStreamDestination();
+
+      // Add local audio
+      if (localStreamRef.current) {
+        const localAudioTrack = localStreamRef.current.getAudioTracks()[0];
+        if (localAudioTrack) {
+          const localSource = audioContext.createMediaStreamSource(
+            new MediaStream([localAudioTrack])
+          );
+          localSource.connect(destination);
+        }
+      }
+
+      // Add remote audio
+      if (remoteStream) {
+        const remoteAudioTrack = remoteStream.getAudioTracks()[0];
+        if (remoteAudioTrack) {
+          const remoteSource = audioContext.createMediaStreamSource(
+            new MediaStream([remoteAudioTrack])
+          );
+          remoteSource.connect(destination);
+        }
+      }
+
+      // Create MediaRecorder with the mixed stream
+      const mediaRecorder = new MediaRecorder(destination.stream, {
+        mimeType: "audio/webm",
+      });
+
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+          console.log("Audio data chunk received:", event.data.size, "bytes");
+        }
+      };
+
+      mediaRecorder.onstop = () => {
+        const audioBlob = new Blob(audioChunksRef.current, {
+          type: "audio/webm",
+        });
+        recordedAudioBlobRef.current = audioBlob;
+        console.log(
+          "Recording stopped, blob size:",
+          audioBlob.size,
+          "chunks:",
+          audioChunksRef.current.length
+        );
+      };
+
+      // Request data every second to ensure we capture audio
+      mediaRecorder.start(1000);
+      mediaRecorderRef.current = mediaRecorder;
+      console.log("Started recording audio");
+    } catch (error) {
+      console.error("Error starting audio recording:", error);
+    }
+  };
+
+  const stopRecording = (): Promise<Blob | null> => {
+    return new Promise((resolve) => {
+      if (
+        mediaRecorderRef.current &&
+        mediaRecorderRef.current.state !== "inactive"
+      ) {
+        mediaRecorderRef.current.onstop = () => {
+          const audioBlob = new Blob(audioChunksRef.current, {
+            type: "audio/webm",
+          });
+          recordedAudioBlobRef.current = audioBlob;
+          console.log("Recording stopped, blob size:", audioBlob.size);
+          resolve(audioBlob);
+        };
+        mediaRecorderRef.current.stop();
+        console.log("Stopped recording audio");
+      } else if (recordedAudioBlobRef.current) {
+        // Already stopped, return existing blob
+        console.log("Recording already stopped, using existing blob");
+        resolve(recordedAudioBlobRef.current);
+      } else {
+        console.log("No active recording to stop");
+        resolve(null);
+      }
+    });
+  };
+
   const timeoutTransmissions = (disconnect: boolean) => {
     if (localStreamRef.current) {
       const audioTrack = localStreamRef.current.getAudioTracks()[0];
@@ -174,7 +287,7 @@ export function ChatRoom({ roomId }: { roomId: string }) {
         setIsVideoEnabled(!disconnect);
       }
     }
-  }
+  };
 
   const initializeWebRTC = async () => {
     try {
@@ -424,7 +537,7 @@ export function ChatRoom({ roomId }: { roomId: string }) {
         leaveRoom();
       });
 
-      videoChatSocket.on("timeout", () => { 
+      videoChatSocket.on("timeout", () => {
         setLocalStream(localStreamRef.current);
         console.log("REMOTE VIDEO", remoteVideoRef.current);
         timeoutTransmissions(true);
@@ -432,54 +545,70 @@ export function ChatRoom({ roomId }: { roomId: string }) {
       });
 
       videoChatSocket.on("call-again", () => {
-        videoCallData.numberCallExtensions = videoCallData.numberCallExtensions + 1;
-        setWaitingUserResponse(false); 
+        videoCallData.numberCallExtensions =
+          videoCallData.numberCallExtensions + 1;
+        setWaitingUserResponse(false);
         setCallAgainButtonClicked(false);
         setFeedbackPage(false);
-        console.log("call-again received"); 
+        console.log("call-again received");
         timeoutTransmissions(false);
         setPassedFirstCall(true);
       });
 
       /* TODO for when BOTH users match */
-      videoChatSocket.on("match", async ({ matchType }: { matchType: "friend" | "romantic" }) => {
-        /* Do not delete or alter this if statement, it fixes a critical bug where matching with a user causes 
+      videoChatSocket.on(
+        "match",
+        async ({ matchType }: { matchType: "friend" | "romantic" }) => {
+          /* Do not delete or alter this if statement, it fixes a critical bug where matching with a user causes 
            the user who clicked match second to not receive the other user's data in the after-call summary */
-        if (otherUserIdRef.current) {
-          videoCallData.otherUser = await getUser(otherUserIdRef.current);
-        }
-        setWaitingUserResponse(false);
-        setFeedbackPage(false);
-        console.log("Match received with type:", matchType);
-        console.log("otherUserIdRef.current:", otherUserIdRef.current); // Debug log
-        videoCallData.matched = true;
-        toast("It's a Match!");
-
-        // Use the ref instead of state
-        try {
-          if (otherUserIdRef.current && session?.user?.id && session.user.id < otherUserIdRef.current) {
-            await createMatch(session.user.id, otherUserIdRef.current, matchType);
-            console.log("Match created successfully");
-            queryClient.invalidateQueries({ queryKey: ["matches"] });
-          } else {
-            console.log("Other user will create match or otherUserId is null");
+          if (otherUserIdRef.current) {
+            videoCallData.otherUser = await getUser(otherUserIdRef.current);
           }
-        } catch (error) {
-          console.error("Failed to create match:", error);
-          toast.error("Failed to save match");
-        }
+          setWaitingUserResponse(false);
+          setFeedbackPage(false);
+          console.log("Match received with type:", matchType);
+          console.log("otherUserIdRef.current:", otherUserIdRef.current); // Debug log
+          videoCallData.matched = true;
+          toast("It's a Match!");
 
-        setOtherUserId(null);
-        otherUserIdRef.current = null;  // Clear the ref too
-        setRemoteStream(null);
-        if (remoteVideoRef.current) {
-          remoteVideoRef.current.srcObject = null;
-        }
+          // Use the ref instead of state
+          try {
+            if (
+              otherUserIdRef.current &&
+              session?.user?.id &&
+              session.user.id < otherUserIdRef.current
+            ) {
+              await createMatch(
+                session.user.id,
+                otherUserIdRef.current,
+                matchType
+              );
+              console.log("Match created successfully");
+              queryClient.invalidateQueries({ queryKey: ["matches"] });
+            } else {
+              console.log(
+                "Other user will create match or otherUserId is null"
+              );
+            }
+          } catch (error) {
+            console.error("Failed to create match:", error);
+            toast.error("Failed to save match");
+          }
 
-        leaveRoom();
+          setOtherUserId(null);
+          otherUserIdRef.current = null; // Clear the ref too
+          setRemoteStream(null);
+          if (remoteVideoRef.current) {
+            remoteVideoRef.current.srcObject = null;
+          }
+
+          leaveRoom();
+        }
+      );
+
+      videoChatSocket.on("user-call-again", () => {
+        toast.info("The other user wants to call again!");
       });
-
-      videoChatSocket.on("user-call-again", () => {toast.info("The other user wants to call again!"); });
 
       videoChatSocket.on("error", ({ message }) => {
         console.error("Socket error:", message);
@@ -505,13 +634,16 @@ export function ChatRoom({ roomId }: { roomId: string }) {
     if (socket) {
       socket.emit("soft-leave");
     }
-  }
+  };
 
   const leaveRoom = async (toDashboard: boolean = false) => {
+    // Stop recording before leaving
+    await stopRecording();
+
     if (socket) {
       socket.emit("leave-room");
     }
-    const now = (new Date()).getTime()
+    const now = new Date().getTime();
     videoCallData.callLength = now - callStart;
     console.log(now, callStart);
     if (otherUserIdRef.current) {
@@ -541,11 +673,11 @@ export function ChatRoom({ roomId }: { roomId: string }) {
         socket.emit("user-uncall");
       }
     }
-  }
+  };
 
   const toggleMatch = async () => {
     if (!userHasMatched) {
-      setWaitingUserResponse(true); 
+      setWaitingUserResponse(true);
       setUserHasMatched(true);
       if (socket) {
         socket.emit("user-match");
@@ -557,10 +689,23 @@ export function ChatRoom({ roomId }: { roomId: string }) {
         socket.emit("user-unmatch");
       }
     }
-  }
+  };
 
   const cleanup = () => {
     console.log("Cleaning up resources");
+
+    // Stop recording if still active (don't await to avoid blocking cleanup)
+    if (
+      mediaRecorderRef.current &&
+      mediaRecorderRef.current.state !== "inactive"
+    ) {
+      try {
+        mediaRecorderRef.current.stop();
+      } catch (error) {
+        console.error("Error stopping recording during cleanup:", error);
+      }
+    }
+
     if (localStreamRef.current) {
       localStreamRef.current.getTracks().forEach((track) => track.stop());
       localStreamRef.current = null;
@@ -578,12 +723,61 @@ export function ChatRoom({ roomId }: { roomId: string }) {
     pendingIceCandidatesRef.current = [];
     setRemoteStream(null);
     setOtherUserId(null);
+
+    // Clear recording refs
+    mediaRecorderRef.current = null;
+    audioChunksRef.current = [];
   };
 
   // Synchronize localStreamRef with localStream
   useEffect(() => {
     localStreamRef.current = localStream;
   }, [localStream]);
+
+  const [reportDetails, setReportDetails] = useState<string>("");
+
+  const reportMutation = useMutation({
+    mutationFn: submitReport,
+    onSuccess: () => {
+      toast.success("Report submitted successfully");
+      setReportDetails("");
+      leaveRoom();
+    },
+    onError: (error: Error) => {
+      console.error("Error submitting report:", error);
+      toast.error(error.message || "Failed to submit report");
+    },
+  });
+
+  async function onReportSubmit() {
+    // Ensure recording is stopped and blob is created
+    const audioBlob = await stopRecording();
+
+    if (!audioBlob || audioBlob.size === 0) {
+      toast.error("No audio recording available");
+      console.error("Audio blob missing or empty:", audioBlob);
+      return;
+    }
+
+    if (!reportDetails.trim()) {
+      toast.error("Please provide report details");
+      return;
+    }
+
+    if (!otherUserId || !session?.user.id) {
+      toast.error("No user to report");
+      return;
+    }
+
+    console.log("Submitting report with audio blob size:", audioBlob.size);
+
+    reportMutation.mutate({
+      audioBlob: audioBlob,
+      submissionDetails: reportDetails,
+      incomingUserId: otherUserId,
+      outgoingUserId: session.user.id,
+    });
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-accent to-secondary">
@@ -603,13 +797,14 @@ export function ChatRoom({ roomId }: { roomId: string }) {
           </Card>
 
           {/* Dialog */}
-            <Dialog open={feedbackPage}>
-              <DialogContent 
-                className="[&>button:first-of-type]:hidden"
-                onInteractOutside={(e) => {
-                  e.preventDefault();
-                }}>
-                <div className="flex flex-col space-y-4">
+          <Dialog open={feedbackPage}>
+            <DialogContent
+              className="[&>button:first-of-type]:hidden"
+              onInteractOutside={(e) => {
+                e.preventDefault();
+              }}
+            >
+              <div className="flex flex-col space-y-4">
                 <DialogTitle>End of Call!</DialogTitle>
                 <Card className="max-w-3xl flex flex-1">
                   {otherUser && !otherUserPending ? (
@@ -632,55 +827,74 @@ export function ChatRoom({ roomId }: { roomId: string }) {
                         </div>
                       </div>
                     </CardHeader>
-                    ) : (
-                      <CardHeader>
-                        <div className="flex items-center gap-2">
-                          <User className="w-4 h-4 text-foreground" />
-                          <p className="font-semibold text-foreground">
-                            {"Other user has left!"}
-                          </p>
-                        </div>
-                      </CardHeader>
-                    )}
-                    <CardContent>
-                      {waitingUserResponse && (
-                        <p className="text-foreground font-medium">
-                          "User is still responding..."
+                  ) : (
+                    <CardHeader>
+                      <div className="flex items-center gap-2">
+                        <User className="w-4 h-4 text-foreground" />
+                        <p className="font-semibold text-foreground">
+                          {"Other user has left!"}
                         </p>
-                      )}
-                        <div className="flex items-center gap-2 justify-between">
-                        <Button onClick={toggleCallAgain}>
-                          {callAgainButtonClicked ? (
-                            <PhoneCall fill="orange"/>
-                          ) : (
-                            <Phone />
-                          )}
-                          Call again?
-                        </Button>
-                        <Button
-                          onClick={toggleMatch}
-                          className="rounded-full bg-pink-200"
-                        >
-                          <Heart fill={userHasMatched ? "red" : 'none'}/>
-                          Match?
-                        </Button>
-                        <Button
-                          onClick={() => {toast("Video Chat ended"); videoCallData.callEndedByUser = true; leaveRoom(); }}
-                          variant="destructive"
-                          size="icon"
-                          className="rounded-full size-12"
-                        >
+                      </div>
+                    </CardHeader>
+                  )}
+                  <CardContent>
+                    {waitingUserResponse && (
+                      <p className="text-foreground font-medium">
+                        "User is still responding..."
+                      </p>
+                    )}
+                    <div className="flex items-center gap-2 justify-between">
+                      <Button onClick={toggleCallAgain}>
+                        {callAgainButtonClicked ? (
+                          <PhoneCall fill="orange" />
+                        ) : (
                           <Phone />
-                        </Button>
-                        </div>
-                    </CardContent>
+                        )}
+                        Call again?
+                      </Button>
+                      <Button
+                        onClick={toggleMatch}
+                        className="rounded-full bg-pink-200"
+                      >
+                        <Heart fill={userHasMatched ? "red" : "none"} />
+                        Match?
+                      </Button>
+                      <Button
+                        onClick={() => {
+                          toast("Video Chat ended");
+                          videoCallData.callEndedByUser = true;
+                          leaveRoom();
+                        }}
+                        variant="destructive"
+                        size="icon"
+                        className="rounded-full size-12"
+                      >
+                        <Phone />
+                      </Button>
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button variant="destructive">
+                            <Flag />
+                            Report
+                          </Button>
+                        </DialogTrigger>
+                        <ReportDialogContent
+                          details={reportDetails}
+                          setDetails={setReportDetails}
+                          onSubmit={onReportSubmit}
+                          otherUser={otherUser!}
+                          isSubmitting={reportMutation.isPending}
+                        />
+                      </Dialog>
+                    </div>
+                  </CardContent>
                 </Card>
-                </div>
-              </DialogContent>
-            </Dialog>
+              </div>
+            </DialogContent>
+          </Dialog>
 
           {/* Video Grid */}
-          <div className = "flex">
+          <div className="flex">
             {
               <div className="flex flex-[2] w-full">
                 {/* Remote Video */}
@@ -720,26 +934,22 @@ export function ChatRoom({ roomId }: { roomId: string }) {
                   <CardContent className="p-0 relative">
                     {remoteStream ? (
                       <div>
-                      <video
-                        ref={remoteVideoRef}
-                        autoPlay
-                        playsInline
-                        className="w-full h-64 lg:h-96 object-cover bg-card"
-                      />
-                        </div>
+                        <video
+                          ref={remoteVideoRef}
+                          autoPlay
+                          playsInline
+                          className="w-full h-64 lg:h-96 object-cover bg-card"
+                        />
+                      </div>
                     ) : (
                       <div className="w-full h-64 text-center lg:h-96 flex flex-col items-center justify-center">
                         <Video className="w-12 h-12" />
                         <p className="text-foreground font-medium">
-                          {waitingUserResponse ? (
-                            "User is still responding..."
-                          ) : (
-                            otherUserId ? (
-                              "Connecting video..."
-                            ) : (
-                              "Waiting for other user to join..."
-                              )
-                          )}
+                          {waitingUserResponse
+                            ? "User is still responding..."
+                            : otherUserId
+                              ? "Connecting video..."
+                              : "Waiting for other user to join..."}
                         </p>
                       </div>
                     )}
@@ -754,8 +964,8 @@ export function ChatRoom({ roomId }: { roomId: string }) {
                     </div>
                   </CardContent>
                   <CardFooter>
-                    <div className="flex justify-center gap-4">
-                      {/* <Button
+                    <div className="flex justify-center items-center gap-4">
+                      <Button
                         onClick={toggleVideo}
                         variant={isVideoEnabled ? "default" : "destructive"}
                         size="icon"
@@ -770,7 +980,7 @@ export function ChatRoom({ roomId }: { roomId: string }) {
                         className="rounded-full size-12"
                       >
                         {isAudioEnabled ? <Mic /> : <MicOff />}
-                      </Button> */}
+                      </Button>
                       <Button
                         onClick={softLeave}
                         variant="destructive"
@@ -779,19 +989,35 @@ export function ChatRoom({ roomId }: { roomId: string }) {
                       >
                         <Phone />
                       </Button>
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button variant="destructive">
+                            <Flag />
+                            Report
+                          </Button>
+                        </DialogTrigger>
+                        <ReportDialogContent
+                          details={reportDetails}
+                          setDetails={setReportDetails}
+                          onSubmit={onReportSubmit}
+                          otherUser={otherUser!}
+                          isSubmitting={reportMutation.isPending}
+                        />
+                      </Dialog>
                       {passedFirstCall && (
                         <Button
-                        onClick={toggleMatch}
-                        className="rounded-full bg-pink-200"
-                      >
-                        <Heart fill={userHasMatched ? "red" : 'none'} />
-                        Match?
-                      </Button>
+                          onClick={toggleMatch}
+                          className="rounded-full bg-pink-200"
+                        >
+                          <Heart fill={userHasMatched ? "red" : "none"} />
+                          Match?
+                        </Button>
                       )}
                     </div>
                   </CardFooter>
                 </Card>
-              </div> }
+              </div>
+            }
             <div className="flex-1 min-w-0 max-w-md">
               <Card className="mb-4">
                 <CardContent>
@@ -799,7 +1025,9 @@ export function ChatRoom({ roomId }: { roomId: string }) {
                 </CardContent>
               </Card>
               {otherUser?.profile?.modules ? (
-                <ProfileModuleCarousel initialModules={otherUser.profile.modules} />
+                <ProfileModuleCarousel
+                  initialModules={otherUser.profile.modules}
+                />
               ) : (
                 <Card className="p-4 text-center text-3xl">No profile :(</Card>
               )}
@@ -808,5 +1036,66 @@ export function ChatRoom({ roomId }: { roomId: string }) {
         </div>
       </div>
     </div>
+  );
+}
+
+export function ReportDialogContent({
+  otherUser,
+  details,
+  setDetails,
+  onSubmit,
+  isSubmitting = false,
+}: {
+  otherUser: User_Type;
+  details: string;
+  setDetails: (val: string) => void;
+  onSubmit: () => void;
+  isSubmitting?: boolean;
+}) {
+  return (
+    <DialogContent>
+      <DialogHeader>
+        <DialogTitle>Report User</DialogTitle>
+        <DialogDescription>
+          Report this user for violating our terms. The call audio will be
+          included for review.
+        </DialogDescription>
+      </DialogHeader>
+      <div className="space-y-4">
+        <div>
+          <Label>Reporting: {otherUser?.name || "Unknown User"}</Label>
+        </div>
+        <div className="space-y-2">
+          <Label>Report Details</Label>
+          <Input
+            value={details}
+            onChange={(e) => setDetails(e.target.value)}
+            placeholder="Describe the issue..."
+            disabled={isSubmitting}
+          />
+        </div>
+      </div>
+      <DialogFooter>
+        <DialogClose
+          onClick={() => setDetails("")}
+          asChild
+          disabled={isSubmitting}
+        >
+          <Button variant="outline" disabled={isSubmitting}>
+            Cancel
+          </Button>
+        </DialogClose>
+        <DialogClose asChild>
+          <Button
+            type="submit"
+            onClick={onSubmit}
+            disabled={isSubmitting || !details.trim()}
+          >
+            <Check />
+            {isSubmitting ? "Submitting..." : "Submit Report"}
+          </Button>
+        </DialogClose>
+      </DialogFooter>
+    </DialogContent>
   );
 }

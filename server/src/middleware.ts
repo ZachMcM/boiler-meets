@@ -16,6 +16,12 @@ export const authMiddleware = async (
     return;
   }
 
+  // Check if user is banned
+  if (session.user.isBanned) {
+    res.status(403).json({ error: "Account has been banned" });
+    return;
+  }
+
   res.locals.userId = session.user.id;
   next();
 };

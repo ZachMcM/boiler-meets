@@ -8,6 +8,27 @@
       "when": 1760034295912,
       "tag": "0000_daffy_whistler",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1761580328394,
+      "tag": "0001_smart_norman_osborn",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1761599378523,
+      "tag": "0002_ancient_ken_ellis",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1761601300359,
+      "tag": "0003_unknown_beyonder",
+      "breakpoints": true
     }
   ]
 }
