@@ -2,9 +2,10 @@ import { eq } from "drizzle-orm";
 import { db } from "../db";
 import { logger } from "../logger";
 import { reportQueue } from "../queues/reportQueue";
-import { report, reportInvestigations, user } from "../db/schema";
+import { report, reportInvestigations, user, session } from "../db/schema";
 import { openaiClient } from "../utils/openai";
 import { toFile as openaiToFile } from "openai";
+import { io } from "../index";
 
 export const REPORT_HANDLER_ID = (reportId: number) =>
   `report-${reportId}-handler`;
@@ -122,6 +123,7 @@ export async function handleReport(reportId: number) {
               botComments: { type: "string" },
             },
             required: ["severity", "botComments"],
+            additionalProperties: false,
           },
         },
       },
@@ -145,6 +147,7 @@ export async function handleReport(reportId: number) {
       reportId,
       botComments: investigationResult.botComments,
       severity: investigationResult.severity as any,
+      aiTranscription: transcription.text,
     })
     .returning();
 
@@ -154,10 +157,17 @@ export async function handleReport(reportId: number) {
       .set({
         isBanned: true,
       })
+      .where(eq(user.id, reportData.incomingUserId))
       .returning();
 
+    // Invalidate all sessions for the banned user
+    await db.delete(session).where(eq(session.userId, bannedUser.id));
+
+    // Emit Socket.IO event to disconnect the banned user immediately
+    io.emit("user-banned", { userId: bannedUser.id });
+
     logger.info(
-      `Bot decided on banning ${bannedUser.id} due to report ${reportId}. Investigation ID: ${investigation.id}`
+      `Bot decided on banning ${bannedUser.id} due to report ${reportId}. Investigation ID: ${investigation.id}. Sessions invalidated and disconnect event emitted.`
     );
   }
 }

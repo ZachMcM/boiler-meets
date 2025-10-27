@@ -24,7 +24,11 @@ const reportWorker = new Worker(
 
     logger.info(`Worker handling report ${reportId}`);
 
-    await handleReport(reportId);
+    try {
+      await handleReport(reportId);
+    } catch (error) {
+      logger.error(`There was an error handling a report ${error}`,);
+    }
   },
   {
     connection,

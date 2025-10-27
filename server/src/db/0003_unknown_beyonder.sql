@@ -1,0 +1,1 @@
+ALTER TABLE "report_investigations" ADD COLUMN "ai_transcription" text NOT NULL;

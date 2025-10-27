@@ -16,6 +16,7 @@ import { Route as RegisterRouteImport } from './routes/register'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as End_of_callRouteImport } from './routes/end_of_call'
 import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as BannedRouteImport } from './routes/banned'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ProfileUsernameRouteImport } from './routes/profile.$username'
 import { Route as MessagesUsernameRouteImport } from './routes/messages.$username'
@@ -56,6 +57,11 @@ const DashboardRoute = DashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
+const BannedRoute = BannedRouteImport.update({
+  id: '/banned',
+  path: '/banned',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -79,6 +85,7 @@ const ChatRoomRoomIdRoute = ChatRoomRoomIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/banned': typeof BannedRoute
   '/dashboard': typeof DashboardRoute
   '/end_of_call': typeof End_of_callRoute
   '/login': typeof LoginRoute
@@ -92,6 +99,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/banned': typeof BannedRoute
   '/dashboard': typeof DashboardRoute
   '/end_of_call': typeof End_of_callRoute
   '/login': typeof LoginRoute
@@ -106,6 +114,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/banned': typeof BannedRoute
   '/dashboard': typeof DashboardRoute
   '/end_of_call': typeof End_of_callRoute
   '/login': typeof LoginRoute
@@ -121,6 +130,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/banned'
     | '/dashboard'
     | '/end_of_call'
     | '/login'
@@ -134,6 +144,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/banned'
     | '/dashboard'
     | '/end_of_call'
     | '/login'
@@ -147,6 +158,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/banned'
     | '/dashboard'
     | '/end_of_call'
     | '/login'
@@ -161,6 +173,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  BannedRoute: typeof BannedRoute
   DashboardRoute: typeof DashboardRoute
   End_of_callRoute: typeof End_of_callRoute
   LoginRoute: typeof LoginRoute
@@ -224,6 +237,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/banned': {
+      id: '/banned'
+      path: '/banned'
+      fullPath: '/banned'
+      preLoaderRoute: typeof BannedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -257,6 +277,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  BannedRoute: BannedRoute,
   DashboardRoute: DashboardRoute,
   End_of_callRoute: End_of_callRoute,
   LoginRoute: LoginRoute,

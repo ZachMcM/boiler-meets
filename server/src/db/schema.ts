@@ -116,6 +116,7 @@ export const reportInvestigations = pgTable("report_investigations", {
   reportId: integer("report_id")
     .references(() => report.id, { onDelete: "cascade" })
     .notNull(),
+  aiTranscription: text("ai_transcription").notNull(),
   botComments: text("bot_comments").notNull(),
   severity: reportInvestigationSeverity().notNull()
 });

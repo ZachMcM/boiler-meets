@@ -965,7 +965,7 @@ export function ChatRoom({ roomId }: { roomId: string }) {
                   </CardContent>
                   <CardFooter>
                     <div className="flex justify-center items-center gap-4">
-                      {/* <Button
+                      <Button
                         onClick={toggleVideo}
                         variant={isVideoEnabled ? "default" : "destructive"}
                         size="icon"
@@ -980,7 +980,7 @@ export function ChatRoom({ roomId }: { roomId: string }) {
                         className="rounded-full size-12"
                       >
                         {isAudioEnabled ? <Mic /> : <MicOff />}
-                      </Button> */}
+                      </Button>
                       <Button
                         onClick={softLeave}
                         variant="destructive"

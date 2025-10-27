@@ -31,11 +31,10 @@ export const Route = createFileRoute("/dashboard")({
         to: "/login",
       });
     }
-    if ( context.currentUserData.user.isBanned) {
-      // TODO redirect to a special page
+    if (context.currentUserData.user.isBanned) {
       throw redirect({
-        to: "/login"
-      })
+        to: "/banned",
+      });
     }
   },
   component: RouteComponent,
@@ -115,6 +114,28 @@ function RouteComponent() {
       socket.disconnect();
     };
   }, [currentUserData?.data?.user?.id, queryClient]);
+
+  // Listen for user-banned event to immediately log out banned users
+  useEffect(() => {
+    if (!currentUserData?.data?.user?.id) return;
+
+    const socket = io(import.meta.env.VITE_SERVER_URL, {
+      auth: { userId: currentUserData.data.user.id },
+      withCredentials: true,
+    });
+
+    socket.on("user-banned", (data: { userId: string }) => {
+      if (data.userId === currentUserData?.data?.user?.id) {
+        // Clear session and redirect to banned page
+        queryClient.clear();
+        router.navigate({ to: "/banned" });
+      }
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [currentUserData?.data?.user?.id, router, queryClient]);
 
   useEffect(() => {
     if (currentUserData?.data?.user && !sessionPending) {

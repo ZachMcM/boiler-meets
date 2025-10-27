@@ -16,5 +16,8 @@ export const reportRelations = relations(report, ({ one }) => ({
     references: [user.id],
     relationName: "outgoingReports",
   }),
-  reportInvestigation: one(reportInvestigations),
+  reportInvestigation: one(reportInvestigations, {
+    fields: [report.id],
+    references: [reportInvestigations.reportId],
+  }),
 }));
