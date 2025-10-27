@@ -129,3 +129,29 @@ export const getMatchMessages = async (matchId: string) => {
     method: "GET"
   });
 };
+
+export type SubmitReportParams = {
+  audioBlob: Blob;
+  submissionDetails: string;
+  incomingUserId: string;
+  outgoingUserId: string;
+};
+
+export const submitReport = async ({
+  audioBlob,
+  submissionDetails,
+  incomingUserId,
+  outgoingUserId,
+}: SubmitReportParams) => {
+  const formData = new FormData();
+  formData.append("audio", audioBlob, "call-recording.webm");
+  formData.append("submissionDetails", submissionDetails);
+  formData.append("incomingUserId", incomingUserId);
+  formData.append("outgoingUserId", outgoingUserId);
+
+  return await serverRequest({
+    endpoint: "/reports",
+    method: "POST",
+    formData,
+  });
+};

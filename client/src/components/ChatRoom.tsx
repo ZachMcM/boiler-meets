@@ -27,8 +27,9 @@ import {
   QueryClientProvider,
   useQuery,
   useQueryClient,
+  useMutation,
 } from "@tanstack/react-query";
-import { createMatch, getUser } from "@/endpoints";
+import { createMatch, getUser, submitReport } from "@/endpoints";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import {
   Dialog,
@@ -73,6 +74,9 @@ export function ChatRoom({ roomId }: { roomId: string }) {
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
   const pendingIceCandidatesRef = useRef<RTCIceCandidate[]>([]);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const recordedAudioBlobRef = useRef<Blob | null>(null);
 
   const { data: otherUser, isPending: otherUserPending } = useQuery({
     queryKey: ["user", otherUserId],
@@ -151,6 +155,14 @@ export function ChatRoom({ roomId }: { roomId: string }) {
     console.log("REMOTE STREAM: ", remoteStream);
   }, [remoteStream]);
 
+  // Start recording when both streams are available
+  useEffect(() => {
+    if (localStream && remoteStream && !mediaRecorderRef.current) {
+      console.log('Both streams available, starting recording');
+      startRecording();
+    }
+  }, [localStream, remoteStream]);
+
   const toggleVideo = () => {
     if (localStreamRef.current) {
       const videoTrack = localStreamRef.current.getVideoTracks()[0];
@@ -168,6 +180,68 @@ export function ChatRoom({ roomId }: { roomId: string }) {
         audioTrack.enabled = !audioTrack.enabled;
         setIsAudioEnabled(audioTrack.enabled);
       }
+    }
+  };
+
+  const startRecording = () => {
+    try {
+      // Create a mixed audio stream from both local and remote audio
+      const audioContext = new AudioContext();
+      const destination = audioContext.createMediaStreamDestination();
+
+      // Add local audio
+      if (localStreamRef.current) {
+        const localAudioTrack = localStreamRef.current.getAudioTracks()[0];
+        if (localAudioTrack) {
+          const localSource = audioContext.createMediaStreamSource(
+            new MediaStream([localAudioTrack])
+          );
+          localSource.connect(destination);
+        }
+      }
+
+      // Add remote audio
+      if (remoteStream) {
+        const remoteAudioTrack = remoteStream.getAudioTracks()[0];
+        if (remoteAudioTrack) {
+          const remoteSource = audioContext.createMediaStreamSource(
+            new MediaStream([remoteAudioTrack])
+          );
+          remoteSource.connect(destination);
+        }
+      }
+
+      // Create MediaRecorder with the mixed stream
+      const mediaRecorder = new MediaRecorder(destination.stream, {
+        mimeType: 'audio/webm',
+      });
+
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        recordedAudioBlobRef.current = audioBlob;
+        console.log('Recording stopped, blob size:', audioBlob.size);
+      };
+
+      mediaRecorder.start();
+      mediaRecorderRef.current = mediaRecorder;
+      console.log('Started recording audio');
+    } catch (error) {
+      console.error('Error starting audio recording:', error);
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop();
+      console.log('Stopped recording audio');
     }
   };
 
@@ -534,6 +608,9 @@ export function ChatRoom({ roomId }: { roomId: string }) {
   };
 
   const leaveRoom = async (toDashboard: boolean = false) => {
+    // Stop recording before leaving
+    stopRecording();
+
     if (socket) {
       socket.emit("leave-room");
     }
@@ -587,6 +664,10 @@ export function ChatRoom({ roomId }: { roomId: string }) {
 
   const cleanup = () => {
     console.log("Cleaning up resources");
+
+    // Stop recording if still active
+    stopRecording();
+
     if (localStreamRef.current) {
       localStreamRef.current.getTracks().forEach((track) => track.stop());
       localStreamRef.current = null;
@@ -604,6 +685,10 @@ export function ChatRoom({ roomId }: { roomId: string }) {
     pendingIceCandidatesRef.current = [];
     setRemoteStream(null);
     setOtherUserId(null);
+
+    // Clear recording refs
+    mediaRecorderRef.current = null;
+    audioChunksRef.current = [];
   };
 
   // Synchronize localStreamRef with localStream
@@ -612,7 +697,42 @@ export function ChatRoom({ roomId }: { roomId: string }) {
   }, [localStream]);
 
   const [reportDetails, setReportDetails] = useState<string>("");
-  function onReportSubmit() {}
+
+  const reportMutation = useMutation({
+    mutationFn: submitReport,
+    onSuccess: () => {
+      toast.success("Report submitted successfully");
+      setReportDetails("");
+    },
+    onError: (error: Error) => {
+      console.error("Error submitting report:", error);
+      toast.error(error.message || "Failed to submit report");
+    },
+  });
+
+  function onReportSubmit() {
+    if (!recordedAudioBlobRef.current) {
+      toast.error("No audio recording available");
+      return;
+    }
+
+    if (!reportDetails.trim()) {
+      toast.error("Please provide report details");
+      return;
+    }
+
+    if (!otherUserId || !session?.user.id) {
+      toast.error("No user to report");
+      return;
+    }
+
+    reportMutation.mutate({
+      audioBlob: recordedAudioBlobRef.current,
+      submissionDetails: reportDetails,
+      incomingUserId: otherUserId,
+      outgoingUserId: session.user.id,
+    });
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-accent to-secondary">
@@ -706,7 +826,6 @@ export function ChatRoom({ roomId }: { roomId: string }) {
                       >
                         <Phone />
                       </Button>
-                      {/* TODO */}
                       <Dialog>
                         <DialogTrigger asChild>
                           <Button variant="destructive">
@@ -719,6 +838,7 @@ export function ChatRoom({ roomId }: { roomId: string }) {
                           setDetails={setReportDetails}
                           onSubmit={onReportSubmit}
                           otherUser={otherUser!}
+                          isSubmitting={reportMutation.isPending}
                          />
                       </Dialog>
                     </div>
@@ -824,7 +944,6 @@ export function ChatRoom({ roomId }: { roomId: string }) {
                       >
                         <Phone />
                       </Button>
-                      {/* TODO */}
                       <Dialog>
                         <DialogTrigger asChild>
                           <Button variant="destructive">
@@ -837,6 +956,7 @@ export function ChatRoom({ roomId }: { roomId: string }) {
                           setDetails={setReportDetails}
                           onSubmit={onReportSubmit}
                           otherUser={otherUser!}
+                          isSubmitting={reportMutation.isPending}
                         />
                       </Dialog>
                       {passedFirstCall && (
@@ -879,34 +999,52 @@ export function ReportDialogContent({
   details,
   setDetails,
   onSubmit,
+  isSubmitting = false,
 }: {
   otherUser: User_Type;
   details: string;
   setDetails: (val: string) => void;
   onSubmit: () => void;
+  isSubmitting?: boolean;
 }) {
 
   console.log(otherUser)
   return (
     <DialogContent>
       <DialogHeader>
-        <DialogTitle>Report</DialogTitle>
+        <DialogTitle>Report User</DialogTitle>
         <DialogDescription>
-          Report for violating our terms.
+          Report this user for violating our terms. The call audio will be included for review.
         </DialogDescription>
       </DialogHeader>
-      <div className="flex flex-col">
-        <Label>Report Details</Label>
-        <Input value={details} onChange={(e) => setDetails(e.target.value)} />
+      <div className="space-y-4">
+        <div>
+          <Label>Reporting: {otherUser?.name || "Unknown User"}</Label>
+        </div>
+        <div>
+          <Label>Report Details</Label>
+          <Input
+            value={details}
+            onChange={(e) => setDetails(e.target.value)}
+            placeholder="Describe the issue..."
+            disabled={isSubmitting}
+          />
+        </div>
       </div>
       <DialogFooter>
-        <DialogClose onClick={() => setDetails("")} asChild>
-          <Button variant="outline">Cancel</Button>
+        <DialogClose onClick={() => setDetails("")} asChild disabled={isSubmitting}>
+          <Button variant="outline" disabled={isSubmitting}>Cancel</Button>
         </DialogClose>
-        <Button type="submit">
-          <Check />
-          Submit Report
-        </Button>
+        <DialogClose asChild>
+          <Button
+            type="submit"
+            onClick={onSubmit}
+            disabled={isSubmitting || !details.trim()}
+          >
+            <Check />
+            {isSubmitting ? "Submitting..." : "Submit Report"}
+          </Button>
+        </DialogClose>
       </DialogFooter>
     </DialogContent>
   );
