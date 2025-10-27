@@ -2,7 +2,7 @@ import { Router } from "express";
 import { authMiddleware } from "../middleware";
 import multer from "multer";
 import { PutObjectCommand } from "@aws-sdk/client-s3";
-import { r2Client, R2_BUCKET_NAME, R2_PUBLIC_URL } from "../utils/r2";
+import { r2, R2_BUCKET_NAME, R2_PUBLIC_URL } from "../utils/r2";
 import { db } from "../db";
 import { report } from "../db/schema";
 import { logger } from "../logger";
@@ -59,7 +59,7 @@ reportsRoute.post(
         ContentType: audioFile.mimetype,
       });
 
-      await r2Client.send(uploadCommand);
+      await r2.send(uploadCommand);
       logger.info(`Audio file uploaded to R2: ${filename}`);
 
       // Construct public URL for the audio file
