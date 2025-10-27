@@ -1,4 +1,4 @@
-import { createAuthClient } from "better-auth/react"
+import { createAuthClient } from "better-auth/react";
 import {
   inferAdditionalFields,
   usernameClient,
@@ -14,30 +14,36 @@ export const authClient = createAuthClient({
       user: {
         major: {
           type: "string",
-          required: false
+          required: false,
         },
         year: {
           type: "string",
-          required: false
+          required: false,
         },
         bio: {
           type: "string",
-          required: false
+          required: false,
         },
         birthdate: {
           type: "date",
-          required: false
+          required: false,
         },
-      }
+        isBanned: {
+          type: "boolean",
+          input: false,
+        },
+      },
     }),
-    usernameClient()
+    usernameClient(),
   ],
-})
+});
 
 export async function fetchUserSession() {
-  const response = await authClient.getSession({ query: {
-    disableCookieCache: false
-  }});
+  const response = await authClient.getSession({
+    query: {
+      disableCookieCache: false,
+    },
+  });
 
   return response;
 }

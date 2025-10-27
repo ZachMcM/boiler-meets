@@ -6,11 +6,14 @@ import { routeTree } from "./routeTree.gen";
 
 import reportWebVitals from "./reportWebVitals.ts";
 import "./styles.css";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+
+const queryClient = new QueryClient();
 
 // Create a new router instance
 const router = createRouter({
   routeTree,
-  context: {},
+  context: { },
   defaultPreload: "intent",
   scrollRestoration: true,
   defaultStructuralSharing: true,
@@ -28,7 +31,11 @@ declare module "@tanstack/react-router" {
 const rootElement = document.getElementById("app");
 if (rootElement && !rootElement.innerHTML) {
   const root = ReactDOM.createRoot(rootElement);
-  root.render(<RouterProvider router={router} />);
+  root.render(
+    <QueryClientProvider client={queryClient}>
+      <RouterProvider router={router} />
+    </QueryClientProvider>
+  );
 }
 
 // If you want to start measuring performance in your app, pass a function

@@ -1,4 +1,13 @@
-import { pgTable, text, timestamp, boolean, date, uuid, serial, json } from "drizzle-orm/pg-core";
+import {
+  pgTable,
+  text,
+  timestamp,
+  boolean,
+  date,
+  uuid,
+  serial,
+  json,
+} from "drizzle-orm/pg-core";
 
 export const user = pgTable("user", {
   id: text("id").primaryKey(),
@@ -18,6 +27,7 @@ export const user = pgTable("user", {
   year: text("year"),
   bio: text("bio"),
   profile: json("profile").default({}),
+  isBanned: boolean("is_banned").default(false),
 });
 
 export const session = pgTable("session", {
@@ -69,16 +79,32 @@ export const verification = pgTable("verification", {
 
 export const matches = pgTable("matches", {
   id: serial("id").primaryKey(),
-  first: text("first").notNull().references(() => user.id),
-  second: text("second").notNull().references(() => user.id),
+  first: text("first")
+    .notNull()
+    .references(() => user.id),
+  second: text("second")
+    .notNull()
+    .references(() => user.id),
   matchType: text("match_type").notNull().default("friend"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const report = pgTable("report", {
+  id: serial("id").primaryKey(),
+  incomingUserId: text("incoming_user_id").references(() => user.id, { onDelete: "cascade" }),
+  outgoingUserId: text("outgoing_user_id").references(() => user.id, { onDelete: "cascade" }),
+  submissionDetails: text("submission_details").notNull(),
+  audioFileUrl: text("audio_file_url").notNull()
+});
+
 export const profileReactions = pgTable("profile_reactions", {
   id: serial("id").primaryKey(),
-  userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
-  profileOwnerId: text("profile_owner_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+  userId: text("user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  profileOwnerId: text("profile_owner_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
   targetId: text("target_id").notNull(),
   targetType: text("target_type").notNull(),
   emoji: text("emoji").notNull(),
@@ -87,8 +113,12 @@ export const profileReactions = pgTable("profile_reactions", {
 
 export const messages = pgTable("messages", {
   id: serial("id").primaryKey(),
-  senderId: text("sender_id").notNull().references(() => user.id, { onDelete: "cascade" }),
-  receiverId: text("receiver_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+  senderId: text("sender_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  receiverId: text("receiver_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
   content: text("content").notNull(),
   isRead: boolean("is_read").default(false).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),

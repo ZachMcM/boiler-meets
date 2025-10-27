@@ -6,7 +6,7 @@ import { authClient, fetchUserSession } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { createFileRoute, useRouter } from "@tanstack/react-router";
+import { createFileRoute, redirect, useRouter } from "@tanstack/react-router";
 import { Loader } from "lucide-react";
 import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
@@ -21,6 +21,13 @@ const signInSchema = z.object({
 type FormValues = z.infer<typeof signInSchema>;
 
 export const Route = createFileRoute("/login")({
+  beforeLoad: async ({ context }) => {
+    if (context.currentUserData) {
+      throw redirect({
+        to: "/dashboard",
+      });
+    }
+  },
   component: RouteComponent,
 });
 
@@ -61,10 +68,10 @@ function RouteComponent() {
           },
           onSuccess: async () => {
             await queryClient.invalidateQueries({
-              queryKey: ["session"]
+              queryKey: ["session"],
             });
             await queryClient.refetchQueries({
-              queryKey: ["session"]
+              queryKey: ["session"],
             });
             toast.success("Successfully signed in");
             setIsLoading(false);
@@ -78,14 +85,9 @@ function RouteComponent() {
   }
 
   const { data: userData, isLoading: sessionPending } = useQuery({
-    queryKey: ['session'],
-    queryFn: fetchUserSession
+    queryKey: ["session"],
+    queryFn: fetchUserSession,
   });
-
-  if (userData?.data?.user && !sessionPending) {
-    console.log("User Session", JSON.stringify(userData))
-    router.navigate({ to: "/dashboard" });
-  }
 
   return (
     <div className="flex flex-1 justify-center items-center w-full h-full bg-gradient-to-br from-background from-30% to-primary">

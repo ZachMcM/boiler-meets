@@ -18,10 +18,16 @@ import {
   User,
   Phone,
   Heart,
-  PhoneCall
+  PhoneCall,
+  Flag,
+  Check,
 } from "lucide-react";
 import { toast } from "sonner";
-import { QueryClientProvider, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  QueryClientProvider,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { createMatch, getUser } from "@/endpoints";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import {
@@ -29,13 +35,17 @@ import {
   DialogClose,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { ProfileModuleCarousel } from "./ProfileModules";
 import { useVideoCallContext } from "@/contexts/VideoCallContext";
 import type { VideoCallData } from "@/types/video_call";
 import type { User as User_Type } from "@/types/user";
+import { Label } from "./ui/label";
+import { Input } from "./ui/input";
 
 export function ChatRoom({ roomId }: { roomId: string }) {
   const router = useRouter();
@@ -55,7 +65,7 @@ export function ChatRoom({ roomId }: { roomId: string }) {
   const [passedFirstCall, setPassedFirstCall] = useState(false);
   const [userHasMatched, setUserHasMatched] = useState(false);
   const [callAgainButtonClicked, setCallAgainButtonClicked] = useState(false);
-  const [callStart] = useState((new Date).getTime());
+  const [callStart] = useState(new Date().getTime());
 
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
@@ -70,15 +80,15 @@ export function ChatRoom({ roomId }: { roomId: string }) {
     enabled: !!otherUserId,
   });
 
-  const videoCallData : VideoCallData = {
+  const videoCallData: VideoCallData = {
     otherUser: null,
     matched: false,
     callLength: 0,
     numberCallExtensions: 0,
-    callEndedByUser: false
+    callEndedByUser: false,
   };
 
-  const {callSession, addNewCall} = useVideoCallContext();
+  const { callSession, addNewCall } = useVideoCallContext();
 
   // To solve problems associated with React states not updating
   useEffect(() => {
@@ -135,13 +145,13 @@ export function ChatRoom({ roomId }: { roomId: string }) {
 
   useEffect(() => {
     console.log("LOCAL STREAM: ", localStream);
-  }, [localStream])
+  }, [localStream]);
 
   useEffect(() => {
     console.log("REMOTE STREAM: ", remoteStream);
-  }, [remoteStream])
+  }, [remoteStream]);
 
-    const toggleVideo = () => {
+  const toggleVideo = () => {
     if (localStreamRef.current) {
       const videoTrack = localStreamRef.current.getVideoTracks()[0];
       if (videoTrack) {
@@ -174,7 +184,7 @@ export function ChatRoom({ roomId }: { roomId: string }) {
         setIsVideoEnabled(!disconnect);
       }
     }
-  }
+  };
 
   const initializeWebRTC = async () => {
     try {
@@ -424,7 +434,7 @@ export function ChatRoom({ roomId }: { roomId: string }) {
         leaveRoom();
       });
 
-      videoChatSocket.on("timeout", () => { 
+      videoChatSocket.on("timeout", () => {
         setLocalStream(localStreamRef.current);
         console.log("REMOTE VIDEO", remoteVideoRef.current);
         timeoutTransmissions(true);
@@ -432,54 +442,70 @@ export function ChatRoom({ roomId }: { roomId: string }) {
       });
 
       videoChatSocket.on("call-again", () => {
-        videoCallData.numberCallExtensions = videoCallData.numberCallExtensions + 1;
-        setWaitingUserResponse(false); 
+        videoCallData.numberCallExtensions =
+          videoCallData.numberCallExtensions + 1;
+        setWaitingUserResponse(false);
         setCallAgainButtonClicked(false);
         setFeedbackPage(false);
-        console.log("call-again received"); 
+        console.log("call-again received");
         timeoutTransmissions(false);
         setPassedFirstCall(true);
       });
 
       /* TODO for when BOTH users match */
-      videoChatSocket.on("match", async ({ matchType }: { matchType: "friend" | "romantic" }) => {
-        /* Do not delete or alter this if statement, it fixes a critical bug where matching with a user causes 
+      videoChatSocket.on(
+        "match",
+        async ({ matchType }: { matchType: "friend" | "romantic" }) => {
+          /* Do not delete or alter this if statement, it fixes a critical bug where matching with a user causes 
            the user who clicked match second to not receive the other user's data in the after-call summary */
-        if (otherUserIdRef.current) {
-          videoCallData.otherUser = await getUser(otherUserIdRef.current);
-        }
-        setWaitingUserResponse(false);
-        setFeedbackPage(false);
-        console.log("Match received with type:", matchType);
-        console.log("otherUserIdRef.current:", otherUserIdRef.current); // Debug log
-        videoCallData.matched = true;
-        toast("It's a Match!");
-
-        // Use the ref instead of state
-        try {
-          if (otherUserIdRef.current && session?.user?.id && session.user.id < otherUserIdRef.current) {
-            await createMatch(session.user.id, otherUserIdRef.current, matchType);
-            console.log("Match created successfully");
-            queryClient.invalidateQueries({ queryKey: ["matches"] });
-          } else {
-            console.log("Other user will create match or otherUserId is null");
+          if (otherUserIdRef.current) {
+            videoCallData.otherUser = await getUser(otherUserIdRef.current);
           }
-        } catch (error) {
-          console.error("Failed to create match:", error);
-          toast.error("Failed to save match");
-        }
+          setWaitingUserResponse(false);
+          setFeedbackPage(false);
+          console.log("Match received with type:", matchType);
+          console.log("otherUserIdRef.current:", otherUserIdRef.current); // Debug log
+          videoCallData.matched = true;
+          toast("It's a Match!");
 
-        setOtherUserId(null);
-        otherUserIdRef.current = null;  // Clear the ref too
-        setRemoteStream(null);
-        if (remoteVideoRef.current) {
-          remoteVideoRef.current.srcObject = null;
-        }
+          // Use the ref instead of state
+          try {
+            if (
+              otherUserIdRef.current &&
+              session?.user?.id &&
+              session.user.id < otherUserIdRef.current
+            ) {
+              await createMatch(
+                session.user.id,
+                otherUserIdRef.current,
+                matchType
+              );
+              console.log("Match created successfully");
+              queryClient.invalidateQueries({ queryKey: ["matches"] });
+            } else {
+              console.log(
+                "Other user will create match or otherUserId is null"
+              );
+            }
+          } catch (error) {
+            console.error("Failed to create match:", error);
+            toast.error("Failed to save match");
+          }
 
-        leaveRoom();
+          setOtherUserId(null);
+          otherUserIdRef.current = null; // Clear the ref too
+          setRemoteStream(null);
+          if (remoteVideoRef.current) {
+            remoteVideoRef.current.srcObject = null;
+          }
+
+          leaveRoom();
+        }
+      );
+
+      videoChatSocket.on("user-call-again", () => {
+        toast.info("The other user wants to call again!");
       });
-
-      videoChatSocket.on("user-call-again", () => {toast.info("The other user wants to call again!"); });
 
       videoChatSocket.on("error", ({ message }) => {
         console.error("Socket error:", message);
@@ -505,13 +531,13 @@ export function ChatRoom({ roomId }: { roomId: string }) {
     if (socket) {
       socket.emit("soft-leave");
     }
-  }
+  };
 
   const leaveRoom = async (toDashboard: boolean = false) => {
     if (socket) {
       socket.emit("leave-room");
     }
-    const now = (new Date()).getTime()
+    const now = new Date().getTime();
     videoCallData.callLength = now - callStart;
     console.log(now, callStart);
     if (otherUserIdRef.current) {
@@ -541,11 +567,11 @@ export function ChatRoom({ roomId }: { roomId: string }) {
         socket.emit("user-uncall");
       }
     }
-  }
+  };
 
   const toggleMatch = async () => {
     if (!userHasMatched) {
-      setWaitingUserResponse(true); 
+      setWaitingUserResponse(true);
       setUserHasMatched(true);
       if (socket) {
         socket.emit("user-match");
@@ -557,7 +583,7 @@ export function ChatRoom({ roomId }: { roomId: string }) {
         socket.emit("user-unmatch");
       }
     }
-  }
+  };
 
   const cleanup = () => {
     console.log("Cleaning up resources");
@@ -585,6 +611,9 @@ export function ChatRoom({ roomId }: { roomId: string }) {
     localStreamRef.current = localStream;
   }, [localStream]);
 
+  const [reportDetails, setReportDetails] = useState<string>("");
+  function onReportSubmit() {}
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-accent to-secondary">
       <div className="relative overflow-hidden">
@@ -603,13 +632,14 @@ export function ChatRoom({ roomId }: { roomId: string }) {
           </Card>
 
           {/* Dialog */}
-            <Dialog open={feedbackPage}>
-              <DialogContent 
-                className="[&>button:first-of-type]:hidden"
-                onInteractOutside={(e) => {
-                  e.preventDefault();
-                }}>
-                <div className="flex flex-col space-y-4">
+          <Dialog open={feedbackPage}>
+            <DialogContent
+              className="[&>button:first-of-type]:hidden"
+              onInteractOutside={(e) => {
+                e.preventDefault();
+              }}
+            >
+              <div className="flex flex-col space-y-4">
                 <DialogTitle>End of Call!</DialogTitle>
                 <Card className="max-w-3xl flex flex-1">
                   {otherUser && !otherUserPending ? (
@@ -632,55 +662,74 @@ export function ChatRoom({ roomId }: { roomId: string }) {
                         </div>
                       </div>
                     </CardHeader>
-                    ) : (
-                      <CardHeader>
-                        <div className="flex items-center gap-2">
-                          <User className="w-4 h-4 text-foreground" />
-                          <p className="font-semibold text-foreground">
-                            {"Other user has left!"}
-                          </p>
-                        </div>
-                      </CardHeader>
-                    )}
-                    <CardContent>
-                      {waitingUserResponse && (
-                        <p className="text-foreground font-medium">
-                          "User is still responding..."
+                  ) : (
+                    <CardHeader>
+                      <div className="flex items-center gap-2">
+                        <User className="w-4 h-4 text-foreground" />
+                        <p className="font-semibold text-foreground">
+                          {"Other user has left!"}
                         </p>
-                      )}
-                        <div className="flex items-center gap-2 justify-between">
-                        <Button onClick={toggleCallAgain}>
-                          {callAgainButtonClicked ? (
-                            <PhoneCall fill="orange"/>
-                          ) : (
-                            <Phone />
-                          )}
-                          Call again?
-                        </Button>
-                        <Button
-                          onClick={toggleMatch}
-                          className="rounded-full bg-pink-200"
-                        >
-                          <Heart fill={userHasMatched ? "red" : 'none'}/>
-                          Match?
-                        </Button>
-                        <Button
-                          onClick={() => {toast("Video Chat ended"); videoCallData.callEndedByUser = true; leaveRoom(); }}
-                          variant="destructive"
-                          size="icon"
-                          className="rounded-full size-12"
-                        >
+                      </div>
+                    </CardHeader>
+                  )}
+                  <CardContent>
+                    {waitingUserResponse && (
+                      <p className="text-foreground font-medium">
+                        "User is still responding..."
+                      </p>
+                    )}
+                    <div className="flex items-center gap-2 justify-between">
+                      <Button onClick={toggleCallAgain}>
+                        {callAgainButtonClicked ? (
+                          <PhoneCall fill="orange" />
+                        ) : (
                           <Phone />
-                        </Button>
-                        </div>
-                    </CardContent>
+                        )}
+                        Call again?
+                      </Button>
+                      <Button
+                        onClick={toggleMatch}
+                        className="rounded-full bg-pink-200"
+                      >
+                        <Heart fill={userHasMatched ? "red" : "none"} />
+                        Match?
+                      </Button>
+                      <Button
+                        onClick={() => {
+                          toast("Video Chat ended");
+                          videoCallData.callEndedByUser = true;
+                          leaveRoom();
+                        }}
+                        variant="destructive"
+                        size="icon"
+                        className="rounded-full size-12"
+                      >
+                        <Phone />
+                      </Button>
+                      {/* TODO */}
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button variant="destructive">
+                            <Flag />
+                            Report
+                          </Button>
+                        </DialogTrigger>
+                        <ReportDialogContent
+                          details={reportDetails}
+                          setDetails={setReportDetails}
+                          onSubmit={onReportSubmit}
+                          otherUser={otherUser!}
+                         />
+                      </Dialog>
+                    </div>
+                  </CardContent>
                 </Card>
-                </div>
-              </DialogContent>
-            </Dialog>
+              </div>
+            </DialogContent>
+          </Dialog>
 
           {/* Video Grid */}
-          <div className = "flex">
+          <div className="flex">
             {
               <div className="flex flex-[2] w-full">
                 {/* Remote Video */}
@@ -720,26 +769,22 @@ export function ChatRoom({ roomId }: { roomId: string }) {
                   <CardContent className="p-0 relative">
                     {remoteStream ? (
                       <div>
-                      <video
-                        ref={remoteVideoRef}
-                        autoPlay
-                        playsInline
-                        className="w-full h-64 lg:h-96 object-cover bg-card"
-                      />
-                        </div>
+                        <video
+                          ref={remoteVideoRef}
+                          autoPlay
+                          playsInline
+                          className="w-full h-64 lg:h-96 object-cover bg-card"
+                        />
+                      </div>
                     ) : (
                       <div className="w-full h-64 text-center lg:h-96 flex flex-col items-center justify-center">
                         <Video className="w-12 h-12" />
                         <p className="text-foreground font-medium">
-                          {waitingUserResponse ? (
-                            "User is still responding..."
-                          ) : (
-                            otherUserId ? (
-                              "Connecting video..."
-                            ) : (
-                              "Waiting for other user to join..."
-                              )
-                          )}
+                          {waitingUserResponse
+                            ? "User is still responding..."
+                            : otherUserId
+                              ? "Connecting video..."
+                              : "Waiting for other user to join..."}
                         </p>
                       </div>
                     )}
@@ -754,7 +799,7 @@ export function ChatRoom({ roomId }: { roomId: string }) {
                     </div>
                   </CardContent>
                   <CardFooter>
-                    <div className="flex justify-center gap-4">
+                    <div className="flex justify-center items-center gap-4">
                       {/* <Button
                         onClick={toggleVideo}
                         variant={isVideoEnabled ? "default" : "destructive"}
@@ -779,19 +824,35 @@ export function ChatRoom({ roomId }: { roomId: string }) {
                       >
                         <Phone />
                       </Button>
+                      {/* TODO */}
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button variant="destructive">
+                            <Flag />
+                            Report
+                          </Button>
+                        </DialogTrigger>
+                        <ReportDialogContent
+                          details={reportDetails}
+                          setDetails={setReportDetails}
+                          onSubmit={onReportSubmit}
+                          otherUser={otherUser!}
+                        />
+                      </Dialog>
                       {passedFirstCall && (
                         <Button
-                        onClick={toggleMatch}
-                        className="rounded-full bg-pink-200"
-                      >
-                        <Heart fill={userHasMatched ? "red" : 'none'} />
-                        Match?
-                      </Button>
+                          onClick={toggleMatch}
+                          className="rounded-full bg-pink-200"
+                        >
+                          <Heart fill={userHasMatched ? "red" : "none"} />
+                          Match?
+                        </Button>
                       )}
                     </div>
                   </CardFooter>
                 </Card>
-              </div> }
+              </div>
+            }
             <div className="flex-1 min-w-0 max-w-md">
               <Card className="mb-4">
                 <CardContent>
@@ -799,7 +860,9 @@ export function ChatRoom({ roomId }: { roomId: string }) {
                 </CardContent>
               </Card>
               {otherUser?.profile?.modules ? (
-                <ProfileModuleCarousel initialModules={otherUser.profile.modules} />
+                <ProfileModuleCarousel
+                  initialModules={otherUser.profile.modules}
+                />
               ) : (
                 <Card className="p-4 text-center text-3xl">No profile :(</Card>
               )}
@@ -808,5 +871,43 @@ export function ChatRoom({ roomId }: { roomId: string }) {
         </div>
       </div>
     </div>
+  );
+}
+
+export function ReportDialogContent({
+  otherUser,
+  details,
+  setDetails,
+  onSubmit,
+}: {
+  otherUser: User_Type;
+  details: string;
+  setDetails: (val: string) => void;
+  onSubmit: () => void;
+}) {
+
+  console.log(otherUser)
+  return (
+    <DialogContent>
+      <DialogHeader>
+        <DialogTitle>Report</DialogTitle>
+        <DialogDescription>
+          Report for violating our terms.
+        </DialogDescription>
+      </DialogHeader>
+      <div className="flex flex-col">
+        <Label>Report Details</Label>
+        <Input value={details} onChange={(e) => setDetails(e.target.value)} />
+      </div>
+      <DialogFooter>
+        <DialogClose onClick={() => setDetails("")} asChild>
+          <Button variant="outline">Cancel</Button>
+        </DialogClose>
+        <Button type="submit">
+          <Check />
+          Submit Report
+        </Button>
+      </DialogFooter>
+    </DialogContent>
   );
 }
