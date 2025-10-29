@@ -1,14 +1,12 @@
-import { createFileRoute, redirect } from "@tanstack/react-router";
 import {
   Empty,
-  EmptyContent,
   EmptyDescription,
   EmptyHeader,
   EmptyMedia,
-  EmptyTitle,
+  EmptyTitle
 } from "@/components/ui/empty";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { AlertCircle } from "lucide-react";
-import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/banned")({
   beforeLoad: async ({ context }) => {

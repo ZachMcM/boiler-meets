@@ -1,0 +1,1 @@
+ALTER TABLE "user" ADD COLUMN "matchesWeights" json DEFAULT '[]'::json NOT NULL;

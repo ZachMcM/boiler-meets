@@ -11,38 +11,44 @@ export const auth = betterAuth({
     provider: "pg",
     schema,
   }),
-  trustedOrigins: [
-    process.env.CLIENT_URL!,
-  ],
+  trustedOrigins: [process.env.CLIENT_URL!],
   advanced: {
     defaultCookieAttributes: {
       sameSite: "none",
-      secure: true
-    }
+      secure: true,
+    },
   },
   user: {
     additionalFields: {
       major: {
         type: "string",
-        required: false
+        required: false,
       },
       year: {
         type: "string",
-        required: false
+        required: false,
       },
       bio: {
         type: "string",
-        required: false
+        required: false,
       },
       birthdate: {
         type: "date",
-        required: false
+        required: false,
       },
       isBanned: {
         type: "boolean",
-        input: false 
-      }
-    }
+        input: false,
+      },
+      gender: {
+        type: "string",
+        required: true,
+      },
+      preference: {
+        type: "string",
+        required: true,
+      },
+    },
   },
   emailAndPassword: {
     enabled: true,
@@ -68,11 +74,6 @@ export const auth = betterAuth({
   //     console.log(`${user.email} has been successfully verified!`);
   //   },
   // },
-  session: {
-    cookieCache: {
-      enabled: true,
-    }
-  },
   plugins: [username()],
 });
 

@@ -12,7 +12,7 @@ export const authClient = createAuthClient({
   plugins: [
     inferAdditionalFields({
       user: {
-        major: {
+        major: {  
           type: "string",
           required: false,
         },
@@ -31,6 +31,14 @@ export const authClient = createAuthClient({
         isBanned: {
           type: "boolean",
           input: false,
+        },
+        gender: {
+          type: "string",
+          required: true,
+        },
+        preference: {
+          type: "string",
+          required: true,
         },
       },
     }),

@@ -11,6 +11,11 @@ import {
   pgEnum,
 } from "drizzle-orm/pg-core";
 
+export const genderTypes = pgEnum("gender_types", ["male", "female"]);
+
+// TODO Miles you'll know what this needs to be I can't really tell rn
+const WEIGHTS_LENGTH = 0;
+
 export const user = pgTable("user", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
@@ -28,8 +33,14 @@ export const user = pgTable("user", {
   major: text("major"),
   year: text("year"),
   bio: text("bio"),
+  gender: genderTypes().notNull().default("male"),
+  preference: genderTypes().notNull().default("female"),
   profile: json("profile").default({}),
   isBanned: boolean("is_banned").default(false),
+  matchesWeights: json()
+    .$type<number[]>()
+    .default(Array(WEIGHTS_LENGTH).fill(0))
+    .notNull(),
 });
 
 export const session = pgTable("session", {
@@ -91,13 +102,10 @@ export const matches = pgTable("matches", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-export const reportInvestigationSeverity = pgEnum("report_investigation_severity", [
-  "none",
-  "low",
-  "medium",
-  "high",
-  "ban"
-]);
+export const reportInvestigationSeverity = pgEnum(
+  "report_investigation_severity",
+  ["none", "low", "medium", "high", "ban"]
+);
 
 export const report = pgTable("report", {
   id: serial("id").primaryKey(),
@@ -118,7 +126,7 @@ export const reportInvestigations = pgTable("report_investigations", {
     .notNull(),
   aiTranscription: text("ai_transcription").notNull(),
   botComments: text("bot_comments").notNull(),
-  severity: reportInvestigationSeverity().notNull()
+  severity: reportInvestigationSeverity().notNull(),
 });
 
 export const profileReactions = pgTable("profile_reactions", {

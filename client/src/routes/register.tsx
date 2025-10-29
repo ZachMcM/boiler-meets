@@ -16,6 +16,15 @@ import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Loader } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const registrationSchema = z
   .object({
@@ -24,6 +33,8 @@ const registrationSchema = z
     }),
     name: z.string().min(1, { message: "Your name is required" }),
     username: z.string().min(1, { message: "Username is required" }),
+    gender: z.enum(["male", "female"]),
+    preference: z.enum(["male", "female"]),
     password: z
       .string()
       .min(8, { message: "Password must be at least 8 characters" })
@@ -69,12 +80,21 @@ function RouteComponent() {
       username: "",
       password: "",
       confirmPassword: "",
+      gender: undefined,
+      preference: undefined,
     },
   });
 
   const [isLoading, setIsLoading] = useState(false);
 
-  async function onSubmit({ email, name, username, password }: FormValues) {
+  async function onSubmit({
+    email,
+    name,
+    username,
+    password,
+    gender,
+    preference,
+  }: FormValues) {
     try {
       await authClient.signUp.email(
         {
@@ -82,6 +102,8 @@ function RouteComponent() {
           username: username,
           email: email,
           password: password,
+          gender,
+          preference,
           major: null,
           year: null,
           bio: null,
@@ -197,6 +219,62 @@ function RouteComponent() {
                   </div>
                 )}
                 name="name"
+              />
+              <Controller
+                control={form.control}
+                rules={{ required: true }}
+                render={({
+                  field: { onChange, value },
+                  fieldState: { error },
+                }) => (
+                  <div className="flex flex-col gap-2">
+                    <Label>Gender</Label>
+                    <Select value={value} onValueChange={onChange}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select your gender" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectGroup>
+                          <SelectLabel>Gender</SelectLabel>
+                          <SelectItem value="male">Male</SelectItem>
+                          <SelectItem value="female">Female</SelectItem>
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                    {error && (
+                      <p className="text-destructive">{error.message}</p>
+                    )}
+                  </div>
+                )}
+                name="gender"
+              />
+              <Controller
+                control={form.control}
+                rules={{ required: true }}
+                render={({
+                  field: { onChange, value },
+                  fieldState: { error },
+                }) => (
+                  <div className="flex flex-col gap-2">
+                    <Label>Preference</Label>
+                    <Select value={value} onValueChange={onChange}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select your preference" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectGroup>
+                          <SelectLabel>Preference</SelectLabel>
+                          <SelectItem value="male">Male</SelectItem>
+                          <SelectItem value="female">Female</SelectItem>
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                    {error && (
+                      <p className="text-destructive">{error.message}</p>
+                    )}
+                  </div>
+                )}
+                name="preference"
               />
               <Controller
                 control={form.control}
