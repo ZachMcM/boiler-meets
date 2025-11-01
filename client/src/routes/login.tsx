@@ -179,7 +179,17 @@ function RouteComponent() {
               >
                 Register For Account
               </Button>
-              {/* TODO Forgot Password Button */}
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  router.navigate({ to: "/reset_password" });
+                }}
+                disabled={sessionPending || isLoading}
+                className="flex-row gap-2 items-center text-gray-500"
+              >
+                Forgot Password?
+              </Button>
             </div>
           </CardContent>
         </Card>

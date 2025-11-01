@@ -32,6 +32,10 @@ export const authClient = createAuthClient({
           type: "boolean",
           input: false,
         },
+        lastPasswordReset: {
+          type: "date",
+          required: false
+        }
       },
     }),
     usernameClient(),

@@ -49,6 +49,7 @@ app.use(
 );
 app.use(morgan("combined"));
 app.all("/api/auth/*splat", toNodeHandler(auth));
+// app.all("/api/auth/reset-password/*splat", toNodeHandler(auth));
 app.use(express.json({ limit: "10mb" }));
 app.use("/", routes);
 
