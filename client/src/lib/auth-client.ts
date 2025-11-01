@@ -47,3 +47,8 @@ export async function fetchUserSession() {
 
   return response;
 }
+
+export async function signOut() {
+  const response = await authClient.signOut();
+  return response;
+}

@@ -1,5 +1,5 @@
 import FindRoomButton from "@/components/FindRoomButton";
-import { fetchUserSession } from "@/lib/auth-client";
+import { fetchUserSession, signOut } from "@/lib/auth-client";
 import { createFileRoute, redirect, useRouter } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
@@ -259,6 +259,21 @@ function RouteComponent() {
             >
               <UserCircle className="w-4 h-4 mr-2" />
               My Profile
+            </Button>
+            <Button
+              onClick={async () => {
+                queryClient.clear();
+                queryClient.invalidateQueries({queryKey: ["session"]}).then(
+                  () => signOut().then(
+                    () => {router.navigate({ to: "/login" })}
+                  ));
+              }
+              }
+              variant="outline"
+              className="hover:cursor-pointer"
+            >
+              <UserCircle className="w-4 h-4 mr-2" />
+              Sign Out
             </Button>
           </div>
         </div>
