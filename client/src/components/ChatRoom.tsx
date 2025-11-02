@@ -21,10 +21,10 @@ import {
   PhoneCall,
   Flag,
   Check,
+  XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
-  QueryClientProvider,
   useQuery,
   useQueryClient,
   useMutation,
@@ -47,6 +47,7 @@ import type { VideoCallData } from "@/types/video_call";
 import type { User as User_Type } from "@/types/user";
 import { Label } from "./ui/label";
 import { Input } from "./ui/input";
+import type { NotificationItem } from "./Notification";
 
 export function ChatRoom({ roomId }: { roomId: string }) {
   const router = useRouter();
@@ -68,7 +69,8 @@ export function ChatRoom({ roomId }: { roomId: string }) {
   const [callAgainButtonClicked, setCallAgainButtonClicked] = useState(false);
   const [callStart] = useState(new Date().getTime());
   const [matchCompleted, setMatchCompleted] = useState(false);
-  const [unmatched, setUnmatched] = useState(false);
+  // const [unmatched, setUnmatched] = useState(false);
+  const [unmatchedDialog, setUnmatchedDialog] = useState(false);
 
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
@@ -86,13 +88,14 @@ export function ChatRoom({ roomId }: { roomId: string }) {
     enabled: !!otherUserId,
   });
 
-  const videoCallData: VideoCallData = {
+  const videoCallData = useRef<VideoCallData>({
     otherUser: null,
     matched: false,
     callLength: 0,
     numberCallExtensions: 0,
     callEndedByUser: false,
-  };
+    unmatched: false
+  } as VideoCallData)
 
   const { callSession, addNewCall } = useVideoCallContext();
 
@@ -547,8 +550,8 @@ export function ChatRoom({ roomId }: { roomId: string }) {
       });
 
       videoChatSocket.on("call-again", () => {
-        videoCallData.numberCallExtensions =
-          videoCallData.numberCallExtensions + 1;
+        videoCallData.current.numberCallExtensions =
+          videoCallData.current.numberCallExtensions + 1;
         setWaitingUserResponse(false);
         setCallAgainButtonClicked(false);
         setFeedbackPage(false);
@@ -564,13 +567,13 @@ export function ChatRoom({ roomId }: { roomId: string }) {
           /* Do not delete or alter this if statement, it fixes a critical bug where matching with a user causes 
            the user who clicked match second to not receive the other user's data in the after-call summary */
           if (otherUserIdRef.current) {
-            videoCallData.otherUser = await getUser(otherUserIdRef.current);
+            videoCallData.current.otherUser = await getUser(otherUserIdRef.current);
           }
           setWaitingUserResponse(false);
           setFeedbackPage(false);
           console.log("Match received with type:", matchType);
           console.log("otherUserIdRef.current:", otherUserIdRef.current); // Debug log
-          videoCallData.matched = true;
+          videoCallData.current.matched = true;
           toast("It's a Match!");
 
           // Use the ref instead of state
@@ -598,16 +601,65 @@ export function ChatRoom({ roomId }: { roomId: string }) {
           }
 
           setMatchCompleted(true);
-          // setOtherUserId(null);
-          // otherUserIdRef.current = null; // Clear the ref too
-          // setRemoteStream(null);
-          // if (remoteVideoRef.current) {
-          //   remoteVideoRef.current.srcObject = null;
-          // }
-
-          // leaveRoom();
+          if (session?.user) {
+            let currentNotifications: NotificationItem[];
+            if (session.user.notifications) {
+              currentNotifications = JSON.parse(session.user.notifications) as NotificationItem[];
+            } else {
+              currentNotifications = [] as NotificationItem[];
+            }
+            const newNotification = {  
+              timestamp: Date.now(),
+              type: matchType,
+              text: `You have matched with ${videoCallData.current.otherUser?.name}`,
+              title: "New Match!"
+            } as NotificationItem;
+            const updatedList = currentNotifications.concat([newNotification]);
+            console.log(updatedList);
+            
+            await authClient.updateUser({
+              notifications: JSON.stringify(updatedList)
+            }, {
+              onError: ({ error }) => {
+                toast.error(error.message || "Notification Update Failed");
+              },
+            });
+          }
+          timeoutTransmissions(false);
         }
       );
+
+      videoChatSocket.on("match-deleted", async () => {
+        setMatchCompleted(false);
+        videoCallData.current.matched = false;
+        if (session?.user) {
+          let currentNotifications: NotificationItem[];
+          if (session.user.notifications) {
+            currentNotifications = JSON.parse(session.user.notifications) as NotificationItem[];
+          } else {
+            currentNotifications = [] as NotificationItem[];
+          }
+          const newNotification = {  
+            timestamp: Date.now(),
+            type: "unmatch",
+            text: `You have unmatched with ${videoCallData.current.otherUser?.name}`,
+            title: "Unmatch"
+          } as NotificationItem;
+          const updatedList = currentNotifications.concat([newNotification]);
+          // console.log(updatedList);
+          
+          await authClient.updateUser({
+            notifications: JSON.stringify(updatedList)
+          }, {
+            onError: ({ error }) => {
+              toast.error(error.message || "Notification Update Failed");
+            },
+          });
+        }
+        toast.info("You have been unmatched!");
+        videoCallData.current.unmatched = true
+        leaveRoom();
+      })
 
       videoChatSocket.on("user-call-again", () => {
         toast.info("The other user wants to call again!");
@@ -642,19 +694,25 @@ export function ChatRoom({ roomId }: { roomId: string }) {
   const leaveRoom = async (toDashboard: boolean = false) => {
     // Stop recording before leaving
     await stopRecording();
-
     if (socket) {
       socket.emit("leave-room");
     }
+    if (matchCompleted) {
+      videoCallData.current.matched = true;
+    }
+    if (videoCallData.current.unmatched) {
+      videoCallData.current.matched = false;
+      videoCallData.current.unmatched = true;
+    }
     const now = new Date().getTime();
-    videoCallData.callLength = now - callStart;
+    videoCallData.current.callLength = now - callStart;
     console.log(now, callStart);
     if (otherUserIdRef.current) {
-      videoCallData.otherUser = await getUser(otherUserIdRef.current);
+      videoCallData.current.otherUser = await getUser(otherUserIdRef.current);
     }
-    addNewCall(videoCallData);
+    addNewCall(videoCallData.current);
     cleanup();
-    console.log("Leaving call with data:", videoCallData);
+    console.log("Leaving call with data:", videoCallData.current);
     if (toDashboard) {
       router.navigate({ to: "/dashboard" });
     } else {
@@ -693,6 +751,15 @@ export function ChatRoom({ roomId }: { roomId: string }) {
       }
     }
   };
+
+  const deleteMatch = () => {
+    videoCallData.current.callEndedByUser = true;
+    videoCallData.current.unmatched = true;
+    videoCallData.current.unmatched = true;
+    if (socket) {
+      socket.emit("delete-match");
+    }
+  }
 
   const cleanup = () => {
     console.log("Cleaning up resources");
@@ -865,7 +932,7 @@ export function ChatRoom({ roomId }: { roomId: string }) {
                       <Button
                         onClick={() => {
                           toast("Video Chat ended");
-                          videoCallData.callEndedByUser = true;
+                          videoCallData.current.callEndedByUser = true;
                           leaveRoom();
                         }}
                         variant="destructive"
@@ -889,6 +956,41 @@ export function ChatRoom({ roomId }: { roomId: string }) {
                           isSubmitting={reportMutation.isPending}
                         />
                       </Dialog>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog open={unmatchedDialog}>
+            <DialogContent
+              className="[&>button:first-of-type]:hidden"
+              onInteractOutside={(e) => {
+                e.preventDefault();
+              }}
+            >
+              <div className="flex flex-col space-y-4">
+                <DialogTitle>Really Unmatch?</DialogTitle>
+                <Card className="max-w-3xl flex flex-1">
+                  <CardContent>
+                    <div className="flex items-center gap-2 justify-between">
+                      <Button
+                        onClick={() => setUnmatchedDialog(false)}
+                        className="rounded-full"
+                        size="lg"
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        onClick={() => deleteMatch()}
+                        variant="destructive"
+                        size="lg"
+                        className="rounded-full"
+                      >
+                        Unmatch
+                        <XCircle />
+                      </Button>
                     </div>
                   </CardContent>
                 </Card>
@@ -1007,13 +1109,22 @@ export function ChatRoom({ roomId }: { roomId: string }) {
                           isSubmitting={reportMutation.isPending}
                         />
                       </Dialog>
-                      {passedFirstCall && (
+                      {passedFirstCall && !matchCompleted && (
                         <Button
                           onClick={toggleMatch}
                           className="rounded-full bg-pink-200"
                         >
                           <Heart fill={userHasMatched ? "red" : "none"} />
                           Match?
+                        </Button>
+                      )}
+                      {matchCompleted && (
+                        <Button
+                          onClick={() => setUnmatchedDialog(true)}
+                          className="rounded-full bg-gray-200"
+                        >
+                          <XCircle />
+                          Unmatch?
                         </Button>
                       )}
                     </div>

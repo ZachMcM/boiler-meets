@@ -6,4 +6,5 @@ export type VideoCallData = {
     callLength: number,
     numberCallExtensions: number //TODO replace this with meaningful statistics once algorithm is introduced
     callEndedByUser: boolean
+    unmatched: boolean
 }

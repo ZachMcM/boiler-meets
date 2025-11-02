@@ -176,6 +176,39 @@ usersRoute.get("/matches", authMiddleware, async (req, res) => {
   }
 });
 
+// Delete matches between two users (unmatch)
+usersRoute.delete("/matches", authMiddleware, async (req, res) => {
+  try {
+    const userId = res.locals.userId;
+    const { firstUserId, secondUserId, otherUserId } = req.body || {};
+
+    // Allow either passing { firstUserId, secondUserId } or { otherUserId }
+    const a = firstUserId ?? userId;
+    const b = secondUserId ?? otherUserId;
+
+    if (!a || !b) {
+      return res.status(400).json({ error: "missing userId(s)" });
+    }
+
+    // Ensure the authenticated user is one of the participants
+    if (userId !== a && userId !== b) {
+      return res.status(403).json({ error: "unauthorized" });
+    }
+
+    // Delete any rows where the pair appears in either order
+    await db
+      .delete(matches)
+      .where(
+        sql`${matches.first} = ${a} AND ${matches.second} = ${b} OR ${matches.first} = ${b} AND ${matches.second} = ${a}`
+      );
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error("delete match error:", error);
+    res.status(500).json({ error: "server error" });
+  }
+});
+
 // Get all reactions for a specific profile
 usersRoute.get("/profile-reactions/:profileOwnerId", authMiddleware, async (req, res) => {
   try {

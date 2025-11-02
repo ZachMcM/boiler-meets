@@ -18,30 +18,13 @@ export interface NotificationItem {
 
 export type NotificationProps = NotificationItem;
 
-export default function Notification({timestamp, type, text, title, destroyNotification}: NotificationProps/*, {destroyNotification?}: () => Promise<void>*/) {
+export default function Notification({timestamp, type, text, title, destroyNotification}: NotificationProps) {
 
   if (!timestamp || !type || !text || !title) {
     return <h4>Invalid Notification</h4>
   }
 
-  const { data: currentUserData } = authClient.useSession();
     const queryClient = useQueryClient();
-
-//   const destroyNotification = async () => {
-//     if (!currentUserData?.user.notifications) return;
-    
-//     const notifications = JSON.parse(currentUserData.user.notifications) as NotificationItem[];
-//     const updatedList = notifications.filter(item => item.timestamp !== timestamp);
-//     console.log(updatedList)
-//     await authClient.updateUser({
-//         notifications: JSON.stringify(updatedList)
-//     },
-//     {onError: ({ error }) => {
-//         toast.error(error.message || "Notification Update Failed");
-//       },
-//     })
-//   };
-
 
   let notificationClass : string = "p-4 rounded-xl"
   if (type === "friend") {
@@ -60,7 +43,7 @@ export default function Notification({timestamp, type, text, title, destroyNotif
       <CardContent className={notificationClass}>
         <div className="flex">
             <h3 className="font-semibold text-base">
-                <div className="flex">
+                <div className="flex flex-wrap">
                     {type === "friend" ? (<Users></Users>) : type === "romantic" ? (<Heart></Heart>) : type === "unmatch" ? (<X></X>) : (<></>)}
                     {title}
                 </div>

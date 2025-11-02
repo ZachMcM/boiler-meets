@@ -19,14 +19,16 @@ import {
   Heart,
   HouseIcon,
   PhoneCall,
-  Bell
+  Bell,
+  XCircle
 } from "lucide-react";
-import { getMatches, getMatchMessages } from "@/endpoints";
+import { getMatches, getMatchMessages, removeMatch } from "@/endpoints";
 import { useVideoCallContext } from "@/contexts/VideoCallContext";
 import { io } from "socket.io-client";
 import Notification from "@/components/Notification";
 import type { NotificationItem } from "@/components/Notification";
 import { toast } from "sonner";
+import type { Match } from "@/types/user";
 
 export const Route = createFileRoute("/dashboard")({
   beforeLoad: async ({ context }) => {
@@ -64,6 +66,8 @@ function RouteComponent() {
     "all"
   );
   const [notificationReload, setNotificationReload] = useState([] as NotificationItem[]);
+  const [matchReload, setMatchReload] = useState([] as Match[])
+  const [globalSearch, setGlobalSearch] = useState(false);
 
   const { callSession, clearCallSession } = useVideoCallContext();
 
@@ -261,6 +265,47 @@ function RouteComponent() {
     }
   }, [currentUserData?.data?.user?.notifications])
 
+  const deleteMatch = async (match: Match) => {
+    console.log("MATCH DELETING", match);
+    if (currentUserData?.data?.user.id) {
+      await removeMatch(match.matchedUserId, currentUserData.data.user.id);
+      queryClient.clear();
+      queryClient.invalidateQueries({queryKey: ["session"]});
+      queryClient.invalidateQueries({queryKey: ["matches"]});
+      console.log(matches);
+      
+      try { //Self notifications
+        if (!currentUserData?.data?.user.notifications) return;
+        const currentNotifications = JSON.parse(currentUserData.data.user.notifications) as NotificationItem[];
+        const newSelfNotification = {  
+          timestamp: Date.now(),
+          type: "unmatch",
+          text: `You have unmatched with ${match.user.name}`,
+          title: "Unmatch"
+        } as NotificationItem;
+        const updatedList = currentNotifications.concat([newSelfNotification]);
+        
+        await authClient.updateUser({
+          notifications: JSON.stringify(updatedList)
+        }, {
+          onError: ({ error }) => {
+            toast.error(error.message || "Notification Update Failed");
+          },
+          onSuccess: () => {
+            setNotificationReload(updatedList); // Do not delete, somehow, useStates are the only way the page updates
+          }
+        });
+      } catch {
+        console.log("Could not update self notifications.");
+      }
+      try { // Other user notifications
+        // TODO Figure out how to update another user's notifications, we cannot rely on the 'user'
+      } catch {
+        console.log("Could not update other user's notifications.");
+      }
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-accent to-secondary">
       <div className="container mx-auto px-4 py-8">
@@ -333,6 +378,21 @@ function RouteComponent() {
           </CardHeader>
           <CardContent>
             {/* Filter Tabs */}
+            <Button
+              variant="secondary"
+              size="default"
+              onClick={() => {
+                setGlobalSearch(!globalSearch);
+                queryClient.invalidateQueries()
+              }}
+              className="hover:cursor-pointer text-lg my-2"
+            >
+              {!globalSearch ? (
+                <>Search All Boilermeets Users</>
+              ) : (
+                <>Search Your Matches</>
+              )}
+            </Button>
             {matches && matches.length > 0 && (
               <div className="flex gap-2 mb-4">
                 <Button
@@ -394,6 +454,14 @@ function RouteComponent() {
                       <div className="flex items-center justify-between gap-4">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
+                            <Button
+                              onClick={() => deleteMatch(match)}
+                              variant="destructive"
+                              size="icon"
+                              className="rounded-full"
+                            >
+                              <XCircle />
+                            </Button>
                             <h3 className="font-semibold text-base truncate">
                               {match.user?.name || "Anonymous"}
                             </h3>

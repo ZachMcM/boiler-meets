@@ -82,6 +82,14 @@ export const getMatches = async (): Promise<Match[]> => {
   });
 };
 
+export const removeMatch = async (firstUserId: string, secondUserId: string) => {
+  return await serverRequest({
+    endpoint: "/matches",
+    method: "DELETE",
+    body: JSON.stringify({ firstUserId, secondUserId }),
+  });
+};
+
 export const getProfileReactions = async (profileOwnerId: string) => {
   return await serverRequest({
     endpoint: `/profile-reactions/${profileOwnerId}`,

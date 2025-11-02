@@ -7,6 +7,9 @@ import {
   WebRTCIceCandidate,
 } from "../types/webrtc";
 import { RoomManager } from "../utils/room-manager";
+import { db } from "../db";
+import { sql } from "drizzle-orm";
+import { matches } from "../db/schema";
 
 export async function videoChatHandler(socket: Socket) {
   const userId = socket.handshake.auth.userId as string | undefined;
@@ -201,6 +204,7 @@ export async function videoChatHandler(socket: Socket) {
 
       if (matchState[user1] && matchState[user2]) {
         // Both users clicked "match"
+        clearTimeout(timeoutId); // No timeouts after both users match
         logger.info(`Both users in room ${roomId} clicked match`);
 
         // Notify both users with matchType
@@ -251,9 +255,44 @@ export async function videoChatHandler(socket: Socket) {
 
       // Set the call-again state for this user
       await RoomManager.setMatchState(roomId, userId, false);
+
     } catch (error) {
       logger.error("Error handling unmatch event:", error);
       socket.emit("error", { message: "An error occurred while processing unmatch" });
     }
   });
+
+  socket.on("delete-match", async () => {
+    try {
+      logger.info(`User ${userId} clicked delete-match in room ${roomId}`);
+      console.log(`User ${userId} clicked delete-match in room ${roomId}`);
+
+      // Set the call-again state for this user
+      await RoomManager.setMatchState(roomId, userId, false);
+
+      // Also remove any persistent matches between these two users in the DB
+      try {
+        const roomData = await RoomManager.getRoomData(roomId);
+        if (roomData) {
+          const otherUser = roomData.user1 === userId ? roomData.user2 : roomData.user1;
+          if (otherUser) {
+            await db
+              .delete(matches)
+              .where(
+                sql`${matches.first} = ${userId} AND ${matches.second} = ${otherUser} OR ${matches.first} = ${otherUser} AND ${matches.second} = ${userId}`
+              );
+            logger.info(`Deleted matches between ${userId} and ${otherUser}`);
+          }
+        }
+        io.of("/video-chat").to(roomId).emit("match-deleted");
+      } catch (err) {
+        logger.error("Error deleting matches on unmatch:", err);
+        console.log("ERROR WITH UNMATCHING");
+      }
+    } catch (error) {
+      logger.error("Error handling unmatch event:", error);
+      socket.emit("error", { message: "An error occurred while processing unmatch" });
+    }
+  });
+
 }
