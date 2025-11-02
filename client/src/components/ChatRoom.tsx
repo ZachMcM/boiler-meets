@@ -67,6 +67,8 @@ export function ChatRoom({ roomId }: { roomId: string }) {
   const [userHasMatched, setUserHasMatched] = useState(false);
   const [callAgainButtonClicked, setCallAgainButtonClicked] = useState(false);
   const [callStart] = useState(new Date().getTime());
+  const [matchCompleted, setMatchCompleted] = useState(false);
+  const [unmatched, setUnmatched] = useState(false);
 
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
@@ -555,7 +557,7 @@ export function ChatRoom({ roomId }: { roomId: string }) {
         setPassedFirstCall(true);
       });
 
-      /* TODO for when BOTH users match */
+      /* When BOTH users match */
       videoChatSocket.on(
         "match",
         async ({ matchType }: { matchType: "friend" | "romantic" }) => {
@@ -595,14 +597,15 @@ export function ChatRoom({ roomId }: { roomId: string }) {
             toast.error("Failed to save match");
           }
 
-          setOtherUserId(null);
-          otherUserIdRef.current = null; // Clear the ref too
-          setRemoteStream(null);
-          if (remoteVideoRef.current) {
-            remoteVideoRef.current.srcObject = null;
-          }
+          setMatchCompleted(true);
+          // setOtherUserId(null);
+          // otherUserIdRef.current = null; // Clear the ref too
+          // setRemoteStream(null);
+          // if (remoteVideoRef.current) {
+          //   remoteVideoRef.current.srcObject = null;
+          // }
 
-          leaveRoom();
+          // leaveRoom();
         }
       );
 

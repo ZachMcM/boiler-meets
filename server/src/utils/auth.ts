@@ -46,6 +46,11 @@ export const auth = betterAuth({
       lastPasswordReset: {
         type: "date",
         required: false
+      },
+      notifications: {
+        type: "string",
+        required: true,
+        default: '[]'
       }
     }
   },

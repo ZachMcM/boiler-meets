@@ -30,6 +30,7 @@ export const user = pgTable("user", {
   year: text("year"),
   bio: text("bio"),
   profile: json("profile").default({}),
+  notifications: text("notifications").default('[]'),
   isBanned: boolean("is_banned").default(false),
 });
 

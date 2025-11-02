@@ -1,5 +1,5 @@
 import FindRoomButton from "@/components/FindRoomButton";
-import { fetchUserSession, signOut } from "@/lib/auth-client";
+import { authClient, fetchUserSession, signOut } from "@/lib/auth-client";
 import { createFileRoute, redirect, useRouter } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
@@ -19,10 +19,14 @@ import {
   Heart,
   HouseIcon,
   PhoneCall,
+  Bell
 } from "lucide-react";
 import { getMatches, getMatchMessages } from "@/endpoints";
 import { useVideoCallContext } from "@/contexts/VideoCallContext";
 import { io } from "socket.io-client";
+import Notification from "@/components/Notification";
+import type { NotificationItem } from "@/components/Notification";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/dashboard")({
   beforeLoad: async ({ context }) => {
@@ -59,6 +63,7 @@ function RouteComponent() {
   const [matchFilter, setMatchFilter] = useState<"all" | "friend" | "romantic">(
     "all"
   );
+  const [notificationReload, setNotificationReload] = useState([] as NotificationItem[]);
 
   const { callSession, clearCallSession } = useVideoCallContext();
 
@@ -228,6 +233,34 @@ function RouteComponent() {
       return 0;
     });
 
+  const destroyNotification = async (timestamp: number) => {
+    if (!currentUserData?.data?.user.notifications) return;
+    
+    const currentNotifications = JSON.parse(currentUserData.data.user.notifications) as NotificationItem[];
+    const updatedList = currentNotifications.filter(item => item.timestamp !== timestamp);
+    
+    await authClient.updateUser({
+      notifications: JSON.stringify(updatedList)
+    }, {
+      onError: ({ error }) => {
+        toast.error(error.message || "Notification Update Failed");
+      },
+      onSuccess: () => {
+        setNotificationReload(updatedList); // Do not delete, somehow, useStates are the only way the page updates
+      }
+    });
+  };
+
+  useEffect(() => {
+    if (currentUserData?.data?.user?.notifications) {
+      try {
+        setNotificationReload(JSON.parse(currentUserData.data.user.notifications) as NotificationItem[]);
+      } catch (e) {
+        console.error("Failed to parse notifications:", e);
+      }
+    }
+  }, [currentUserData?.data?.user?.notifications])
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-accent to-secondary">
       <div className="container mx-auto px-4 py-8">
@@ -278,8 +311,9 @@ function RouteComponent() {
           </div>
         </div>
 
-        {/* Matches Section */}
-        <Card className="mb-8">
+        {/* Matches & Notifications Section */}
+        <div className="flex gap-2 mb-4">
+        <Card className="mb-8 w-4/5">
           <CardHeader>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -445,6 +479,33 @@ function RouteComponent() {
             )}
           </CardContent>
         </Card>
+        <Card className="mb-8 w-1/5 truncate">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3 overflow-hidden">
+                <Bell className="w-6 h-6" />
+                <h2 className="text-2xl font-bold">Notifications</h2>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div style={{ maxHeight: '300px', overflowY: 'auto'}}>
+              {notificationReload.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No notifications</p>
+              ) : (
+                notificationReload.map((notification: NotificationItem) => (
+                  <Notification 
+                    key={`${notification.timestamp} ${notification.title} ${Math.random()}`}
+                    // key={notification.timestamp}
+                    destroyNotification={destroyNotification}
+                    {...notification}
+                  />
+                ))
+              )}
+            </div>
+          </CardContent>
+        </Card>
+        </div>
 
         {/* Welcome Dialog */}
         <Dialog open={showWelcomeDialog}>

@@ -35,7 +35,12 @@ export const authClient = createAuthClient({
         lastPasswordReset: {
           type: "date",
           required: false
-        }
+        },
+        notifications: {
+          type: "string",
+          required: false,
+          default: '[]'
+        },
       },
     }),
     usernameClient(),

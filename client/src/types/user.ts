@@ -1,3 +1,6 @@
+import type { NotificationItem } from "@/components/Notification";
+
+
 export type User = {
   id: string
   username: string
@@ -6,6 +9,7 @@ export type User = {
   major: string | null
   year: string | null
   profile: any | null
+  notifications: NotificationItem[]
 }
 
 export type Match = {
