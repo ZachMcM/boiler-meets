@@ -2,10 +2,65 @@
 import { Router } from "express";
 import { authMiddleware } from "../middleware";
 import { db } from "../db";
-import { eq, inArray, sql, and } from "drizzle-orm";
+import { eq, inArray, sql, and, like, ilike } from "drizzle-orm";
 import { user, matches, profileReactions } from "../db/schema";
 
 export const usersRoute = Router();
+
+// Search users endpoint with pagination
+usersRoute.get("/users/search", authMiddleware, async (req, res) => {
+  try {
+    const { q, page = "1", limit = "10" } = req.query;
+    const pageNum = parseInt(page as string);
+    const pageSize = parseInt(limit as string);
+    const offset = (pageNum - 1) * pageSize;
+    
+    if (!q) {
+      return res.status(400).json({ error: "Search query required" });
+    }
+
+    // Search by name or username, excluding sensitive info
+    const users = await db
+      .select({
+        id: user.id,
+        username: user.username,
+        name: user.name,
+        image: user.image,
+        major: user.major,
+        year: user.year,
+        bio: user.bio,
+      })
+      .from(user)
+      .where(
+        sql`(${user.name} ILIKE ${`%${q}%`} OR ${user.username} ILIKE ${`%${q}%`}) AND ${user.id} != ${res.locals.userId}`
+      )
+      .limit(pageSize)
+      .offset(offset);
+
+    // Get total count for pagination
+    const [{ count }] = await db
+      .select({ 
+        count: sql<number>`count(*)::int`
+      })
+      .from(user)
+      .where(
+        sql`(${user.name} ILIKE ${`%${q}%`} OR ${user.username} ILIKE ${`%${q}%`}) AND ${user.id} != ${res.locals.userId}`
+      );
+
+    res.json({
+      users,
+      pagination: {
+        total: count,
+        page: pageNum,
+        pageSize,
+        totalPages: Math.ceil(count / pageSize)
+      }
+    });
+  } catch (error) {
+    console.error("search users error:", error);
+    res.status(500).json({ error: "server error" });
+  }
+});
 
 usersRoute.get("/users/:id", authMiddleware, async (req, res) => {
   try {

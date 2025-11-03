@@ -149,3 +149,17 @@ export const messages = pgTable("messages", {
   isRead: boolean("is_read").default(false).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
+
+export const callHistory = pgTable("call_history", {
+  id: serial("id").primaryKey(),
+  callerUserId: text("caller_user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  calledUserId: text("called_user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  callType: text("call_type").notNull(), // "friend" or "romantic"
+  callTimestamp: timestamp("call_timestamp").defaultNow().notNull(),
+  callDuration: integer("call_duration").notNull(), // in milliseconds
+  wasMatched: boolean("was_matched").default(false).notNull(),
+});

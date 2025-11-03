@@ -29,7 +29,7 @@ import {
   useQueryClient,
   useMutation,
 } from "@tanstack/react-query";
-import { createMatch, getUser, submitReport } from "@/endpoints";
+import { createMatch, getUser, submitReport, saveCallHistory } from "@/endpoints";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import {
   Dialog,
@@ -94,7 +94,8 @@ export function ChatRoom({ roomId }: { roomId: string }) {
     callLength: 0,
     numberCallExtensions: 0,
     callEndedByUser: false,
-    unmatched: false
+    unmatched: false,
+    callType: "friend"
   } as VideoCallData)
 
   const { callSession, addNewCall } = useVideoCallContext();
@@ -431,7 +432,7 @@ export function ChatRoom({ roomId }: { roomId: string }) {
         }
       });
 
-      videoChatSocket.on("offer", async ({ offer, from }) => {
+      videoChatSocket.on("offer", async ({ offer, from, callType }) => {
         console.log(
           "Received offer from:",
           from,
@@ -442,6 +443,7 @@ export function ChatRoom({ roomId }: { roomId: string }) {
         if (from === session?.user.id) return;
         setOtherUserId(from);
         otherUserIdRef.current = from;
+        videoCallData.current.callType = callType;
 
         // Handle glare condition - if we're also trying to send an offer
         if (pc.signalingState === "have-local-offer") {
@@ -475,7 +477,7 @@ export function ChatRoom({ roomId }: { roomId: string }) {
         }
       });
 
-      videoChatSocket.on("answer", async ({ answer, from }) => {
+      videoChatSocket.on("answer", async ({ answer, from, callType }) => {
         console.log(
           "Received answer from:",
           from,
@@ -484,6 +486,7 @@ export function ChatRoom({ roomId }: { roomId: string }) {
         );
         // Ignore our own events
         if (from === session?.user.id) return;
+        videoCallData.current.callType = callType;
         // Only process answer if we're expecting one (we sent an offer)
         if (pc.signalingState !== "have-local-offer") {
           console.log(
@@ -702,13 +705,25 @@ export function ChatRoom({ roomId }: { roomId: string }) {
     }
     if (videoCallData.current.unmatched) {
       videoCallData.current.matched = false;
-      videoCallData.current.unmatched = true;
     }
     const now = new Date().getTime();
     videoCallData.current.callLength = now - callStart;
     console.log(now, callStart);
     if (otherUserIdRef.current) {
       videoCallData.current.otherUser = await getUser(otherUserIdRef.current);
+      
+      // Save call history
+      try {
+        await saveCallHistory(
+          otherUserIdRef.current,
+          videoCallData.current.callType,
+          videoCallData.current.callLength,
+          videoCallData.current.matched
+        );
+      } catch (error) {
+        console.error("Failed to save call history:", error);
+        toast.error("Failed to save call history");
+      }
     }
     addNewCall(videoCallData.current);
     cleanup();

@@ -68,18 +68,20 @@ export async function videoChatHandler(socket: Socket) {
   socket.to(roomId).emit("user-ready", { userId });
 
   // Handle WebRTC signaling events
-  socket.on("offer", (data: WebRTCOffer) => {
+  socket.on("offer", async (data: WebRTCOffer) => {
     logger.info(`Offer received from ${userId} in room ${roomId}`);
-    socket.to(roomId).emit("offer", { offer: data.offer, from: userId });
+    const roomData = await RoomManager.getRoomData(roomId);
+    socket.to(roomId).emit("offer", { offer: data.offer, from: userId, callType: roomData?.matchType });
   });
 
-  socket.on("answer", (data: WebRTCAnswer) => {
+  socket.on("answer", async (data: WebRTCAnswer) => {
     logger.info(`Answer received from ${userId} in room ${roomId}`);
+    const roomData = await RoomManager.getRoomData(roomId);
     timeoutId = setTimeout(() => { 
       io.of("/video-chat").to(roomId).emit("timeout"); 
       console.log("Server Timeout Event");
     }, timeoutMs);
-    socket.to(roomId).emit("answer", { answer: data.answer, from: userId });
+    socket.to(roomId).emit("answer", { answer: data.answer, from: userId, callType: roomData?.matchType });
   });
 
   socket.on("ice-candidate", (data: WebRTCIceCandidate) => {

@@ -11,7 +11,6 @@ import {
   UserCircle,
   Sparkles,
   Search,
-  User,
   ChevronRight,
   UsersRound,
   MessageCircle,
@@ -22,13 +21,13 @@ import {
   Bell,
   XCircle
 } from "lucide-react";
-import { getMatches, getMatchMessages, removeMatch } from "@/endpoints";
+import { getMatches, getMatchMessages, removeMatch, searchUsers, getCallHistory, type CallHistory } from "@/endpoints";
 import { useVideoCallContext } from "@/contexts/VideoCallContext";
 import { io } from "socket.io-client";
 import Notification from "@/components/Notification";
 import type { NotificationItem } from "@/components/Notification";
 import { toast } from "sonner";
-import type { Match } from "@/types/user";
+import type { Match, User } from "@/types/user";
 
 export const Route = createFileRoute("/dashboard")({
   beforeLoad: async ({ context }) => {
@@ -48,6 +47,13 @@ export const Route = createFileRoute("/dashboard")({
 
 function RouteComponent() {
   const queryClient = useQueryClient();
+  const router = useRouter();
+  
+  const [showWelcomeDialog, setShowWelcomeDialog] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [matchFilter, setMatchFilter] = useState<"all" | "friend" | "romantic">("all");
+  const [globalSearch, setGlobalSearch] = useState(false);
+  const [searchPage, setSearchPage] = useState(1);
 
   const { data: currentUserData, isLoading: sessionPending } = useQuery({
     queryKey: ["session"],
@@ -59,15 +65,20 @@ function RouteComponent() {
     queryFn: getMatches,
   });
 
-  const router = useRouter();
-  const [showWelcomeDialog, setShowWelcomeDialog] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [matchFilter, setMatchFilter] = useState<"all" | "friend" | "romantic">(
-    "all"
-  );
+  const { data: searchResults, isPending: searchPending } = useQuery({
+    queryKey: ["userSearch", searchQuery, searchPage, globalSearch],
+    queryFn: async () => searchQuery ? await searchUsers(searchQuery, searchPage) : null,
+    enabled: globalSearch && !!searchQuery,
+  });
+
+  // Get all call history for filtering and display
+  const { data: callHistory, isPending: callHistoryPending } = useQuery({
+    queryKey: ["callHistory", globalSearch],
+    queryFn: () => getCallHistory(),
+    enabled: globalSearch,
+  });
+
   const [notificationReload, setNotificationReload] = useState([] as NotificationItem[]);
-  const [matchReload, setMatchReload] = useState([] as Match[])
-  const [globalSearch, setGlobalSearch] = useState(false);
 
   const { callSession, clearCallSession } = useVideoCallContext();
 
@@ -207,35 +218,47 @@ function RouteComponent() {
     }
   };
 
-  // Filter matches based on search query and match type
-  const filteredMatches = matches
-    ?.filter((match) => {
-      // Filter by match type
-      if (matchFilter !== "all" && match.matchType !== matchFilter) {
-        return false;
-      }
+  // Get either filtered matches or global search results with call history
+  const filteredResults = globalSearch 
+    ? (searchResults?.users || []).filter(user => {
+        // If a specific filter is active, only show users with that call type
+        if (matchFilter !== "all") {
+          return callHistory?.some(
+            call => 
+              (call.calledUserId === user.id || call.callerUserId === user.id) && 
+              call.callType === matchFilter
+          );
+        }
+        return true;
+      })
+    : matches
+      ?.filter((match) => {
+        // Filter by match type
+        if (matchFilter !== "all" && match.matchType !== matchFilter) {
+          return false;
+        }
 
-      // Filter by search query
-      if (!searchQuery) return true;
-      const query = searchQuery.toLowerCase();
-      return match.user?.name?.toLowerCase().includes(query);
-    })
-    .sort((a, b) => {
-      const aMessage = messagesQueries.data?.[a.user?.id];
-      const bMessage = messagesQueries.data?.[b.user?.id];
+        // Filter by search query
+        if (!searchQuery) return true;
+        const query = searchQuery.toLowerCase();
+        return match.user?.name?.toLowerCase().includes(query);
+      })
+      .sort((a, b) => {
+        const aMessage = messagesQueries.data?.[a.user?.id];
+        const bMessage = messagesQueries.data?.[b.user?.id];
 
-      if (aMessage?.createdAt && bMessage?.createdAt) {
-        return (
-          new Date(bMessage.createdAt).getTime() -
-          new Date(aMessage.createdAt).getTime()
-        );
-      }
+        if (aMessage?.createdAt && bMessage?.createdAt) {
+          return (
+            new Date(bMessage.createdAt).getTime() -
+            new Date(aMessage.createdAt).getTime()
+          );
+        }
 
-      if (aMessage?.createdAt) return -1;
-      if (bMessage?.createdAt) return 1;
+        if (aMessage?.createdAt) return -1;
+        if (bMessage?.createdAt) return 1;
 
-      return 0;
-    });
+        return 0;
+      });
 
   const destroyNotification = async (timestamp: number) => {
     if (!currentUserData?.data?.user.notifications) return;
@@ -393,7 +416,7 @@ function RouteComponent() {
                 <>Search Your Matches</>
               )}
             </Button>
-            {matches && matches.length > 0 && (
+            {((matches && matches.length > 0) || globalSearch) && (
               <div className="flex gap-2 mb-4">
                 <Button
                   variant={matchFilter === "all" ? "default" : "outline"}
@@ -425,7 +448,7 @@ function RouteComponent() {
             )}
 
             {/* Search Bar */}
-            {matches && matches.length > 0 && (
+            {((matches && matches.length > 0) || globalSearch) && (
               <div className="relative mb-6">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                 <Input
@@ -438,83 +461,102 @@ function RouteComponent() {
               </div>
             )}
 
-            {/* Matches List */}
-            {matchesPending ? (
+            {/* Results List */}
+            {((!globalSearch && matchesPending) || (globalSearch && searchPending)) ? (
               <div className="text-center py-8 text-muted-foreground">
-                Loading matches...
+                {globalSearch ? "Searching users..." : "Loading matches..."}
               </div>
-            ) : filteredMatches && filteredMatches.length > 0 ? (
+            ) : filteredResults && filteredResults.length > 0 ? (
               <div className="flex flex-col gap-2">
-                {filteredMatches.map((match) => (
-                  <Card
-                    key={match.matchId}
-                    className="hover:shadow-md transition-all hover:border-primary py-0"
-                  >
-                    <CardContent className="p-4">
-                      <div className="flex items-center justify-between gap-4">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <Button
-                              onClick={() => deleteMatch(match)}
-                              variant="destructive"
-                              size="icon"
-                              className="rounded-full"
-                            >
-                              <XCircle />
-                            </Button>
-                            <h3 className="font-semibold text-base truncate">
-                              {match.user?.name || "Anonymous"}
-                            </h3>
-                            {match.matchType === "friend" ? (
-                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                <Users className="w-3 h-3 mr-1" />
-                                Friend
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-pink-100 text-pink-800">
-                                <Heart className="w-3 h-3 mr-1" />
-                                Romantic
-                              </span>
-                            )}
-                            <p className="text-sm text-muted-foreground truncate">
-                              {match.user?.major} • {match.user?.year}
-                            </p>
-                          </div>
-                          <p className="text-sm text-muted-foreground truncate">
-                            {messagesQueries.data?.[match.user?.id]?.content ||
-                              "Don't be shy! Send them a message."}
-                          </p>
-                        </div>
+                {filteredResults.map((item) => {
+                  const isMatch = 'matchId' in item;
+                  const user = isMatch ? (item as Match).user : item;
+                  const matchType = isMatch ? (item as Match).matchType : null;
 
-                        <div className="flex gap-2 flex-shrink-0">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleVisitProfile(match.user?.username);
-                            }}
-                            className="hover:cursor-pointer"
-                          >
-                            <UserCircle className="w-4 h-4 mr-1" />
-                            Profile
-                          </Button>
-                          <Button
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleMatchClick(match.user?.username || "");
-                            }}
-                            className="hover:cursor-pointer"
-                          >
-                            <MessageCircle className="w-4 h-4 mr-1" />
-                            Message
-                          </Button>
+                  return (
+                    <Card
+                      key={isMatch ? (item as Match).matchId : user.id}
+                      className="hover:shadow-md transition-all hover:border-primary py-0"
+                    >
+                      <CardContent className="p-4">
+                        <div className="flex items-center justify-between gap-4">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              {isMatch && (
+                                <Button
+                                  onClick={() => deleteMatch(item as Match)}
+                                  variant="destructive"
+                                  size="icon"
+                                  className="rounded-full"
+                                >
+                                  <XCircle />
+                                </Button>
+                              )}
+                              <h3 className="font-semibold text-base truncate">
+                                {user?.name || "Anonymous"}
+                              </h3>
+                              {(isMatch ? [matchType] : callHistory
+                                ?.filter(call => (call.callType == matchFilter || matchFilter == "all") && (call.calledUserId === user.id || call.callerUserId === user.id)) //If the filters change, update this and many other lines
+                                .map(call => call.callType))
+                                ?.slice(0,1)         //Slice in order to get only the latest call
+                                ?.map((type, idx) => (
+                                  type === "friend" ? (
+                                    <span key={`${type}-${idx}`} className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                      <Users className="w-3 h-3 mr-1" />
+                                      {isMatch ? "Matched" : "Called"}
+                                    </span>
+                                  ) : (
+                                    <span key={`${type}-${idx}`} className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-pink-100 text-pink-800">
+                                      <Heart className="w-3 h-3 mr-1" />
+                                      {isMatch ? "Matched" : "Called"}
+                                    </span>
+                                  )
+                                ))
+                              }
+                              <p className="text-sm text-muted-foreground truncate">
+                                {user?.major} • {user?.year}
+                              </p>
+                            </div>
+                            {isMatch && (
+                              <p className="text-sm text-muted-foreground truncate">
+                                {messagesQueries.data?.[user?.id]?.content ||
+                                  "Don't be shy! Send them a message."}
+                              </p>
+                            )}
+                          </div>
+
+                          <div className="flex gap-2 flex-shrink-0">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleVisitProfile(user?.username);
+                              }}
+                              className="hover:cursor-pointer"
+                            >
+                              <UserCircle className="w-4 h-4 mr-1" />
+                              Profile
+                            </Button>
+                            {isMatch && (
+                              <Button
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleMatchClick(user?.username || "");
+                                }}
+                                className="hover:cursor-pointer"
+                              >
+                                <MessageCircle className="w-4 h-4 mr-1" />
+                                Message
+                              </Button>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
               </div>
             ) : (
               <Card className="border-dashed">
