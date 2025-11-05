@@ -1,17 +1,19 @@
 import { ProfileModuleContainer, ProfileModuleEditor } from "@/components/ProfileModules";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { authClient } from "@/lib/auth-client";
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import type { DraggableModule } from "@/components/ProfileModules";
 import { useState, useEffect } from "react";
-import { Save, Home, MessageCircle, Users, Heart } from "lucide-react";
+import { Save, Home, MessageCircle, Users, Heart, ShieldX, Edit3 } from "lucide-react";
 import { toast } from "sonner";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import PurdueTrainHeader from '@/components/PurdueTrainAnimation';
 import { getMatches, getProfileReactions, addProfileReaction } from "@/endpoints";
 import type { Reaction } from "@/types/user";
+import { Dialog, DialogContent, DialogTitle, DialogHeader, DialogDescription } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 
 export const Route = createFileRoute("/profile/$username")({
   component: () => {
@@ -112,6 +114,11 @@ function RouteComponent(username: string) {
   const [savedBioText, setSavedBioText] = useState("");
   const [hasChanged, setHasChanged] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+
+  // State for dialogs
+  const [blockDialog, setBlockDialog] = useState(false);
+  const [nicknameDialog, setNicknameDialog] = useState(false);
+  const [nickname, setNickname] = useState("");
 
   // Update bio when profile data loads
   useEffect(() => {
@@ -246,9 +253,23 @@ function RouteComponent(username: string) {
     }
   };
 
-
   const handleBioReaction = async (emoji: string) => {
     await handleReaction(`bio-${profileUserData.id}`, emoji);
+  };
+
+  // Handler for blocking user
+  const handleBlockUser = async () => {
+    // TODO: Implement block user API call
+    toast.success(`Blocked ${profileUserData.name}`);
+    setBlockDialog(false);
+    router.navigate({ to: "/dashboard" });
+  };
+
+  // Handler for saving nickname
+  const handleSaveNickname = async () => {
+    // TODO: Implement save nickname API call
+    toast.success(`Nickname saved: ${nickname}`);
+    setNicknameDialog(false);
   };
 
   // Loading state
@@ -283,7 +304,7 @@ function RouteComponent(username: string) {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background from-30% to-primary flex flex-col">
-      <div className="pl-10 pt-4 flex gap-3 items-center">
+      <div className="pl-10 pt-4 pr-10 flex gap-3 items-center">
         <Button
           onClick={handleGoHome}
           className="w-auto flex items-center gap-2 bg-slate-700 hover:bg-slate-800 text-white hover:cursor-pointer"
@@ -318,35 +339,70 @@ function RouteComponent(username: string) {
           </>
         )}
         {permission === "view" && !isMatched && (
-          <div className = "ml-4 text-3xl">Welcome to {profileUserData.name}'s profile!</div>
+          <div className="ml-4 text-3xl">Welcome to {profileUserData.name}'s profile!</div>
         )}
+        
+        {/* Action buttons on the right */}
+        <div className="ml-auto flex gap-2">
+          {permission === "view" && isMatched && (
+            <Button
+              onClick={() => setNicknameDialog(true)}
+              variant="outline"
+              className="hover:cursor-pointer flex items-center gap-2"
+              size="lg"
+            >
+              <Edit3 size={18} />
+              Nickname
+            </Button>
+          )}
+          {permission === "view" && (
+            <Button
+              onClick={() => setBlockDialog(true)}
+              variant="outline"
+              className="hover:cursor-pointer hover:bg-red-400 flex items-center gap-2"
+              size="lg"
+            >
+              <ShieldX size={18} />
+              Block User
+            </Button>
+          )}
+        </div>
       </div>
+      
       <div className="flex flex-1 justify-center w-full pr-10 pl-10 pt-4 gap-3">
         <Card className="w-full flex-1">
           <CardContent>
             <div className="pb-4 border-b">
-              <Label className="text-6xl inline-block">
-                {profileUserData.name || "Anonymous User"}
-              </Label>
-              {userAge && (
-                <Label className="text-5xl text-gray-700 inline-block ml-4">
-                  {userAge}
-                </Label>
-              )}
-              <Label className="text-3xl text-gray-500">
-                {profileUserData.major || "Undeclared"} • {profileUserData.year || "Freshman"}
-              </Label>
+              <div className="flex items-center gap-3">
+                <div>
+                  <Label className="text-6xl inline-block">
+                    {profileUserData.name || "Anonymous User"}
+                  </Label>
+                  {userAge && (
+                    <Label className="text-5xl text-gray-700 inline-block ml-4">
+                      {userAge}
+                    </Label>
+                  )}
+                  <div>
+                    <Label className="text-3xl text-gray-500">
+                      {profileUserData.major || "Undeclared"} • {profileUserData.year || "Freshman"}
+                    </Label>
+                  </div>
+                </div>
+              </div>
             </div>
-            <textarea 
-              readOnly={permission === "view" || isLoading} 
-              disabled={permission === "view" || isLoading}
-              wrap="soft"
-              value={bioText}
-              onChange={handleBioChange}
-              placeholder="Write a bio about yourself..." 
-              className="w-full mt-8 resize-none max-h-full overflow-hidden field-sizing-content p-2"
-              style={{ overflowWrap: 'anywhere' }}
-            />
+            {(permission !== "view" || bioText !== "") && (
+              <textarea 
+                readOnly={permission === "view" || isLoading} 
+                disabled={permission === "view" || isLoading}
+                wrap="soft"
+                value={bioText}
+                onChange={handleBioChange}
+                placeholder="Write a bio about yourself..." 
+                className="w-full mt-8 resize-none max-h-full overflow-hidden field-sizing-content p-2"
+                style={{ overflowWrap: 'anywhere' }}
+              />
+            )}
             {permission === "edit" && hasChanged && !isLoading && (
               <Button
                 onClick={handleBioSave}
@@ -397,6 +453,75 @@ function RouteComponent(username: string) {
           </CardContent>
         </Card>
       </div>
+
+      {/* Block User Dialog */}
+      <Dialog open={blockDialog} onOpenChange={setBlockDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Block {profileUserData.name}?</DialogTitle>
+            <DialogDescription>
+              This will unmatch you from {profileUserData.name} and prevent them from contacting you.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-between gap-3 mt-4">
+            <Button
+              onClick={() => setBlockDialog(false)}
+              variant="outline"
+              className="hover:cursor-pointer"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleBlockUser}
+              variant="destructive"
+              className="hover:cursor-pointer flex items-center gap-2"
+            >
+              <ShieldX size={16} />
+              Block User
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Nickname Dialog */}
+      <Dialog open={nicknameDialog} onOpenChange={setNicknameDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Set Nickname for {profileUserData.name}</DialogTitle>
+            <DialogDescription>
+              Give {profileUserData.name} a personal nickname that only you can see.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 mt-4">
+            <Input
+              placeholder="Enter nickname..."
+              value={nickname}
+              onChange={(e) => setNickname(e.target.value)}
+              maxLength={50}
+            />
+            <div className="flex justify-end gap-3">
+              <Button
+                onClick={() => {
+                  setNicknameDialog(false);
+                  setNickname("");
+                }}
+                variant="outline"
+                className="hover:cursor-pointer"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleSaveNickname}
+                disabled={!nickname.trim()}
+                className="hover:cursor-pointer"
+              >
+                Save Nickname
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <PurdueTrainHeader />
     </div>
   );
