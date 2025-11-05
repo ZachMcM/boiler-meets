@@ -9,10 +9,10 @@ type SendMailInput = {
 };
 
 const transporter = nodemailer.createTransport({
-  service: 'smtp.gmail.com',
+  service: 'gmail',
   auth: {
     user: process.env.EMAIL_USER,
-    pass: process.env.GOOGLE_APP_PASSWORD,  
+    pass: process.env.GOOGLE_APP_PASSWORD,
   },
 });
 

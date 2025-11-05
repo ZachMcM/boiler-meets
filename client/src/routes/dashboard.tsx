@@ -19,16 +19,9 @@ import {
   HouseIcon,
   PhoneCall,
   Bell,
-  XCircle,
+  XCircle
 } from "lucide-react";
-import {
-  getMatches,
-  getMatchMessages,
-  removeMatch,
-  searchUsers,
-  getCallHistory,
-  type CallHistory,
-} from "@/endpoints";
+import { getMatches, getMatchMessages, removeMatch, searchUsers, getCallHistory, type CallHistory } from "@/endpoints";
 import { useVideoCallContext } from "@/contexts/VideoCallContext";
 import { io } from "socket.io-client";
 import Notification from "@/components/Notification";
@@ -55,12 +48,10 @@ export const Route = createFileRoute("/dashboard")({
 function RouteComponent() {
   const queryClient = useQueryClient();
   const router = useRouter();
-
+  
   const [showWelcomeDialog, setShowWelcomeDialog] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [matchFilter, setMatchFilter] = useState<"all" | "friend" | "romantic">(
-    "all"
-  );
+  const [matchFilter, setMatchFilter] = useState<"all" | "friend" | "romantic">("all");
   const [globalSearch, setGlobalSearch] = useState(false);
   const [searchPage, setSearchPage] = useState(1);
   const [unmatchDialog, setUnmatchDialog] = useState(false);
@@ -78,8 +69,7 @@ function RouteComponent() {
 
   const { data: searchResults, isPending: searchPending } = useQuery({
     queryKey: ["userSearch", searchQuery, searchPage, globalSearch],
-    queryFn: async () =>
-      searchQuery ? await searchUsers(searchQuery, searchPage) : null,
+    queryFn: async () => searchQuery ? await searchUsers(searchQuery, searchPage) : null,
     enabled: globalSearch && !!searchQuery,
   });
 
@@ -90,9 +80,7 @@ function RouteComponent() {
     enabled: globalSearch,
   });
 
-  const [notificationReload, setNotificationReload] = useState(
-    [] as NotificationItem[]
-  );
+  const [notificationReload, setNotificationReload] = useState([] as NotificationItem[]);
 
   const { callSession, clearCallSession } = useVideoCallContext();
 
@@ -236,88 +224,79 @@ function RouteComponent() {
   const getUserMatchTypes = (userId: string): ("friend" | "romantic")[] => {
     if (!matches) return [];
     return matches
-      .filter((match) => match.user?.id === userId)
-      .map((match) => match.matchType);
+      .filter(match => match.user?.id === userId)
+      .map(match => match.matchType);
   };
 
   // Get either filtered matches or global search results with call history
-  const filteredResults = globalSearch
-    ? (searchResults?.users || []).filter((user) => {
+  const filteredResults = globalSearch 
+    ? (searchResults?.users || []).filter(user => {
         // If a specific filter is active, only show users with that call type
         if (matchFilter !== "all") {
           return callHistory?.some(
-            (call) =>
-              (call.calledUserId === user.id ||
-                call.callerUserId === user.id) &&
+            call => 
+              (call.calledUserId === user.id || call.callerUserId === user.id) && 
               call.callType === matchFilter
           );
         }
         return true;
       })
     : matches
-        ?.filter((match) => {
-          // Filter by match type
-          if (matchFilter !== "all" && match.matchType !== matchFilter) {
-            return false;
-          }
+      ?.filter((match) => {
+        // Filter by match type
+        if (matchFilter !== "all" && match.matchType !== matchFilter) {
+          return false;
+        }
 
-          // Filter by search query
-          if (!searchQuery) return true;
-          const query = searchQuery.toLowerCase();
-          return match.user?.name?.toLowerCase().includes(query);
-        })
-        .sort((a, b) => {
-          const aMessage = messagesQueries.data?.[a.user?.id];
-          const bMessage = messagesQueries.data?.[b.user?.id];
+        // Filter by search query
+        if (!searchQuery) return true;
+        const query = searchQuery.toLowerCase();
+        return match.user?.name?.toLowerCase().includes(query);
+      })
+      .sort((a, b) => {
+        const aMessage = messagesQueries.data?.[a.user?.id];
+        const bMessage = messagesQueries.data?.[b.user?.id];
 
-          if (aMessage?.createdAt && bMessage?.createdAt) {
-            return (
-              new Date(bMessage.createdAt).getTime() -
-              new Date(aMessage.createdAt).getTime()
-            );
-          }
+        if (aMessage?.createdAt && bMessage?.createdAt) {
+          return (
+            new Date(bMessage.createdAt).getTime() -
+            new Date(aMessage.createdAt).getTime()
+          );
+        }
 
-          if (aMessage?.createdAt) return -1;
-          if (bMessage?.createdAt) return 1;
+        if (aMessage?.createdAt) return -1;
+        if (bMessage?.createdAt) return 1;
 
-          return 0;
-        });
+        return 0;
+      });
 
   const destroyNotification = async (timestamp: number) => {
     if (!currentUserData?.data?.user.notifications) return;
-
-    const currentNotifications = JSON.parse(
-      currentUserData.data.user.notifications
-    ) as NotificationItem[];
-    const updatedList = currentNotifications.filter(
-      (item) => item.timestamp !== timestamp
-    );
-
-    await authClient.updateUser(
-      {
-        notifications: JSON.stringify(updatedList),
+    
+    const currentNotifications = JSON.parse(currentUserData.data.user.notifications) as NotificationItem[];
+    const updatedList = currentNotifications.filter(item => item.timestamp !== timestamp);
+    
+    await authClient.updateUser({
+      notifications: JSON.stringify(updatedList)
+    }, {
+      onError: ({ error }) => {
+        toast.error(error.message || "Notification Update Failed");
       },
-      {
-        onError: ({ error }) => {
-          toast.error(error.message || "Notification Update Failed");
-        },
-        onSuccess: () => {
-          setNotificationReload(updatedList); // Do not delete, somehow, useStates are the only way the page updates
-        },
+      onSuccess: () => {
+        setNotificationReload(updatedList); // Do not delete, somehow, useStates are the only way the page updates
       }
-    );
+    });
   };
 
   useEffect(() => {
     if (currentUserData?.data?.user?.notifications) {
       try {
-        const parsedNotifications = JSON.parse(
-          currentUserData.data.user.notifications
-        );
+        const parsedNotifications = JSON.parse(currentUserData.data.user.notifications);
 
         if (Array.isArray(parsedNotifications)) {
           setNotificationReload(parsedNotifications as NotificationItem[]);
-        } else {
+        }
+        else {
           setNotificationReload([]);
         }
       } catch (e) {
@@ -325,49 +304,43 @@ function RouteComponent() {
         setNotificationReload([]);
       }
     }
-  }, [currentUserData?.data?.user?.notifications]);
+  }, [currentUserData?.data?.user?.notifications])
 
   const deleteMatch = async (match: Match) => {
     console.log("MATCH DELETING", match);
     if (currentUserData?.data?.user.id) {
       await removeMatch(match.matchedUserId, currentUserData.data.user.id);
       queryClient.clear();
-      queryClient.invalidateQueries({ queryKey: ["session"] });
-      queryClient.invalidateQueries({ queryKey: ["matches"] });
+      queryClient.invalidateQueries({queryKey: ["session"]});
+      queryClient.invalidateQueries({queryKey: ["matches"]});
       console.log(matches);
-
-      try {
-        //Self notifications update (Other user notifications are updated in users.ts /matches delete route)
+      
+      try { //Self notifications update (Other user notifications are updated in users.ts /matches delete route)
         if (!currentUserData?.data?.user.notifications) return;
-        const currentNotifications = JSON.parse(
-          currentUserData.data.user.notifications
-        ) as NotificationItem[];
-        const newSelfNotification = {
+        const currentNotifications = JSON.parse(currentUserData.data.user.notifications) as NotificationItem[];
+        const newSelfNotification = {  
           timestamp: Date.now(),
           type: "unmatch",
           text: `You have unmatched with ${match.user.name}`,
-          title: "Unmatch",
+          title: "Unmatch"
         } as NotificationItem;
         const updatedList = currentNotifications.concat([newSelfNotification]);
-
-        await authClient.updateUser(
-          {
-            notifications: JSON.stringify(updatedList),
+        
+        await authClient.updateUser({
+          notifications: JSON.stringify(updatedList)
+        }, {
+          onError: ({ error }) => {
+            toast.error(error.message || "Notification Update Failed");
           },
-          {
-            onError: ({ error }) => {
-              toast.error(error.message || "Notification Update Failed");
-            },
-            onSuccess: () => {
-              setNotificationReload(updatedList); // Do not delete, somehow, useStates are the only way I could get updates to work
-            },
+          onSuccess: () => {
+            setNotificationReload(updatedList); // Do not delete, somehow, useStates are the only way I could get updates to work
           }
-        );
+        });
       } catch {
         console.log("Could not update self notifications.");
       }
     }
-  };
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-accent to-secondary">
@@ -404,14 +377,12 @@ function RouteComponent() {
             <Button
               onClick={async () => {
                 queryClient.clear();
-                queryClient
-                  .invalidateQueries({ queryKey: ["session"] })
-                  .then(() =>
-                    signOut().then(() => {
-                      router.navigate({ to: "/login" });
-                    })
-                  );
-              }}
+                queryClient.invalidateQueries({queryKey: ["session"]}).then(
+                  () => signOut().then(
+                    () => {router.navigate({ to: "/login" })}
+                  ));
+              }
+              }
               variant="outline"
               className="hover:cursor-pointer"
             >
@@ -423,291 +394,263 @@ function RouteComponent() {
 
         {/* Matches & Notifications Section */}
         <div className="flex gap-2 mb-4">
-          <Card className="mb-8 w-4/5">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <UsersRound className="w-6 h-6" />
-                  <div>
-                    <h2 className="text-2xl font-bold">My Matches</h2>
-                    <p className="text-sm text-muted-foreground">
-                      Connect and chat with people you've matched with
-                    </p>
-                  </div>
-                </div>
-                <div className="text-sm text-muted-foreground">
-                  {matches?.length || 0}{" "}
-                  {matches?.length === 1 ? "match" : "matches"}
+        <Card className="mb-8 w-4/5">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <UsersRound className="w-6 h-6" />
+                <div>
+                  <h2 className="text-2xl font-bold">My Matches</h2>
+                  <p className="text-sm text-muted-foreground">
+                    Connect and chat with people you've matched with
+                  </p>
                 </div>
               </div>
-            </CardHeader>
-            <CardContent>
-              {/* Filter Tabs */}
-              <Button
-                variant="secondary"
-                size="default"
-                onClick={() => {
-                  setGlobalSearch(!globalSearch);
-                  queryClient.invalidateQueries();
-                }}
-                className="hover:cursor-pointer text-lg my-2"
-              >
-                <Search />
-                {!globalSearch ? (
-                  <>Search All Boilermeets Users</>
-                ) : (
-                  <>Search Your Matches</>
-                )}
-              </Button>
-              {matches && matches.length > 0 && !globalSearch && (
-                <div className="flex gap-2 mb-4">
-                  <Button
-                    variant={matchFilter === "all" ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setMatchFilter("all")}
-                    className="hover:cursor-pointer"
-                  >
-                    All
-                  </Button>
-                  <Button
-                    variant={matchFilter === "friend" ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setMatchFilter("friend")}
-                    className="hover:cursor-pointer"
-                  >
-                    <Users className="w-4 h-4 mr-1" />
-                    Friends
-                  </Button>
-                  <Button
-                    variant={matchFilter === "romantic" ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setMatchFilter("romantic")}
-                    className="hover:cursor-pointer"
-                  >
-                    <Heart className="w-4 h-4 mr-1" />
-                    Romantic
-                  </Button>
-                </div>
+              <div className="text-sm text-muted-foreground">
+                {matches?.length || 0}{" "}
+                {matches?.length === 1 ? "match" : "matches"}
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {/* Filter Tabs */}
+            <Button
+              variant="secondary"
+              size="default"
+              onClick={() => {
+                setGlobalSearch(!globalSearch);
+                queryClient.invalidateQueries()
+              }}
+              className="hover:cursor-pointer text-lg my-2"
+            >
+              <Search />
+              {!globalSearch ? (
+                <>Search All Boilermeets Users</>
+              ) : (
+                <>Search Your Matches</>
               )}
+            </Button>
+            {((matches && matches.length > 0) && !globalSearch) && (
+              <div className="flex gap-2 mb-4">
+                <Button
+                  variant={matchFilter === "all" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setMatchFilter("all")}
+                  className="hover:cursor-pointer"
+                >
+                  All
+                </Button>
+                <Button
+                  variant={matchFilter === "friend" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setMatchFilter("friend")}
+                  className="hover:cursor-pointer"
+                >
+                  <Users className="w-4 h-4 mr-1" />
+                  Friends
+                </Button>
+                <Button
+                  variant={matchFilter === "romantic" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setMatchFilter("romantic")}
+                  className="hover:cursor-pointer"
+                >
+                  <Heart className="w-4 h-4 mr-1" />
+                  Romantic
+                </Button>
+              </div>
+            )}
 
-              {/* Search Bar */}
-              {((matches && matches.length > 0) || globalSearch) && (
-                <div className="relative mb-6">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                  <Input
-                    type="text"
-                    placeholder="Looking for someone?"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-              )}
+            {/* Search Bar */}
+            {((matches && matches.length > 0) || globalSearch) && (
+              <div className="relative mb-6">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                <Input
+                  type="text"
+                  placeholder="Looking for someone?"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            )}
 
-              {/* Results List */}
-              {(!globalSearch && matchesPending) ||
-              (globalSearch && searchPending) ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  {globalSearch ? "Searching users..." : "Loading matches..."}
-                </div>
-              ) : filteredResults && filteredResults.length > 0 ? (
-                <div className="flex flex-col gap-2">
-                  {filteredResults.map((item) => {
-                    // Honesly we might want to consider making this its own component at this point
+            {/* Results List */}
+            {((!globalSearch && matchesPending) || (globalSearch && searchPending)) ? (
+              <div className="text-center py-8 text-muted-foreground">
+                {globalSearch ? "Searching users..." : "Loading matches..."}
+              </div>
+            ) : filteredResults && filteredResults.length > 0 ? (
+              <div className="flex flex-col gap-2">
+                {filteredResults.map((item) => {
+                  // Honesly we might want to consider making this its own component at this point
 
-                    const isMatch = "matchId" in item;
-                    const user = isMatch ? (item as Match).user : item;
-                    const matchType = isMatch
-                      ? (item as Match).matchType
-                      : null;
+                  const isMatch = 'matchId' in item;
+                  const user = isMatch ? (item as Match).user : item;
+                  const matchType = isMatch ? (item as Match).matchType : null;
 
-                    const userMatchTypes =
-                      globalSearch && user?.id
-                        ? getUserMatchTypes(user.id)
-                        : [];
+                  const userMatchTypes = globalSearch && user?.id ? getUserMatchTypes(user.id) : [];
 
-                    return (
-                      <Card
-                        key={isMatch ? (item as Match).matchId : user.id}
-                        className="hover:shadow-md transition-all hover:border-primary py-0"
-                      >
-                        <CardContent className="p-4">
-                          <div className="flex items-center justify-between gap-4">
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2">
-                                <h3 className="font-semibold text-base truncate">
-                                  {user?.name || "Anonymous"}
-                                </h3>
-                                <p className="text-sm text-muted-foreground truncate">
-                                  {user?.major} • {user?.year}
-                                </p>
-                                {(isMatch
-                                  ? [matchType]
-                                  : callHistory
-                                      ?.filter(
-                                        (call) =>
-                                          (call.callType == matchFilter ||
-                                            matchFilter == "all") &&
-                                          (call.calledUserId === user.id ||
-                                            call.callerUserId === user.id)
-                                      ) //If the filters change, update this and many other lines
-                                      .map((call) => call.callType)
-                                )
-                                  ?.slice(0, 1) //Slice in order to get only the latest call
-                                  ?.map((type, idx) =>
-                                    type === "friend" ? (
-                                      <span
-                                        key={`${type}-${idx}`}
-                                        className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
-                                      >
-                                        <Users className="w-3 h-3 mr-1" />
-                                        {isMatch ? "Matched" : "Called"}
-                                      </span>
-                                    ) : (
-                                      <span
-                                        key={`${type}-${idx}`}
-                                        className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-pink-100 text-pink-800"
-                                      >
-                                        <Heart className="w-3 h-3 mr-1" />
-                                        {isMatch ? "Matched" : "Called"}
-                                      </span>
-                                    )
-                                  )}
-                                {globalSearch &&
-                                  userMatchTypes.length > 0 &&
-                                  userMatchTypes.map((type, idx) =>
-                                    type === "friend" ? (
-                                      <span
-                                        key={`${type}-${idx}`}
-                                        className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
-                                      >
-                                        <Users className="w-3 h-3 mr-1" />
-                                        Matched
-                                      </span>
-                                    ) : (
-                                      <span
-                                        key={`${type}-${idx}`}
-                                        className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-pink-100 text-pink-800"
-                                      >
-                                        <Heart className="w-3 h-3 mr-1" />
-                                        Matched
-                                      </span>
-                                    )
-                                  )}
-                              </div>
-                              {isMatch && (
-                                <p className="text-sm text-muted-foreground truncate">
-                                  {messagesQueries.data?.[user?.id]?.content ||
-                                    "Don't be shy! Send them a message."}
-                                </p>
+                  return (
+                    <Card
+                      key={isMatch ? (item as Match).matchId : user.id}
+                      className="hover:shadow-md transition-all hover:border-primary py-0"
+                    >
+                      <CardContent className="p-4">
+                        <div className="flex items-center justify-between gap-4">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <h3 className="font-semibold text-base truncate">
+                                {user?.name || "Anonymous"}
+                              </h3>
+                              <p className="text-sm text-muted-foreground truncate">
+                                {user?.major} • {user?.year}
+                              </p>
+                              {(isMatch ? [matchType] : callHistory
+                                ?.filter(call => (call.callType == matchFilter || matchFilter == "all") && (call.calledUserId === user.id || call.callerUserId === user.id)) //If the filters change, update this and many other lines
+                                .map(call => call.callType))
+                                ?.slice(0,1)         //Slice in order to get only the latest call
+                                ?.map((type, idx) => (
+                                  type === "friend" ? (
+                                    <span key={`${type}-${idx}`} className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                      <Users className="w-3 h-3 mr-1" />
+                                      {isMatch ? "Matched" : "Called"}
+                                    </span>
+                                  ) : (
+                                    <span key={`${type}-${idx}`} className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-pink-100 text-pink-800">
+                                      <Heart className="w-3 h-3 mr-1" />
+                                      {isMatch ? "Matched" : "Called"}
+                                    </span>
+                                  )
+                                ))
+                              }
+                              {globalSearch && userMatchTypes.length > 0 && (
+                                userMatchTypes.map((type, idx) => (
+                                  type === "friend" ? (
+                                    <span key={`${type}-${idx}`} className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                      <Users className="w-3 h-3 mr-1" />
+                                      Matched
+                                    </span>
+                                  ) : (
+                                    <span key={`${type}-${idx}`} className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-pink-100 text-pink-800">
+                                      <Heart className="w-3 h-3 mr-1" />
+                                      Matched
+                                    </span>
+                                  )
+                                ))
                               )}
                             </div>
+                            {isMatch && (
+                              <p className="text-sm text-muted-foreground truncate">
+                                {messagesQueries.data?.[user?.id]?.content ||
+                                  "Don't be shy! Send them a message."}
+                              </p>
+                            )}
+                          </div>
 
-                            <div className="flex gap-2 flex-shrink-0">
-                              {isMatch && (
-                                <Button
-                                  onClick={() => {
-                                    setUnmatchDialog(true);
-                                    setUnmatchUser(item as Match);
-                                  }}
-                                  variant="outline"
-                                  size="sm"
-                                  className="hover:cursor-pointer hover:bg-red-500"
-                                >
-                                  <XCircle />
-                                  Unmatch
-                                </Button>
-                              )}
+                          <div className="flex gap-2 flex-shrink-0">
+                            {isMatch && (
                               <Button
+                                onClick={() => {
+                                  setUnmatchDialog(true);
+                                  setUnmatchUser(item as Match);
+                                }}
                                 variant="outline"
+                                size="sm"
+                                className="hover:cursor-pointer hover:bg-red-500"
+                              >
+                                <XCircle />
+                                Unmatch
+                              </Button>
+                            )}
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleVisitProfile(user?.username);
+                              }}
+                              className="hover:cursor-pointer"
+                            >
+                              <UserCircle className="w-4 h-4 mr-1" />
+                              Profile
+                            </Button>
+                            {isMatch && (
+                              <Button
                                 size="sm"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  handleVisitProfile(user?.username);
+                                  handleMatchClick(user?.username || "");
                                 }}
                                 className="hover:cursor-pointer"
                               >
-                                <UserCircle className="w-4 h-4 mr-1" />
-                                Profile
+                                <MessageCircle className="w-4 h-4 mr-1" />
+                                Message
                               </Button>
-                              {isMatch && (
-                                <Button
-                                  size="sm"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleMatchClick(user?.username || "");
-                                  }}
-                                  className="hover:cursor-pointer"
-                                >
-                                  <MessageCircle className="w-4 h-4 mr-1" />
-                                  Message
-                                </Button>
-                              )}
-                            </div>
+                            )}
                           </div>
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
-                </div>
-              ) : (
-                <Card className="border-dashed">
-                  <CardContent className="py-12 text-center">
-                    <UsersRound className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
-                    <h3 className="text-xl font-semibold mb-2">
-                      {searchQuery ? "No matches found" : "No matches yet"}
-                    </h3>
-                    <p className="text-muted-foreground mb-4">
-                      {searchQuery
-                        ? "Don't worry, you'll find them someday!"
-                        : "Start a video chat and get your first match!"}
-                    </p>
-                    {!searchQuery && (
-                      <div className="flex gap-2 justify-center">
-                        <FindRoomButton
-                          matchType="friend"
-                          label="Find Friends"
-                          icon={<Users />}
-                        />
-                        <FindRoomButton
-                          matchType="romantic"
-                          label="Find Romance"
-                          icon={<Heart />}
-                        />
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              )}
-            </CardContent>
-          </Card>
-          <Card className="mb-8 w-1/5 truncate">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3 overflow-hidden">
-                  <Bell className="w-6 h-6" />
-                  <h2 className="text-2xl font-bold">Notifications</h2>
-                </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
               </div>
-            </CardHeader>
-            <CardContent>
-              <div style={{ maxHeight: "300px", overflowY: "auto" }}>
-                {!notificationReload || notificationReload.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    No notifications
+            ) : (
+              <Card className="border-dashed">
+                <CardContent className="py-12 text-center">
+                  <UsersRound className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
+                  <h3 className="text-xl font-semibold mb-2">
+                    {searchQuery ? "No matches found" : "No matches yet"}
+                  </h3>
+                  <p className="text-muted-foreground mb-4">
+                    {searchQuery
+                      ? "Don't worry, you'll find them someday!"
+                      : "Start a video chat and get your first match!"}
                   </p>
-                ) : (
-                  notificationReload.map((notification: NotificationItem) => (
-                    <Notification
-                      key={`${notification.timestamp} ${notification.title} ${Math.random()}`}
-                      destroyNotification={destroyNotification}
-                      {...notification}
-                    />
-                  ))
-                )}
+                  {!searchQuery && (
+                    <div className="flex gap-2 justify-center">
+                      <FindRoomButton
+                        matchType="friend"
+                        label="Find Friends"
+                        icon={<Users />}
+                      />
+                      <FindRoomButton
+                        matchType="romantic"
+                        label="Find Romance"
+                        icon={<Heart />}
+                      />
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+          </CardContent>
+        </Card>
+        <Card className="mb-8 w-1/5 truncate">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3 overflow-hidden">
+                <Bell className="w-6 h-6" />
+                <h2 className="text-2xl font-bold">Notifications</h2>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div style={{ maxHeight: '300px', overflowY: 'auto'}}>
+              {!notificationReload || notificationReload.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No notifications</p>
+              ) : (
+                notificationReload.map((notification: NotificationItem) => (
+                  <Notification 
+                    key={`${notification.timestamp} ${notification.title} ${Math.random()}`}
+                    destroyNotification={destroyNotification}
+                    {...notification}
+                  />
+                ))
+              )}
+            </div>
+          </CardContent>
+        </Card>
         </div>
 
         {/* Unmatch Dialog */}
@@ -719,16 +662,15 @@ function RouteComponent() {
             }}
           >
             <div className="flex flex-col space-y-4">
-              <DialogTitle>
-                Do you really want to unmatch with{" "}
-                {unmatchUser?.user && `With ${unmatchUser?.user.name}`}?
-              </DialogTitle>
+              <DialogTitle>Do you really want to unmatch with {unmatchUser?.user && `With ${unmatchUser?.user.name}`}?</DialogTitle>
               <Card className="flex flex-1">
-                <CardHeader>This action is not reversible!</CardHeader>
+                  <CardHeader>
+                    This action is not reversible!
+                  </CardHeader>
                 <CardContent>
                   <div className="flex items-center gap-2 justify-between">
                     <Button
-                      onClick={() => {
+                      onClick={() => { 
                         setUnmatchDialog(false);
                         setUnmatchUser(null);
                       }}
@@ -739,11 +681,8 @@ function RouteComponent() {
                     </Button>
                     <Button
                       onClick={() => {
-                        if (!unmatchUser) {
-                          toast.error("Could not unmatch with user!");
-                        } else {
-                          deleteMatch(unmatchUser);
-                        }
+                        if (!unmatchUser) { toast.error("Could not unmatch with user!"); }
+                        else { deleteMatch(unmatchUser); }
                         setUnmatchUser(null);
                         setUnmatchDialog(false);
                       }}
@@ -760,7 +699,7 @@ function RouteComponent() {
             </div>
           </DialogContent>
         </Dialog>
-
+        
         {/* Welcome Dialog */}
         <Dialog open={showWelcomeDialog}>
           <DialogContent
