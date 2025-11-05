@@ -601,13 +601,12 @@ function RouteComponent() {
           </CardHeader>
           <CardContent>
             <div style={{ maxHeight: '300px', overflowY: 'auto'}}>
-              {notificationReload.length === 0 ? (
+              {!notificationReload || notificationReload.length === 0 ? (
                 <p className="text-sm text-muted-foreground">No notifications</p>
               ) : (
                 notificationReload.map((notification: NotificationItem) => (
                   <Notification 
                     key={`${notification.timestamp} ${notification.title} ${Math.random()}`}
-                    // key={notification.timestamp}
                     destroyNotification={destroyNotification}
                     {...notification}
                   />
