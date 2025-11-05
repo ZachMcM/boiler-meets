@@ -2,7 +2,7 @@
 import { Router } from "express";
 import { authMiddleware } from "../middleware";
 import { db } from "../db";
-import { eq, inArray, sql, and, like, ilike } from "drizzle-orm";
+import { eq, inArray, sql, and, like, ilike, or } from "drizzle-orm";
 import { user, matches, profileReactions } from "../db/schema";
 
 export const usersRoute = Router();
@@ -235,11 +235,11 @@ usersRoute.get("/matches", authMiddleware, async (req, res) => {
 usersRoute.delete("/matches", authMiddleware, async (req, res) => {
   try {
     const userId = res.locals.userId;
-    const { firstUserId, secondUserId, otherUserId } = req.body || {};
+    const { firstUserId, secondUserId, userToUnmatch } = req.body || {};
 
-    // Allow either passing { firstUserId, secondUserId } or { otherUserId }
+    // Allow either passing { firstUserId, secondUserId } or { userToUnmatch }
     const a = firstUserId ?? userId;
-    const b = secondUserId ?? otherUserId;
+    const b = secondUserId ?? userToUnmatch;
 
     if (!a || !b) {
       return res.status(400).json({ error: "missing userId(s)" });
@@ -250,11 +250,69 @@ usersRoute.delete("/matches", authMiddleware, async (req, res) => {
       return res.status(403).json({ error: "unauthorized" });
     }
 
-    // Delete any rows where the pair appears in either order
+    // Get current user's name for the notification
+    const currentUser = await db
+      .select({ name: user.name })
+      .from(user)
+      .where(eq(user.id, userId as string))
+      .limit(1);
+
+    if (!currentUser || currentUser.length === 0) {
+      return res.status(404).json({ error: "Current user not found" });
+    }
+
+    // Get other user's data for notification update
+    const targetUserId = userId === a ? b : a;
+    const otherUser = await db
+      .select({ 
+        notifications: user.notifications 
+      })
+      .from(user)
+      .where(eq(user.id, targetUserId))
+      .limit(1);
+
+    if (!otherUser || otherUser.length === 0) {
+      return res.status(404).json({ error: "Other user not found" });
+    }
+
+    // Prepare and add notification
+    let currentNotifications = [];
+    try {
+      currentNotifications = JSON.parse(otherUser[0].notifications || '[]');
+    } catch (e) {
+      console.error("Error parsing notifications:", e);
+      currentNotifications = [];
+    }
+
+    const otherUserNotification = {
+      timestamp: Date.now(),
+      type: "unmatch",
+      text: `${currentUser[0].name} has unmatched with you`,
+      title: "Unmatch"
+    };
+
+    currentNotifications.push(otherUserNotification);
+
+    // Update other user's notifications
+    await db
+      .update(user)
+      .set({ notifications: JSON.stringify(currentNotifications) })
+      .where(eq(user.id, targetUserId));
+
+    // Delete any rows where the matching pair appears in either order
     await db
       .delete(matches)
       .where(
-        sql`${matches.first} = ${a} AND ${matches.second} = ${b} OR ${matches.first} = ${b} AND ${matches.second} = ${a}`
+        or(
+          and(
+            eq(matches.first, a),
+            eq(matches.second, b)
+          ),
+          and(
+            eq(matches.first, b),
+            eq(matches.second, a)
+          )
+        )
       );
 
     res.json({ success: true });

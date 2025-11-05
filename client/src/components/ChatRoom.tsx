@@ -22,6 +22,7 @@ import {
   Flag,
   Check,
   XCircle,
+  Users,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -397,6 +398,7 @@ export function ChatRoom({ roomId }: { roomId: string }) {
         if (userId === session?.user.id) return;
         setOtherUserId(userId);
         otherUserIdRef.current = userId;
+        if (otherUserIdRef.current) videoCallData.current.otherUser = await getUser(otherUserIdRef.current);
 
         // Only proceed if we're in stable state (not already negotiating)
         if (pc.signalingState !== "stable") {
@@ -443,6 +445,7 @@ export function ChatRoom({ roomId }: { roomId: string }) {
         if (from === session?.user.id) return;
         setOtherUserId(from);
         otherUserIdRef.current = from;
+        if (otherUserIdRef.current) videoCallData.current.otherUser = await getUser(otherUserIdRef.current);
         videoCallData.current.callType = callType;
 
         // Handle glare condition - if we're also trying to send an offer
@@ -649,7 +652,6 @@ export function ChatRoom({ roomId }: { roomId: string }) {
             title: "Unmatch"
           } as NotificationItem;
           const updatedList = currentNotifications.concat([newNotification]);
-          // console.log(updatedList);
           
           await authClient.updateUser({
             notifications: JSON.stringify(updatedList)
@@ -939,9 +941,13 @@ export function ChatRoom({ roomId }: { roomId: string }) {
                       </Button>
                       <Button
                         onClick={toggleMatch}
-                        className="rounded-full bg-pink-200"
+                        className={`rounded-full ${videoCallData.current.callType == "romantic" ? "bg-pink-200" : "bg-blue-200"}`}
                       >
-                        <Heart fill={userHasMatched ? "red" : "none"} />
+                        {videoCallData.current.callType == "romantic" ? (
+                          <Heart fill={userHasMatched ? "red" : "none"} />
+                        ) : (
+                          <Users fill={userHasMatched ? "green" : "none"} />
+                        )}
                         Match?
                       </Button>
                       <Button
@@ -987,7 +993,10 @@ export function ChatRoom({ roomId }: { roomId: string }) {
             >
               <div className="flex flex-col space-y-4">
                 <DialogTitle>Really Unmatch?</DialogTitle>
-                <Card className="max-w-3xl flex flex-1">
+                <Card className="flex flex-1">
+                    <CardHeader>
+                      This action will end the call!
+                    </CardHeader>
                   <CardContent>
                     <div className="flex items-center gap-2 justify-between">
                       <Button
@@ -1127,9 +1136,13 @@ export function ChatRoom({ roomId }: { roomId: string }) {
                       {passedFirstCall && !matchCompleted && (
                         <Button
                           onClick={toggleMatch}
-                          className="rounded-full bg-pink-200"
+                          className={`rounded-full ${videoCallData.current.callType == "romantic" ? "bg-pink-200" : "bg-blue-200"}`}
                         >
-                          <Heart fill={userHasMatched ? "red" : "none"} />
+                          {videoCallData.current.callType == "romantic" ? (
+                            <Heart fill={userHasMatched ? "red" : "none"} />
+                          ) : (
+                            <Users fill={userHasMatched ? "green" : "none"} />
+                          )}
                           Match?
                         </Button>
                       )}

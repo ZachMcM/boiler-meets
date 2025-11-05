@@ -54,6 +54,8 @@ function RouteComponent() {
   const [matchFilter, setMatchFilter] = useState<"all" | "friend" | "romantic">("all");
   const [globalSearch, setGlobalSearch] = useState(false);
   const [searchPage, setSearchPage] = useState(1);
+  const [unmatchDialog, setUnmatchDialog] = useState(false);
+  const [unmatchUser, setUnmatchUser] = useState<Match | null>(null);
 
   const { data: currentUserData, isLoading: sessionPending } = useQuery({
     queryKey: ["session"],
@@ -297,7 +299,7 @@ function RouteComponent() {
       queryClient.invalidateQueries({queryKey: ["matches"]});
       console.log(matches);
       
-      try { //Self notifications
+      try { //Self notifications update (Other user notifications are updated in users.ts /matches delete route)
         if (!currentUserData?.data?.user.notifications) return;
         const currentNotifications = JSON.parse(currentUserData.data.user.notifications) as NotificationItem[];
         const newSelfNotification = {  
@@ -315,16 +317,11 @@ function RouteComponent() {
             toast.error(error.message || "Notification Update Failed");
           },
           onSuccess: () => {
-            setNotificationReload(updatedList); // Do not delete, somehow, useStates are the only way the page updates
+            setNotificationReload(updatedList); // Do not delete, somehow, useStates are the only way I could get updates to work
           }
         });
       } catch {
         console.log("Could not update self notifications.");
-      }
-      try { // Other user notifications
-        // TODO Figure out how to update another user's notifications, we cannot rely on the 'user'
-      } catch {
-        console.log("Could not update other user's notifications.");
       }
     }
   }
@@ -484,7 +481,11 @@ function RouteComponent() {
                             <div className="flex items-center gap-2">
                               {isMatch && (
                                 <Button
-                                  onClick={() => deleteMatch(item as Match)}
+                                  onClick={() => {
+                                    setUnmatchDialog(true);
+                                    setUnmatchUser(item as Match);
+                                    // deleteMatch(item as Match);
+                                  }}
                                   variant="destructive"
                                   size="icon"
                                   className="rounded-full"
@@ -617,6 +618,53 @@ function RouteComponent() {
         </Card>
         </div>
 
+        {/* Unmatch Dialog */}
+        <Dialog open={unmatchDialog}>
+          <DialogContent
+            className="[&>button:first-of-type]:hidden"
+            onInteractOutside={(e) => {
+              e.preventDefault();
+            }}
+          >
+            <div className="flex flex-col space-y-4">
+              <DialogTitle>Really Unmatch {unmatchUser?.user && `With ${unmatchUser?.user.name}`}?</DialogTitle>
+              <Card className="flex flex-1">
+                  <CardHeader>
+                    This action is not reversible!
+                  </CardHeader>
+                <CardContent>
+                  <div className="flex items-center gap-2 justify-between">
+                    <Button
+                      onClick={() => { 
+                        setUnmatchDialog(false);
+                        setUnmatchUser(null);
+                      }}
+                      className="rounded-full"
+                      size="lg"
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        if (!unmatchUser) { toast.error("Could not unmatch with user!"); }
+                        else { deleteMatch(unmatchUser); }
+                        setUnmatchUser(null);
+                        setUnmatchDialog(false);
+                      }}
+                      variant="destructive"
+                      size="lg"
+                      className="rounded-full"
+                    >
+                      Unmatch
+                      <XCircle />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </DialogContent>
+        </Dialog>
+        
         {/* Welcome Dialog */}
         <Dialog open={showWelcomeDialog}>
           <DialogContent
