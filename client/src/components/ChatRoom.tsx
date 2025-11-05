@@ -607,30 +607,30 @@ export function ChatRoom({ roomId }: { roomId: string }) {
           }
 
           setMatchCompleted(true);
-          if (session?.user) {
-            let currentNotifications: NotificationItem[];
-            if (session.user.notifications) {
-              currentNotifications = JSON.parse(session.user.notifications) as NotificationItem[];
-            } else {
-              currentNotifications = [] as NotificationItem[];
-            }
-            const newNotification = {  
-              timestamp: Date.now(),
-              type: matchType,
-              text: `You have matched with ${videoCallData.current.otherUser?.name}`,
-              title: "New Match!"
-            } as NotificationItem;
-            const updatedList = currentNotifications.concat([newNotification]);
-            console.log(updatedList);
+          // if (session?.user) {
+          //   let currentNotifications: NotificationItem[];
+          //   if (session.user.notifications) {
+          //     currentNotifications = JSON.parse(session.user.notifications) as NotificationItem[];
+          //   } else {
+          //     currentNotifications = [] as NotificationItem[];
+          //   }
+          //   const newNotification = {  
+          //     timestamp: Date.now(),
+          //     type: matchType,
+          //     text: `You have matched with ${videoCallData.current.otherUser?.name}`,
+          //     title: "New Match!"
+          //   } as NotificationItem;
+          //   const updatedList = currentNotifications.concat([newNotification]);
+          //   console.log(updatedList);
             
-            await authClient.updateUser({
-              notifications: JSON.stringify(updatedList)
-            }, {
-              onError: ({ error }) => {
-                toast.error(error.message || "Notification Update Failed");
-              },
-            });
-          }
+          //   await authClient.updateUser({
+          //     notifications: JSON.stringify(updatedList)
+          //   }, {
+          //     onError: ({ error }) => {
+          //       toast.error(error.message || "Notification Update Failed");
+          //     },
+          //   });
+          // }
           timeoutTransmissions(false);
         }
       );
@@ -712,8 +712,6 @@ export function ChatRoom({ roomId }: { roomId: string }) {
     videoCallData.current.callLength = now - callStart;
     console.log(now, callStart);
     if (otherUserIdRef.current) {
-      videoCallData.current.otherUser = await getUser(otherUserIdRef.current);
-      
       // Save call history
       try {
         await saveCallHistory(

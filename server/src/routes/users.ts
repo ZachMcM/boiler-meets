@@ -162,6 +162,79 @@ usersRoute.post("/matches", authMiddleware, async (req, res) => {
       matchType: matchType,
     }).returning();
 
+    // Sending notifications Addition, replacement for its location in ChatRoom.tsx
+    // Putting it here fixes a problem with not being able to invalidate another user's 
+    // session query after unmatching them from the dashboard while they are online, which
+    // in turn fixes a bug where another user drops that notification (and potential 
+    // others like it) if they did not refresh twice.
+    const firstUser = await db
+      .select({
+        name: user.name,
+        notifications: user.notifications 
+      })
+      .from(user)
+      .where(eq(user.id, firstUserId))
+      .limit(1);
+
+    if (!firstUser || firstUser.length === 0) {
+      return res.status(404).json({ error: "First user notifications not found" });
+    }
+
+    const secondUser = await db
+      .select({ 
+        name: user.name,
+        notifications: user.notifications 
+      })
+      .from(user)
+      .where(eq(user.id, secondUserId))
+      .limit(1);
+
+    if (!secondUser || secondUser.length === 0) {
+      return res.status(404).json({ error: "Second user notifications not found" });
+    }
+
+    // Prepare and add notification
+    let firstNotifications = [];
+    try {
+      firstNotifications = JSON.parse(firstUser[0].notifications || '[]');
+    } catch (e) {
+      console.error("Error parsing notifications:", e);
+      firstNotifications = [];
+    }
+
+    firstNotifications.push({
+      timestamp: Date.now(),
+      type: matchType,
+      text: `${secondUser[0].name} has matched with you`,
+      title: "New Match!"
+    });
+
+    let secondNotifications = [];
+    try {
+      secondNotifications = JSON.parse(secondUser[0].notifications || '[]');
+    } catch (e) {
+      console.error("Error parsing notifications:", e);
+      secondNotifications = [];
+    }
+
+    secondNotifications.push({
+      timestamp: Date.now(),
+      type: matchType,
+      text: `${firstUser[0].name} has matched with you`,
+      title: "New Match!"
+    });
+
+    // Update notifications
+    await db
+      .update(user)
+      .set({ notifications: JSON.stringify(firstNotifications) })
+      .where(eq(user.id, firstUserId));
+
+    await db
+      .update(user)
+      .set({ notifications: JSON.stringify(secondNotifications) })
+      .where(eq(user.id, secondUserId));
+
     res.status(201).json(newMatch[0]);
   } catch (error) {
     console.error("create match error:", error);
