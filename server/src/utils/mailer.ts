@@ -11,7 +11,7 @@ type SendMailInput = {
 const transporter = nodemailer.createTransport({
   host: 'smtp.gmail.com',
   port: 587,
-  secure: true, // use SSL
+  secure: false, // use STARTTLS
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.GOOGLE_APP_PASSWORD,
