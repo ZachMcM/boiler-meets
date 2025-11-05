@@ -2,10 +2,65 @@
 import { Router } from "express";
 import { authMiddleware } from "../middleware";
 import { db } from "../db";
-import { eq, inArray, sql, and } from "drizzle-orm";
+import { eq, inArray, sql, and, like, ilike, or } from "drizzle-orm";
 import { user, matches, profileReactions } from "../db/schema";
 
 export const usersRoute = Router();
+
+// Search users endpoint with pagination
+usersRoute.get("/users/search", authMiddleware, async (req, res) => {
+  try {
+    const { q, page = "1", limit = "10" } = req.query;
+    const pageNum = parseInt(page as string);
+    const pageSize = parseInt(limit as string);
+    const offset = (pageNum - 1) * pageSize;
+    
+    if (!q) {
+      return res.status(400).json({ error: "Search query required" });
+    }
+
+    // Search by name or username, excluding sensitive info
+    const users = await db
+      .select({
+        id: user.id,
+        username: user.username,
+        name: user.name,
+        image: user.image,
+        major: user.major,
+        year: user.year,
+        bio: user.bio,
+      })
+      .from(user)
+      .where(
+        sql`(${user.name} ILIKE ${`%${q}%`} OR ${user.username} ILIKE ${`%${q}%`}) AND ${user.id} != ${res.locals.userId}`
+      )
+      .limit(pageSize)
+      .offset(offset);
+
+    // Get total count for pagination
+    const [{ count }] = await db
+      .select({ 
+        count: sql<number>`count(*)::int`
+      })
+      .from(user)
+      .where(
+        sql`(${user.name} ILIKE ${`%${q}%`} OR ${user.username} ILIKE ${`%${q}%`}) AND ${user.id} != ${res.locals.userId}`
+      );
+
+    res.json({
+      users,
+      pagination: {
+        total: count,
+        page: pageNum,
+        pageSize,
+        totalPages: Math.ceil(count / pageSize)
+      }
+    });
+  } catch (error) {
+    console.error("search users error:", error);
+    res.status(500).json({ error: "server error" });
+  }
+});
 
 usersRoute.get("/users/:id", authMiddleware, async (req, res) => {
   try {
@@ -107,6 +162,79 @@ usersRoute.post("/matches", authMiddleware, async (req, res) => {
       matchType: matchType,
     }).returning();
 
+    // Sending notifications Addition, replacement for its location in ChatRoom.tsx
+    // Putting it here fixes a problem with not being able to invalidate another user's 
+    // session query after unmatching them from the dashboard while they are online, which
+    // in turn fixes a bug where another user drops that notification (and potential 
+    // others like it) if they did not refresh twice.
+    const firstUser = await db
+      .select({
+        name: user.name,
+        notifications: user.notifications 
+      })
+      .from(user)
+      .where(eq(user.id, firstUserId))
+      .limit(1);
+
+    if (!firstUser || firstUser.length === 0) {
+      return res.status(404).json({ error: "First user notifications not found" });
+    }
+
+    const secondUser = await db
+      .select({ 
+        name: user.name,
+        notifications: user.notifications 
+      })
+      .from(user)
+      .where(eq(user.id, secondUserId))
+      .limit(1);
+
+    if (!secondUser || secondUser.length === 0) {
+      return res.status(404).json({ error: "Second user notifications not found" });
+    }
+
+    // Prepare and add notification
+    let firstNotifications = [];
+    try {
+      firstNotifications = JSON.parse(firstUser[0].notifications || '[]');
+    } catch (e) {
+      console.error("Error parsing notifications:", e);
+      firstNotifications = [];
+    }
+
+    firstNotifications.push({
+      timestamp: Date.now(),
+      type: matchType,
+      text: `${secondUser[0].name} has matched with you`,
+      title: "New Match!"
+    });
+
+    let secondNotifications = [];
+    try {
+      secondNotifications = JSON.parse(secondUser[0].notifications || '[]');
+    } catch (e) {
+      console.error("Error parsing notifications:", e);
+      secondNotifications = [];
+    }
+
+    secondNotifications.push({
+      timestamp: Date.now(),
+      type: matchType,
+      text: `${firstUser[0].name} has matched with you`,
+      title: "New Match!"
+    });
+
+    // Update notifications
+    await db
+      .update(user)
+      .set({ notifications: JSON.stringify(firstNotifications) })
+      .where(eq(user.id, firstUserId));
+
+    await db
+      .update(user)
+      .set({ notifications: JSON.stringify(secondNotifications) })
+      .where(eq(user.id, secondUserId));
+
     res.status(201).json(newMatch[0]);
   } catch (error) {
     console.error("create match error:", error);
@@ -172,6 +300,97 @@ usersRoute.get("/matches", authMiddleware, async (req, res) => {
     res.json(matchesWithUsers);
   } catch (error) {
     console.error("get matches error:", error);
+    res.status(500).json({ error: "server error" });
+  }
+});
+
+// Delete matches between two users (unmatch)
+usersRoute.delete("/matches", authMiddleware, async (req, res) => {
+  try {
+    const userId = res.locals.userId;
+    const { firstUserId, secondUserId, userToUnmatch } = req.body || {};
+
+    // Allow either passing { firstUserId, secondUserId } or { userToUnmatch }
+    const a = firstUserId ?? userId;
+    const b = secondUserId ?? userToUnmatch;
+
+    if (!a || !b) {
+      return res.status(400).json({ error: "missing userId(s)" });
+    }
+
+    // Ensure the authenticated user is one of the participants
+    if (userId !== a && userId !== b) {
+      return res.status(403).json({ error: "unauthorized" });
+    }
+
+    // Get current user's name for the notification
+    const currentUser = await db
+      .select({ name: user.name })
+      .from(user)
+      .where(eq(user.id, userId as string))
+      .limit(1);
+
+    if (!currentUser || currentUser.length === 0) {
+      return res.status(404).json({ error: "Current user not found" });
+    }
+
+    // Get other user's data for notification update
+    const targetUserId = userId === a ? b : a;
+    const otherUser = await db
+      .select({ 
+        notifications: user.notifications 
+      })
+      .from(user)
+      .where(eq(user.id, targetUserId))
+      .limit(1);
+
+    if (!otherUser || otherUser.length === 0) {
+      return res.status(404).json({ error: "Other user not found" });
+    }
+
+    // Prepare and add notification
+    let currentNotifications = [];
+    try {
+      currentNotifications = JSON.parse(otherUser[0].notifications || '[]');
+    } catch (e) {
+      console.error("Error parsing notifications:", e);
+      currentNotifications = [];
+    }
+
+    const otherUserNotification = {
+      timestamp: Date.now(),
+      type: "unmatch",
+      text: `${currentUser[0].name} has unmatched with you`,
+      title: "Unmatch"
+    };
+
+    currentNotifications.push(otherUserNotification);
+
+    // Update other user's notifications
+    await db
+      .update(user)
+      .set({ notifications: JSON.stringify(currentNotifications) })
+      .where(eq(user.id, targetUserId));
+
+    // Delete any rows where the matching pair appears in either order
+    await db
+      .delete(matches)
+      .where(
+        or(
+          and(
+            eq(matches.first, a),
+            eq(matches.second, b)
+          ),
+          and(
+            eq(matches.first, b),
+            eq(matches.second, a)
+          )
+        )
+      );
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error("delete match error:", error);
     res.status(500).json({ error: "server error" });
   }
 });

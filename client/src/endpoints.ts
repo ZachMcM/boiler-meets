@@ -1,6 +1,16 @@
 import type { DraggableModule } from "./components/ProfileModules";
 import type { Match, User } from "./types/user";
 
+export type CallHistory = {
+  id: number;
+  callerUserId: string;
+  calledUserId: string;
+  callType: "friend" | "romantic";
+  callTimestamp: string;
+  callDuration: number;
+  wasMatched: boolean;
+};
+
 export type serverRequestParams = {
   endpoint: string;
   method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
@@ -49,7 +59,7 @@ export async function serverRequest({
   return data;
 }
 
-export async function getUser(userId: string): Promise<User> {
+export const getUser = async (userId: string): Promise<User> => {
   const user = await serverRequest({
     endpoint: `/users/${userId}`,
     method: "GET",
@@ -57,6 +67,25 @@ export async function getUser(userId: string): Promise<User> {
 
   return user;
 }
+
+export type SearchUsersResponse = {
+  users: User[];
+  pagination: {
+    total: number;
+    page: number;
+    pageSize: number;
+    totalPages: number;
+  };
+};
+
+export const searchUsers = async (query: string, page = 1, limit = 10): Promise<SearchUsersResponse> => {
+  const response = await serverRequest({
+    endpoint: `/users/search?q=${encodeURIComponent(query)}&page=${page}&limit=${limit}`,
+    method: "GET",
+  });
+
+  return response;
+};
 
 export async function getUserByUsername(username: string) {
   const user = await serverRequest({
@@ -79,6 +108,14 @@ export const getMatches = async (): Promise<Match[]> => {
   return await serverRequest({
     endpoint: "/matches",
     method: "GET",
+  });
+};
+
+export const removeMatch = async (firstUserId: string, secondUserId: string) => {
+  return await serverRequest({
+    endpoint: "/matches",
+    method: "DELETE",
+    body: JSON.stringify({ firstUserId, secondUserId }),
   });
 };
 
@@ -135,6 +172,35 @@ export type SubmitReportParams = {
   submissionDetails: string;
   incomingUserId: string;
   outgoingUserId: string;
+};
+
+// Call History API Functions
+export const saveCallHistory = async (
+  calledUserId: string,
+  callType: "friend" | "romantic",
+  callDuration: number,
+  wasMatched: boolean
+) => {
+  return await serverRequest({
+    endpoint: "/calls",
+    method: "POST",
+    body: JSON.stringify({ calledUserId, callType, callDuration, wasMatched }),
+  });
+};
+
+export const getCallHistory = async (otherUserId?: string) => {
+  const endpoint = otherUserId ? `/calls/${otherUserId}` : "/calls";
+  return await serverRequest({
+    endpoint,
+    method: "GET",
+  }) as CallHistory[];
+};
+
+export const getCallsByType = async (callType: "friend" | "romantic") => {
+  return await serverRequest({
+    endpoint: `/calls?type=${callType}`,
+    method: "GET",
+  }) as CallHistory[];
 };
 
 export const submitReport = async ({

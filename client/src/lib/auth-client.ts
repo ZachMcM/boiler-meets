@@ -32,6 +32,15 @@ export const authClient = createAuthClient({
           type: "boolean",
           input: false,
         },
+        lastPasswordReset: {
+          type: "date",
+          required: false
+        },
+        notifications: {
+          type: "string",
+          required: false,
+          default: '[]'
+        },
         gender: {
           type: "string",
           required: true,
@@ -53,5 +62,10 @@ export async function fetchUserSession() {
     },
   });
 
+  return response;
+}
+
+export async function signOut() {
+  const response = await authClient.signOut();
   return response;
 }

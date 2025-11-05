@@ -1,0 +1,1 @@
+ALTER TABLE "user" ADD COLUMN "last_password_reset" timestamp DEFAULT '1970-01-01 00:00:00.000';

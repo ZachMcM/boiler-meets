@@ -20,7 +20,13 @@ function RouteComponent() {
     <div className="flex flex-1 justify-center items-center w-full h-full bg-gradient-to-br from-background from-30% to-primary">
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-1 items-center justify-center">
-          <h1 className=" font-bold text-4xl">Call Ended!</h1>
+          <h1 className=" font-bold text-4xl">
+            {(callSession && callSession.at(-1) !== undefined) && (callSession.at(-1)?.unmatched ? (
+                "You Have Unmatched"
+            ) : (
+                `Call Ended!`
+            ))}
+          </h1>
           <p className="text-muted-foreground">
             {(callSession && callSession.at(-1) !== undefined) && (callSession.at(-1)?.callEndedByUser ? (
                 "You ended the call"

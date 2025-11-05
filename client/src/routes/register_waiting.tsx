@@ -35,7 +35,7 @@ function RouteComponent() {
           <CardContent className="p-4 flex flex-col gap-2">
             <div className="flex flex-col">
               <h1 className="text-center font-semibold text-xl">
-                Registration Email Sent!
+                Email Sent!
               </h1>
               <h3 className="text-muted-foreground text-center text-xs">
                 Please check your inbox and junk Mail for an email from us!

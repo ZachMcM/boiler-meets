@@ -23,6 +23,7 @@ export const user = pgTable("user", {
   username: text("username").unique(),
   displayUsername: text("display_username"),
   emailVerified: boolean("email_verified").default(false).notNull(),
+  lastPasswordReset: timestamp("last_password_reset").default(new Date(0)),
   image: text("image"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at")
@@ -36,6 +37,7 @@ export const user = pgTable("user", {
   gender: genderTypes().notNull().default("male"),
   preference: genderTypes().notNull().default("female"),
   profile: json("profile").default({}),
+  notifications: text("notifications").default('[]'),
   isBanned: boolean("is_banned").default(false),
   matchesWeights: json()
     .$type<number[]>()
@@ -154,4 +156,18 @@ export const messages = pgTable("messages", {
   content: text("content").notNull(),
   isRead: boolean("is_read").default(false).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const callHistory = pgTable("call_history", {
+  id: serial("id").primaryKey(),
+  callerUserId: text("caller_user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  calledUserId: text("called_user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  callType: text("call_type").notNull(), // "friend" or "romantic"
+  callTimestamp: timestamp("call_timestamp").defaultNow().notNull(),
+  callDuration: integer("call_duration").notNull(), // in milliseconds
+  wasMatched: boolean("was_matched").default(false).notNull(),
 });

@@ -596,6 +596,13 @@
           "notNull": true,
           "default": false
         },
+        "last_password_reset": {
+          "name": "last_password_reset",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'1970-01-01 00:00:00.000'"
+        },
         "image": {
           "name": "image",
           "type": "text",

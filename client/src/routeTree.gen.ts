@@ -10,6 +10,8 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as Unit_testingRouteImport } from './routes/unit_testing'
+import { Route as Reset_password_finalRouteImport } from './routes/reset_password_final'
+import { Route as Reset_passwordRouteImport } from './routes/reset_password'
 import { Route as Register_waitingRouteImport } from './routes/register_waiting'
 import { Route as Register_final_setupRouteImport } from './routes/register_final_setup'
 import { Route as RegisterRouteImport } from './routes/register'
@@ -25,6 +27,16 @@ import { Route as ChatRoomRoomIdRouteImport } from './routes/chat-room.$roomId'
 const Unit_testingRoute = Unit_testingRouteImport.update({
   id: '/unit_testing',
   path: '/unit_testing',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const Reset_password_finalRoute = Reset_password_finalRouteImport.update({
+  id: '/reset_password_final',
+  path: '/reset_password_final',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const Reset_passwordRoute = Reset_passwordRouteImport.update({
+  id: '/reset_password',
+  path: '/reset_password',
   getParentRoute: () => rootRouteImport,
 } as any)
 const Register_waitingRoute = Register_waitingRouteImport.update({
@@ -92,6 +104,8 @@ export interface FileRoutesByFullPath {
   '/register': typeof RegisterRoute
   '/register_final_setup': typeof Register_final_setupRoute
   '/register_waiting': typeof Register_waitingRoute
+  '/reset_password': typeof Reset_passwordRoute
+  '/reset_password_final': typeof Reset_password_finalRoute
   '/unit_testing': typeof Unit_testingRoute
   '/chat-room/$roomId': typeof ChatRoomRoomIdRoute
   '/messages/$username': typeof MessagesUsernameRoute
@@ -106,6 +120,8 @@ export interface FileRoutesByTo {
   '/register': typeof RegisterRoute
   '/register_final_setup': typeof Register_final_setupRoute
   '/register_waiting': typeof Register_waitingRoute
+  '/reset_password': typeof Reset_passwordRoute
+  '/reset_password_final': typeof Reset_password_finalRoute
   '/unit_testing': typeof Unit_testingRoute
   '/chat-room/$roomId': typeof ChatRoomRoomIdRoute
   '/messages/$username': typeof MessagesUsernameRoute
@@ -121,6 +137,8 @@ export interface FileRoutesById {
   '/register': typeof RegisterRoute
   '/register_final_setup': typeof Register_final_setupRoute
   '/register_waiting': typeof Register_waitingRoute
+  '/reset_password': typeof Reset_passwordRoute
+  '/reset_password_final': typeof Reset_password_finalRoute
   '/unit_testing': typeof Unit_testingRoute
   '/chat-room/$roomId': typeof ChatRoomRoomIdRoute
   '/messages/$username': typeof MessagesUsernameRoute
@@ -137,6 +155,8 @@ export interface FileRouteTypes {
     | '/register'
     | '/register_final_setup'
     | '/register_waiting'
+    | '/reset_password'
+    | '/reset_password_final'
     | '/unit_testing'
     | '/chat-room/$roomId'
     | '/messages/$username'
@@ -151,6 +171,8 @@ export interface FileRouteTypes {
     | '/register'
     | '/register_final_setup'
     | '/register_waiting'
+    | '/reset_password'
+    | '/reset_password_final'
     | '/unit_testing'
     | '/chat-room/$roomId'
     | '/messages/$username'
@@ -165,6 +187,8 @@ export interface FileRouteTypes {
     | '/register'
     | '/register_final_setup'
     | '/register_waiting'
+    | '/reset_password'
+    | '/reset_password_final'
     | '/unit_testing'
     | '/chat-room/$roomId'
     | '/messages/$username'
@@ -180,6 +204,8 @@ export interface RootRouteChildren {
   RegisterRoute: typeof RegisterRoute
   Register_final_setupRoute: typeof Register_final_setupRoute
   Register_waitingRoute: typeof Register_waitingRoute
+  Reset_passwordRoute: typeof Reset_passwordRoute
+  Reset_password_finalRoute: typeof Reset_password_finalRoute
   Unit_testingRoute: typeof Unit_testingRoute
   ChatRoomRoomIdRoute: typeof ChatRoomRoomIdRoute
   MessagesUsernameRoute: typeof MessagesUsernameRoute
@@ -193,6 +219,20 @@ declare module '@tanstack/react-router' {
       path: '/unit_testing'
       fullPath: '/unit_testing'
       preLoaderRoute: typeof Unit_testingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reset_password_final': {
+      id: '/reset_password_final'
+      path: '/reset_password_final'
+      fullPath: '/reset_password_final'
+      preLoaderRoute: typeof Reset_password_finalRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reset_password': {
+      id: '/reset_password'
+      path: '/reset_password'
+      fullPath: '/reset_password'
+      preLoaderRoute: typeof Reset_passwordRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/register_waiting': {
@@ -284,6 +324,8 @@ const rootRouteChildren: RootRouteChildren = {
   RegisterRoute: RegisterRoute,
   Register_final_setupRoute: Register_final_setupRoute,
   Register_waitingRoute: Register_waitingRoute,
+  Reset_passwordRoute: Reset_passwordRoute,
+  Reset_password_finalRoute: Reset_password_finalRoute,
   Unit_testingRoute: Unit_testingRoute,
   ChatRoomRoomIdRoute: ChatRoomRoomIdRoute,
   MessagesUsernameRoute: MessagesUsernameRoute,

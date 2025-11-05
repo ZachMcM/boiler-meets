@@ -1,6 +1,6 @@
 {
-  "id": "65b80280-5338-4836-a78a-6074cb503431",
-  "prevId": "57a7e173-933b-4d8e-8cd6-e1b3642c6e02",
+  "id": "fb6026d5-d760-4d64-b200-8103e5e9def7",
+  "prevId": "01f23267-4ec9-46cd-9353-1bb863246a70",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -96,6 +96,90 @@
           "tableTo": "user",
           "columnsFrom": [
             "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.call_history": {
+      "name": "call_history",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "caller_user_id": {
+          "name": "caller_user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "called_user_id": {
+          "name": "called_user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "call_type": {
+          "name": "call_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "call_timestamp": {
+          "name": "call_timestamp",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "call_duration": {
+          "name": "call_duration",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "was_matched": {
+          "name": "was_matched",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "call_history_caller_user_id_user_id_fk": {
+          "name": "call_history_caller_user_id_user_id_fk",
+          "tableFrom": "call_history",
+          "tableTo": "user",
+          "columnsFrom": [
+            "caller_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "call_history_called_user_id_user_id_fk": {
+          "name": "call_history_called_user_id_user_id_fk",
+          "tableFrom": "call_history",
+          "tableTo": "user",
+          "columnsFrom": [
+            "called_user_id"
           ],
           "columnsTo": [
             "id"
@@ -647,22 +731,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "gender": {
-          "name": "gender",
-          "type": "gender_types",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'male'"
-        },
-        "preferrence": {
-          "name": "preferrence",
-          "type": "gender_types",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'female'"
-        },
         "profile": {
           "name": "profile",
           "type": "json",
@@ -672,10 +740,10 @@
         },
         "notifications": {
           "name": "notifications",
-          "type": "json",
+          "type": "text",
           "primaryKey": false,
           "notNull": false,
-          "default": "'{\"list\":[]}'::json"
+          "default": "'[]'"
         },
         "is_banned": {
           "name": "is_banned",
@@ -683,13 +751,6 @@
           "primaryKey": false,
           "notNull": false,
           "default": false
-        },
-        "matchesWeights": {
-          "name": "matchesWeights",
-          "type": "json",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'[]'::json"
         }
       },
       "indexes": {},
@@ -768,14 +829,6 @@
     }
   },
   "enums": {
-    "public.gender_types": {
-      "name": "gender_types",
-      "schema": "public",
-      "values": [
-        "male",
-        "female"
-      ]
-    },
     "public.report_investigation_severity": {
       "name": "report_investigation_severity",
       "schema": "public",

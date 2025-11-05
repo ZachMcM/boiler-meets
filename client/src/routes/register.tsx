@@ -109,6 +109,7 @@ function RouteComponent() {
           bio: null,
           birthdate: null,
           callbackURL: "/login",
+          notifications: '[]'
         },
         {
           onError: ({ error }) => {
