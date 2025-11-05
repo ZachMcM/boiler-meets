@@ -220,6 +220,14 @@ function RouteComponent() {
     }
   };
 
+  // This function is just a helper that checks if a user in the global search is already matched with you
+  const getUserMatchTypes = (userId: string): ("friend" | "romantic")[] => {
+    if (!matches) return [];
+    return matches
+      .filter(match => match.user?.id === userId)
+      .map(match => match.matchType);
+  };
+
   // Get either filtered matches or global search results with call history
   const filteredResults = globalSearch 
     ? (searchResults?.users || []).filter(user => {
@@ -283,9 +291,17 @@ function RouteComponent() {
   useEffect(() => {
     if (currentUserData?.data?.user?.notifications) {
       try {
-        setNotificationReload(JSON.parse(currentUserData.data.user.notifications) as NotificationItem[]);
+        const parsedNotifications = JSON.parse(currentUserData.data.user.notifications);
+
+        if (Array.isArray(parsedNotifications)) {
+          setNotificationReload(parsedNotifications as NotificationItem[]);
+        }
+        else {
+          setNotificationReload([]);
+        }
       } catch (e) {
         console.error("Failed to parse notifications:", e);
+        setNotificationReload([]);
       }
     }
   }, [currentUserData?.data?.user?.notifications])
@@ -407,13 +423,14 @@ function RouteComponent() {
               }}
               className="hover:cursor-pointer text-lg my-2"
             >
+              <Search />
               {!globalSearch ? (
                 <>Search All Boilermeets Users</>
               ) : (
                 <>Search Your Matches</>
               )}
             </Button>
-            {((matches && matches.length > 0) || globalSearch) && (
+            {((matches && matches.length > 0) && !globalSearch) && (
               <div className="flex gap-2 mb-4">
                 <Button
                   variant={matchFilter === "all" ? "default" : "outline"}
@@ -466,9 +483,13 @@ function RouteComponent() {
             ) : filteredResults && filteredResults.length > 0 ? (
               <div className="flex flex-col gap-2">
                 {filteredResults.map((item) => {
+                  // Honesly we might want to consider making this its own component at this point
+
                   const isMatch = 'matchId' in item;
                   const user = isMatch ? (item as Match).user : item;
                   const matchType = isMatch ? (item as Match).matchType : null;
+
+                  const userMatchTypes = globalSearch && user?.id ? getUserMatchTypes(user.id) : [];
 
                   return (
                     <Card
@@ -479,23 +500,12 @@ function RouteComponent() {
                         <div className="flex items-center justify-between gap-4">
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">
-                              {isMatch && (
-                                <Button
-                                  onClick={() => {
-                                    setUnmatchDialog(true);
-                                    setUnmatchUser(item as Match);
-                                    // deleteMatch(item as Match);
-                                  }}
-                                  variant="destructive"
-                                  size="icon"
-                                  className="rounded-full"
-                                >
-                                  <XCircle />
-                                </Button>
-                              )}
                               <h3 className="font-semibold text-base truncate">
                                 {user?.name || "Anonymous"}
                               </h3>
+                              <p className="text-sm text-muted-foreground truncate">
+                                {user?.major} • {user?.year}
+                              </p>
                               {(isMatch ? [matchType] : callHistory
                                 ?.filter(call => (call.callType == matchFilter || matchFilter == "all") && (call.calledUserId === user.id || call.callerUserId === user.id)) //If the filters change, update this and many other lines
                                 .map(call => call.callType))
@@ -514,9 +524,21 @@ function RouteComponent() {
                                   )
                                 ))
                               }
-                              <p className="text-sm text-muted-foreground truncate">
-                                {user?.major} • {user?.year}
-                              </p>
+                              {globalSearch && userMatchTypes.length > 0 && (
+                                userMatchTypes.map((type, idx) => (
+                                  type === "friend" ? (
+                                    <span key={`${type}-${idx}`} className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                      <Users className="w-3 h-3 mr-1" />
+                                      Matched
+                                    </span>
+                                  ) : (
+                                    <span key={`${type}-${idx}`} className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-pink-100 text-pink-800">
+                                      <Heart className="w-3 h-3 mr-1" />
+                                      Matched
+                                    </span>
+                                  )
+                                ))
+                              )}
                             </div>
                             {isMatch && (
                               <p className="text-sm text-muted-foreground truncate">
@@ -527,6 +549,20 @@ function RouteComponent() {
                           </div>
 
                           <div className="flex gap-2 flex-shrink-0">
+                            {isMatch && (
+                              <Button
+                                onClick={() => {
+                                  setUnmatchDialog(true);
+                                  setUnmatchUser(item as Match);
+                                }}
+                                variant="outline"
+                                size="sm"
+                                className="hover:cursor-pointer hover:bg-red-500"
+                              >
+                                <XCircle />
+                                Unmatch
+                              </Button>
+                            )}
                             <Button
                               variant="outline"
                               size="sm"
@@ -626,7 +662,7 @@ function RouteComponent() {
             }}
           >
             <div className="flex flex-col space-y-4">
-              <DialogTitle>Really Unmatch {unmatchUser?.user && `With ${unmatchUser?.user.name}`}?</DialogTitle>
+              <DialogTitle>Do you really want to unmatch with {unmatchUser?.user && `With ${unmatchUser?.user.name}`}?</DialogTitle>
               <Card className="flex flex-1">
                   <CardHeader>
                     This action is not reversible!
@@ -638,7 +674,7 @@ function RouteComponent() {
                         setUnmatchDialog(false);
                         setUnmatchUser(null);
                       }}
-                      className="rounded-full"
+                      className="hover:cursor-pointer"
                       size="lg"
                     >
                       Cancel
@@ -652,7 +688,7 @@ function RouteComponent() {
                       }}
                       variant="destructive"
                       size="lg"
-                      className="rounded-full"
+                      className="hover:cursor-pointer"
                     >
                       Unmatch
                       <XCircle />
