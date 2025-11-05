@@ -12,47 +12,45 @@ export const auth = betterAuth({
     provider: "pg",
     schema,
   }),
-  trustedOrigins: [
-    process.env.CLIENT_URL!,
-  ],
+  trustedOrigins: [process.env.CLIENT_URL!],
   advanced: {
     defaultCookieAttributes: {
       sameSite: "none",
-      secure: true
-    }
+      secure: true,
+    },
   },
   user: {
     additionalFields: {
       major: {
         type: "string",
-        required: false
+        required: false,
       },
       year: {
         type: "string",
-        required: false
+        required: false,
       },
       bio: {
         type: "string",
-        required: false
+        required: false,
       },
       birthdate: {
         type: "date",
-        required: false
+        required: false,
       },
       isBanned: {
         type: "boolean",
-        input: false 
+        input: false,
       },
       lastPasswordReset: {
         type: "date",
-        required: false
+        required: false,
       },
       notifications: {
         type: "string",
         required: true,
-        default: '[]'
-      }
-    }
+        default: "[]",
+      },
+    },
   },
   emailAndPassword: {
     enabled: true,
@@ -60,11 +58,15 @@ export const auth = betterAuth({
     sendResetPassword: async ({ user, url, token }, request) => {
       try {
         const now = new Date();
-        const last = (user as any)?.lastPasswordReset ? new Date((user as any).lastPasswordReset) : new Date(0);
+        const last = (user as any)?.lastPasswordReset
+          ? new Date((user as any).lastPasswordReset)
+          : new Date(0);
         const oneDayMs = 24 * 60 * 60 * 1000;
         if (now.getTime() - last.getTime() < oneDayMs) {
           // Prevent sending another reset email within 24 hours
-          throw new Error("Password reset already requested within the last 24 hours. Please try again later.");
+          throw new Error(
+            "Password reset already requested within the last 24 hours. Please try again later."
+          );
         }
       } catch (err) {
         // If parsing fails or other error, throw to stop sending
@@ -81,10 +83,17 @@ export const auth = betterAuth({
       // Set lastPasswordReset timestamp in DB after successful password reset
       try {
         if (user?.id) {
-          await db.update(schema.user).set({ lastPasswordReset: new Date() }).where(eq(schema.user.id, user.id));
+          await db
+            .update(schema.user)
+            .set({ lastPasswordReset: new Date() })
+            .where(eq(schema.user.id, user.id));
         }
       } catch (e) {
-        console.error("Failed to update lastPasswordReset for user", user?.email, e);
+        console.error(
+          "Failed to update lastPasswordReset for user",
+          user?.email,
+          e
+        );
       }
       console.log(`Password reset for ${user?.email}!`);
     },
@@ -113,7 +122,7 @@ export const auth = betterAuth({
   session: {
     cookieCache: {
       enabled: true,
-    }
+    },
   },
   plugins: [username()],
 });
