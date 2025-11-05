@@ -16,6 +16,14 @@ const transporter = nodemailer.createTransport({
     user: process.env.EMAIL_USER,
     pass: process.env.GOOGLE_APP_PASSWORD,
   },
+  tls: {
+    rejectUnauthorized: false
+  },
+  connectionTimeout: 10000, // 10 second timeout
+  greetingTimeout: 10000,
+  socketTimeout: 10000,
+  debug: true, // enable debug output
+  logger: true // log to console
 });
 
 export async function sendEmail(input: SendMailInput) {
