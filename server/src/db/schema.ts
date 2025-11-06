@@ -40,8 +40,8 @@ export const user = pgTable("user", {
   notifications: text("notifications").default('[]'),
   isBanned: boolean("is_banned").default(false),
   matchesWeights: json()
-    .$type<number[]>()
-    .default(Array(WEIGHTS_LENGTH).fill(0))
+    .$type<{strengths: number, weights: number[]}>()
+    .default({strengths: 0, weights: []})
     .notNull(),
 });
 

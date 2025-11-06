@@ -4,6 +4,7 @@ import { authMiddleware } from "../middleware";
 import { db } from "../db";
 import { eq, inArray, sql, and, like, ilike, or } from "drizzle-orm";
 import { user, matches, profileReactions } from "../db/schema";
+import { updateUserBiases } from "../lib/algorithm";
 
 export const usersRoute = Router();
 
@@ -161,6 +162,11 @@ usersRoute.post("/matches", authMiddleware, async (req, res) => {
       second: secondUserId,
       matchType: matchType,
     }).returning();
+
+    // Update user weights for the matching algorithm
+
+    updateUserBiases(firstUserId, secondUserId);
+    updateUserBiases(secondUserId, firstUserId);
 
     // Sending notifications Addition, replacement for its location in ChatRoom.tsx
     // Putting it here fixes a problem with not being able to invalidate another user's 

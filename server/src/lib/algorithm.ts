@@ -120,10 +120,58 @@ export async function computeCompatibility(
 
   const user2EncodedProfile = encodeProfile(user2.profile as ProfileInput);
 
-  const dotProduct = user1.matchesWeights.reduce(
+  if (user1.matchesWeights.weights.length == 0) return 0;
+
+  const dotProduct = user1.matchesWeights.weights.reduce(
     (accum, curr, index) => accum + curr * user2EncodedProfile[index],
     0
   );
 
   return dotProduct;
+}
+
+export async function updateUserBiases(sourceUserId: any, targetUserId: any) {
+
+  // Fetch target user profile
+  const targetUser = await db.query.user.findFirst({
+    where: eq(user.id, targetUserId),
+  });
+
+  // Prevents some errors with Ian's default user
+  if (!targetUser?.profile) return;
+  const targetEncoded = encodeProfile(targetUser.profile as ProfileInput);
+
+  const sourceUser = await db.query.user.findFirst({
+    where: eq(user.id, sourceUserId),
+  });
+
+  if (!sourceUser) return;
+
+  const existing = (sourceUser as any).matchesWeights ?? { weights: [], strength: 0 };
+  const existingWeights: number[] = Array.isArray(existing.weights)
+    ? [...existing.weights]
+    : [];
+  const existingStrength: number = typeof existing.strength === "number" ? existing.strength : 0;
+
+  // ensure weights length matches schema
+  const total = SCHEMA_MAP.totalOptionCount;
+  if (existingWeights.length < total) {
+    existingWeights.length = total;
+    for (let i = 0; i < total; i++) {
+      if (existingWeights[i] === undefined) existingWeights[i] = 0;
+    }
+  } else if (existingWeights.length > total) {
+    existingWeights.length = total;
+  }
+
+  const newStrength = existingStrength + 1;
+
+  const newWeights = existingWeights.map((w, i) => {
+    const targetVal = targetEncoded[i] ?? 0;
+    return (w * existingStrength + targetVal) / newStrength;
+  });
+
+  await db.update(user).set({
+    matchesWeights: { strength: newStrength, weights: newWeights } as any,
+  }).where(eq(user.id, sourceUserId));
 }

@@ -1,0 +1,1 @@
+ALTER TABLE "user" ALTER COLUMN "matchesWeights" SET DEFAULT '{"strengths":0,"weights":[]}'::json;
