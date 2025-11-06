@@ -72,6 +72,8 @@ export function ChatRoom({ roomId }: { roomId: string }) {
   const [matchCompleted, setMatchCompleted] = useState(false);
   // const [unmatched, setUnmatched] = useState(false);
   const [unmatchedDialog, setUnmatchedDialog] = useState(false);
+  const [incomingCall, setIncomingCall] = useState<{ callerName: string; roomId: string } | null>(null);
+  const [directCallSocket, setDirectCallSocket] = useState<Socket | null>(null); // socket for direct calling feature
 
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
@@ -105,6 +107,26 @@ export function ChatRoom({ roomId }: { roomId: string }) {
   useEffect(() => {
     otherUserIdRef.current = otherUserId;
   }, [otherUserId]);
+
+  // Listen for incoming calls while user is already in an active call
+  useEffect(() => {
+    if (!session?.user?.id) return;
+
+    const socket = io(`${import.meta.env.VITE_SERVER_URL}/direct-call`, {
+      auth: { userId: session.user.id },
+      withCredentials: true,
+    });
+
+    socket.on("incoming-call", (data: { callerName: string; roomId: string }) => {
+      setIncomingCall(data);
+    });
+
+    setDirectCallSocket(socket);
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [session?.user?.id]);
 
   useEffect(() => {
     if (!session?.user?.id) {
@@ -864,6 +886,25 @@ export function ChatRoom({ roomId }: { roomId: string }) {
     });
   }
 
+  const handleAcceptIncomingCall = () => {
+    if (!incomingCall || !directCallSocket) return;
+
+    directCallSocket.emit("accept-call", { roomId: incomingCall.roomId });
+    const newRoomId = incomingCall.roomId;
+    setIncomingCall(null);
+
+    // end current call and switch to the new one
+    cleanup();
+    router.navigate({ to: "/chat-room/$roomId", params: { roomId: newRoomId } });
+  };
+
+  const handleDeclineIncomingCall = () => {
+    if (!incomingCall || !directCallSocket) return;
+
+    directCallSocket.emit("decline-call", { roomId: incomingCall.roomId });
+    setIncomingCall(null);
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-accent to-secondary">
       <div className="relative overflow-hidden">
@@ -880,6 +921,42 @@ export function ChatRoom({ roomId }: { roomId: string }) {
               </div>
             </div>
           </Card>
+
+          {/* incoming call notification card */}
+          {incomingCall && (
+            <Card className="mb-4 p-4 bg-blue-50 border-blue-200">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <PhoneCall className="w-5 h-5 text-blue-600 animate-pulse" />
+                  <div>
+                    <p className="font-semibold text-blue-900">
+                      Incoming Call
+                    </p>
+                    <p className="text-sm text-blue-700">
+                      {incomingCall.callerName} is calling you
+                    </p>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={handleDeclineIncomingCall}
+                    variant="outline"
+                    size="sm"
+                    className="bg-white hover:bg-red-50"
+                  >
+                    Decline
+                  </Button>
+                  <Button
+                    onClick={handleAcceptIncomingCall}
+                    size="sm"
+                    className="bg-green-600 hover:bg-green-700 text-white"
+                  >
+                    Accept
+                  </Button>
+                </div>
+              </div>
+            </Card>
+          )}
 
           {/* Dialog */}
           <Dialog open={feedbackPage}>
