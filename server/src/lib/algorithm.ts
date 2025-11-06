@@ -88,7 +88,8 @@ export const encodeProfile = (profile: ProfileInput): Bit[] => {
 
 export async function computeCompatibility(
   user1: InferSelectModel<typeof user>,
-  user2: InferSelectModel<typeof user>
+  user2: InferSelectModel<typeof user>,
+  type: string
 ): Promise<number> {
   try {
     const parseList = (val: any) => {
@@ -112,10 +113,7 @@ export async function computeCompatibility(
     console.warn("Failed to parse blockedUsers while computing compatibility", err);
   }
 
-  if (
-    user1.preference !== user2.gender ||
-    user2.preference !== user1.gender
-  ) {
+  if (type === "romantic" && (user1.preference !== user2.gender || user2.preference !== user1.gender)) {
     return -1;
   }
 

@@ -30,20 +30,6 @@ export async function getPair(matchType: "friend" | "romantic"): Promise<{
 } | null> {
   const queueKey = `room-finder:queue:${matchType}`;
 
-  // simple pairing for friendships, anyone can be friends 😁
-  if (matchType === "friend") {
-    const user1 = await redis.lPop(queueKey);
-    if (!user1) return null;
-
-    const user2 = await redis.lPop(queueKey);
-    if (!user2) {
-      await redis.lPush(queueKey, user1);
-      return null;
-    }
-
-    return { user1, user2 };
-  }
-
   const user1 = await redis.lPop(queueKey);
   if (!user1) return null;
 
@@ -70,7 +56,7 @@ export async function getPair(matchType: "friend" | "romantic"): Promise<{
     for (const user2Id of queue) {
       const user2Data = userMap.get(user2Id)!;
 
-      const score = await computeCompatibility(user1Data, user2Data);
+      const score = await computeCompatibility(user1Data, user2Data, matchType);
       if (score >= 0) {
         compatibilityScores.push({ userId: user2Id, score });
       }

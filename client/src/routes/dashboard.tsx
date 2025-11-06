@@ -594,6 +594,41 @@ function RouteComponent() {
                                 <p className="text-sm text-muted-foreground truncate">
                                   {user?.major} • {user?.year}
                                 </p>
+                                {(!isMatch ? [matchType] : callHistory
+                                  ?.filter(call => (call.callType == matchFilter || matchFilter == "all") && (call.calledUserId === user.id || call.callerUserId === user.id)) //If the filters change, update this and many other lines
+                                  .map(call => call.callType))
+                                  ?.slice(0,1)         //Slice in order to get only the latest call
+                                  ?.map((type, idx) => (
+                                    type === "friend" ? (
+                                      <span key={`${type}-${idx}`} className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 w-fit">
+                                        <Users className="w-3 h-3 mr-1" />
+                                        Called
+                                      </span>
+                                    ) : (
+                                      type && (
+                                        <span key={`${type}-${idx}`} className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-pink-100 text-pink-800 w-fit">
+                                          <Heart className="w-3 h-3 mr-1" />
+                                          Called
+                                        </span>
+                                      )
+                                    )
+                                  ))
+                                }
+                                {globalSearch && userMatchTypes.length > 0 && (
+                                  userMatchTypes.map((type, idx) => (
+                                    type === "friend" ? (
+                                      <span key={`${type}-${idx}`} className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 w-fit">
+                                        <Users className="w-3 h-3 mr-1" />
+                                        Matched
+                                      </span>
+                                    ) : (
+                                      <span key={`${type}-${idx}`} className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-pink-100 text-pink-800 w-fit">
+                                        <Heart className="w-3 h-3 mr-1" />
+                                        Matched
+                                      </span>
+                                    )
+                                  ))
+                                )}
                               </div>
                               {user?.preferences && (() => { // Parse and display user preferences as tags
                                 try {
@@ -616,39 +651,6 @@ function RouteComponent() {
                                   return null;
                                 }
                               })()}
-                              {(isMatch ? [matchType] : callHistory
-                                ?.filter(call => (call.callType == matchFilter || matchFilter == "all") && (call.calledUserId === user.id || call.callerUserId === user.id)) //If the filters change, update this and many other lines
-                                .map(call => call.callType))
-                                ?.slice(0,1)         //Slice in order to get only the latest call
-                                ?.map((type, idx) => (
-                                  type === "friend" ? (
-                                    <span key={`${type}-${idx}`} className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                      <Users className="w-3 h-3 mr-1" />
-                                      {isMatch ? "Matched" : "Called"}
-                                    </span>
-                                  ) : (
-                                    <span key={`${type}-${idx}`} className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-pink-100 text-pink-800">
-                                      <Heart className="w-3 h-3 mr-1" />
-                                      {isMatch ? "Matched" : "Called"}
-                                    </span>
-                                  )
-                                ))
-                              }
-                              {globalSearch && userMatchTypes.length > 0 && (
-                                userMatchTypes.map((type, idx) => (
-                                  type === "friend" ? (
-                                    <span key={`${type}-${idx}`} className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                      <Users className="w-3 h-3 mr-1" />
-                                      Matched
-                                    </span>
-                                  ) : (
-                                    <span key={`${type}-${idx}`} className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-pink-100 text-pink-800">
-                                      <Heart className="w-3 h-3 mr-1" />
-                                      Matched
-                                    </span>
-                                  )
-                                ))
-                              )}
                             </div>
                             {isMatch && (
                               <p className="text-sm text-muted-foreground truncate">
