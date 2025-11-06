@@ -5,12 +5,12 @@ import { Button } from "@/components/ui/button";
 import { authClient } from "@/lib/auth-client";
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import type { DraggableModule } from "@/components/ProfileModules";
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { Save, Home, MessageCircle, Users, Heart, ShieldX, Edit3 } from "lucide-react";
 import { toast } from "sonner";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import PurdueTrainHeader from '@/components/PurdueTrainAnimation';
-import { getMatches, getProfileReactions, addProfileReaction } from "@/endpoints";
+import { getMatches, getProfileReactions, addProfileReaction, blockUser, unblockUser, setNickname as saveNickname, removeNickname, getNicknames, getBlockedUsers } from "@/endpoints";
 import type { Reaction } from "@/types/user";
 import { Dialog, DialogContent, DialogTitle, DialogHeader, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -77,11 +77,40 @@ function RouteComponent(username: string) {
     permission = "edit";
   }
 
+  // State for bio text
+  const [bioText, setBioText] = useState("");
+  const [savedBioText, setSavedBioText] = useState("");
+  const [hasChanged, setHasChanged] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // State for dialogs
+  const [blockDialog, setBlockDialog] = useState(false);
+  const [nicknameDialog, setNicknameDialog] = useState(false);
+  const [nickname, setNickname] = useState("");
+
+  // Local state for block status and nicknames (for instant UI updates)
+  const [localIsBlocked, setLocalIsBlocked] = useState<boolean | null>(null);
+  const [localNickname, setLocalNickname] = useState<string | null>(null);
+
   // Fetch matches to determine if current user is matched with profile owner
   const { data: matches } = useQuery({
     queryKey: ["matches"],
     queryFn: getMatches,
     enabled: permission === "view" && !!currentUserData?.user?.id,
+  });
+
+  // Fetch current user's nicknames from dedicated endpoint
+  const { data: nicknamesData } = useQuery({
+    queryKey: ["nicknames"],
+    queryFn: getNicknames,
+    enabled: !!currentUserData?.user?.id && permission === "view",
+  });
+
+  // Fetch current user's blocked users from dedicated endpoint
+  const { data: blockedUsersData } = useQuery({
+    queryKey: ["blocked-users"],
+    queryFn: getBlockedUsers,
+    enabled: !!currentUserData?.user?.id && permission === "view",
   });
 
   // Check if matched and get match type
@@ -90,6 +119,18 @@ function RouteComponent(username: string) {
   );
   const isMatched = !!currentMatch;
   const matchType = currentMatch?.matchType;
+
+  // Check if user is blocked (use local state if available, otherwise use dedicated query data)
+  const isBlocked = React.useMemo(() => {
+    // If we have local state (from a recent block/unblock action), use that
+    if (localIsBlocked !== null) return localIsBlocked;
+
+    // Otherwise, check from blocked users query data
+    if (!profileUserData?.id || !blockedUsersData) return false;
+
+    // blockedUsersData is an array of user objects with id field
+    return blockedUsersData.some((blockedUser: any) => blockedUser.id === profileUserData.id);
+  }, [profileUserData?.id, localIsBlocked, blockedUsersData]);
 
   // Fetch reactions for this profile (only if viewing another user's profile)
   const { data: reactionsData = [], refetch: refetchReactions } = useQuery({
@@ -109,16 +150,18 @@ function RouteComponent(username: string) {
     timestamp: new Date(r.createdAt),
   }));
 
-  // State for bio text
-  const [bioText, setBioText] = useState("");
-  const [savedBioText, setSavedBioText] = useState("");
-  const [hasChanged, setHasChanged] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  // Get current nickname for the profile user from dedicated query
+  const getCurrentNickname = () => {
+    if (!profileUserData?.id || !nicknamesData) return null;
+    return nicknamesData[profileUserData.id] || null;
+  };
 
-  // State for dialogs
-  const [blockDialog, setBlockDialog] = useState(false);
-  const [nicknameDialog, setNicknameDialog] = useState(false);
-  const [nickname, setNickname] = useState("");
+  const currentNickname = localNickname !== null ? localNickname : getCurrentNickname();
+
+  // Get display name (nickname or real name)
+  const getDisplayName = () => {
+    return currentNickname || profileUserData?.name || "Anonymous User";
+  };
 
   // Update bio when profile data loads
   useEffect(() => {
@@ -131,6 +174,18 @@ function RouteComponent(username: string) {
       setSavedBioText("");
     }
   }, [profileUserData]);
+
+  // Reset local state when viewing a different profile
+  // and refetch data to ensure we have the latest
+  useEffect(() => {
+    setLocalNickname(null);
+    setLocalIsBlocked(null);
+    // Refetch data to ensure we have the latest
+    if (permission === "view") {
+      queryClient.refetchQueries({ queryKey: ['nicknames'] });
+      queryClient.refetchQueries({ queryKey: ['blocked-users'] });
+    }
+  }, [profileUserData?.id, queryClient, permission]);
 
   // Parse profile modules from the database
   const getProfileModules = (): DraggableModule[] => {
@@ -257,19 +312,106 @@ function RouteComponent(username: string) {
     await handleReaction(`bio-${profileUserData.id}`, emoji);
   };
 
-  // Handler for blocking user
-  const handleBlockUser = async () => {
-    // TODO: Implement block user API call
-    toast.success(`Blocked ${profileUserData.name}`);
-    setBlockDialog(false);
-    router.navigate({ to: "/dashboard" });
+  // Handler for toggling block/unblock
+  const handleToggleBlock = async () => {
+    if (!profileUserData?.id) return;
+
+    const wasBlocked = isBlocked;
+
+    try {
+      if (wasBlocked) {
+        // Optimistically update UI immediately
+        setLocalIsBlocked(false);
+        setBlockDialog(false);
+
+        // Call API in background
+        await unblockUser(profileUserData.id);
+
+        // Update queries - refetch blocked users from server
+        await queryClient.invalidateQueries({ queryKey: ['blocked-users'] });
+        await queryClient.invalidateQueries({ queryKey: ['matches'] });
+        await queryClient.refetchQueries({ queryKey: ['blocked-users'] });
+
+        toast.success(`Unblocked ${profileUserData.name}`);
+      } else {
+        // Optimistically update UI immediately
+        setLocalIsBlocked(true);
+        setBlockDialog(false);
+
+        // Call API in background
+        await blockUser(profileUserData.id);
+
+        // Update queries - refetch blocked users from server
+        await queryClient.invalidateQueries({ queryKey: ['blocked-users'] });
+        await queryClient.invalidateQueries({ queryKey: ['matches'] });
+        await queryClient.refetchQueries({ queryKey: ['blocked-users'] });
+
+        toast.success(`Blocked ${profileUserData.name}`);
+
+        // Navigate back to dashboard since user is now blocked
+        router.navigate({ to: "/dashboard" });
+      }
+    } catch (error) {
+      // Revert optimistic update on error
+      setLocalIsBlocked(wasBlocked);
+      console.error(`Failed to ${wasBlocked ? 'unblock' : 'block'} user:`, error);
+      toast.error(`Failed to ${wasBlocked ? 'unblock' : 'block'} user`);
+    }
   };
 
   // Handler for saving nickname
   const handleSaveNickname = async () => {
-    // TODO: Implement save nickname API call
-    toast.success(`Nickname saved: ${nickname}`);
-    setNicknameDialog(false);
+    if (!profileUserData?.id || !nickname.trim()) return;
+
+    const newNickname = nickname.trim();
+    const previousNickname = localNickname;
+
+    try {
+      // Optimistically update UI immediately
+      setLocalNickname(newNickname);
+      setNicknameDialog(false);
+      setNickname("");
+      toast.success(`Nickname saved: ${newNickname}`);
+
+      // Call API in background
+      await saveNickname(profileUserData.id, newNickname);
+
+      // Update queries - refetch nicknames from server
+      await queryClient.invalidateQueries({ queryKey: ['nicknames'] });
+      await queryClient.refetchQueries({ queryKey: ['nicknames'] });
+    } catch (error) {
+      // Revert optimistic update on error
+      setLocalNickname(previousNickname);
+      console.error("Failed to set nickname:", error);
+      toast.error("Failed to set nickname");
+    }
+  };
+
+  // Handler for removing nickname
+  const handleRemoveNickname = async () => {
+    if (!profileUserData?.id) return;
+
+    const previousNickname = localNickname;
+
+    try {
+      // Optimistically update UI immediately
+      setLocalNickname(null);
+      setNicknameDialog(false);
+      setNickname("");
+      toast.success("Nickname removed");
+
+      // Call API in background
+      await removeNickname(profileUserData.id);
+
+      // Update queries - refetch nicknames from server
+      await queryClient.invalidateQueries({ queryKey: ['nicknames'] });
+      await queryClient.refetchQueries({ queryKey: ['nicknames'] });
+    } catch (error) {
+      // Revert optimistic update on error
+      setLocalNickname(previousNickname);
+      console.error("Failed to remove nickname:", error);
+      toast.error("Failed to remove nickname");
+    }
   };
 
   // Loading state
@@ -359,11 +501,11 @@ function RouteComponent(username: string) {
             <Button
               onClick={() => setBlockDialog(true)}
               variant="outline"
-              className="hover:cursor-pointer hover:bg-red-400 flex items-center gap-2"
+              className={`hover:cursor-pointer flex items-center gap-2 ${!isBlocked && 'hover:bg-red-400'}`}
               size="lg"
             >
               <ShieldX size={18} />
-              Block User
+              {isBlocked ? 'Unblock User' : 'Block User'}
             </Button>
           )}
         </div>
@@ -376,7 +518,7 @@ function RouteComponent(username: string) {
               <div className="flex items-center gap-3">
                 <div>
                   <Label className="text-6xl inline-block">
-                    {profileUserData.name || "Anonymous User"}
+                    {getDisplayName()}
                   </Label>
                   {userAge && (
                     <Label className="text-5xl text-gray-700 inline-block ml-4">
@@ -454,13 +596,16 @@ function RouteComponent(username: string) {
         </Card>
       </div>
 
-      {/* Block User Dialog */}
+      {/* Block/Unblock User Dialog */}
       <Dialog open={blockDialog} onOpenChange={setBlockDialog}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Block {profileUserData.name}?</DialogTitle>
+            <DialogTitle>{isBlocked ? 'Unblock' : 'Block'} {profileUserData.name}?</DialogTitle>
             <DialogDescription>
-              This will unmatch you from {profileUserData.name} and prevent them from contacting you.
+              {isBlocked
+                ? `This will allow ${profileUserData.name} to see and match with you again.`
+                : `This will unmatch you from ${profileUserData.name} and prevent them from contacting you.`
+              }
             </DialogDescription>
           </DialogHeader>
           <div className="flex justify-between gap-3 mt-4">
@@ -472,12 +617,12 @@ function RouteComponent(username: string) {
               Cancel
             </Button>
             <Button
-              onClick={handleBlockUser}
-              variant="destructive"
+              onClick={handleToggleBlock}
+              variant={isBlocked ? "default" : "destructive"}
               className="hover:cursor-pointer flex items-center gap-2"
             >
               <ShieldX size={16} />
-              Block User
+              {isBlocked ? 'Unblock User' : 'Block User'}
             </Button>
           </div>
         </DialogContent>
@@ -490,6 +635,11 @@ function RouteComponent(username: string) {
             <DialogTitle>Set Nickname for {profileUserData.name}</DialogTitle>
             <DialogDescription>
               Give {profileUserData.name} a personal nickname that only you can see.
+              {currentNickname && (
+                <span className="block mt-2 text-sm font-medium">
+                  Current nickname: <span className="text-primary">{currentNickname}</span>
+                </span>
+              )}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 mt-4">
@@ -499,17 +649,28 @@ function RouteComponent(username: string) {
               onChange={(e) => setNickname(e.target.value)}
               maxLength={50}
             />
-            <div className="flex justify-end gap-3">
-              <Button
-                onClick={() => {
-                  setNicknameDialog(false);
-                  setNickname("");
-                }}
-                variant="outline"
-                className="hover:cursor-pointer"
-              >
-                Cancel
-              </Button>
+            <div className="flex justify-between gap-3">
+              <div className="flex gap-2">
+                <Button
+                  onClick={() => {
+                    setNicknameDialog(false);
+                    setNickname("");
+                  }}
+                  variant="outline"
+                  className="hover:cursor-pointer"
+                >
+                  Cancel
+                </Button>
+                {currentNickname && (
+                  <Button
+                    onClick={handleRemoveNickname}
+                    variant="destructive"
+                    className="hover:cursor-pointer"
+                  >
+                    Reset
+                  </Button>
+                )}
+              </div>
               <Button
                 onClick={handleSaveNickname}
                 disabled={!nickname.trim()}

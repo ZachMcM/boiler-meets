@@ -90,6 +90,28 @@ export async function computeCompatibility(
   user1: InferSelectModel<typeof user>,
   user2: InferSelectModel<typeof user>
 ): Promise<number> {
+  try {
+    const parseList = (val: any) => {
+      if (!val) return [];
+      if (Array.isArray(val)) return val;
+      try {
+        return typeof val === "string" ? JSON.parse(val || "[]") : [];
+      } catch {
+        return [];
+      }
+    };
+
+    const user1Blocked = parseList((user1 as any).blockedUsers);
+    const user2Blocked = parseList((user2 as any).blockedUsers);
+
+    if (user1Blocked.includes(user2.id) || user2Blocked.includes(user1.id)) {
+      return -1;
+    }
+  } catch (err) {
+    // If parsing fails, fall through to normal logic
+    console.warn("Failed to parse blockedUsers while computing compatibility", err);
+  }
+
   if (
     user1.preference !== user2.gender ||
     user2.preference !== user1.gender

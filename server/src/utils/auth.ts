@@ -58,6 +58,14 @@ export const auth = betterAuth({
         required: true,
         default: "[]",
       },
+      nicknames: {
+        type: "string",
+        required: false,
+      },
+      blockedUsers: {
+        type: "string",
+        required: false,
+      },
     },
   },
   emailAndPassword: {

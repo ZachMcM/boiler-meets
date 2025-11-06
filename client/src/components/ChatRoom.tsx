@@ -864,6 +864,19 @@ export function ChatRoom({ roomId }: { roomId: string }) {
     });
   }
 
+  const getDisplayName = (u?: { id?: string; name?: string; username?: string } | null) => {
+    try {
+      const raw = (session?.user as any)?.nicknames;
+      console.log(session?.user);
+      console.log(raw);
+      if (!u) return "Anonymous";
+      if (!raw || !otherUserId || !raw[otherUserId]) return u.name || "Anonymous";
+      return raw[otherUserId];
+    } catch {
+      return u?.name || "Anonymous";
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-accent to-secondary">
       <div className="relative overflow-hidden">
@@ -901,7 +914,7 @@ export function ChatRoom({ roomId }: { roomId: string }) {
                         </Avatar>
                         <div>
                           <p className="font-semibold text-foreground">
-                            {otherUser.name || "Anonymous"}
+                            {getDisplayName(otherUser) || "Anonymous"}
                           </p>
                           <p>
                             {otherUser.year} | {otherUser.major}
@@ -1031,11 +1044,11 @@ export function ChatRoom({ roomId }: { roomId: string }) {
                       <div className="flex items-center gap-2">
                         <Avatar>
                           <AvatarImage src={otherUser?.image!} />
-                          <AvatarFallback>{otherUser?.name[0]}</AvatarFallback>
+                          <AvatarFallback>{getDisplayName(otherUser)}</AvatarFallback>
                         </Avatar>
                         <div>
                           <p className="font-semibold text-foreground">
-                            {otherUser.name || "Anonymous"}
+                            {getDisplayName(otherUser)}
                           </p>
                           <p>
                             {otherUser.year} | {otherUser.major}

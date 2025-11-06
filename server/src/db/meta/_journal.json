@@ -64,6 +64,13 @@
       "when": 1762385079497,
       "tag": "0009_mute_blacklash",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1762390133032,
+      "tag": "0010_mixed_vampiro",
+      "breakpoints": true
     }
   ]
 }

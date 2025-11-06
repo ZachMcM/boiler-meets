@@ -48,7 +48,7 @@ export const Route = createFileRoute("/dashboard")({
 function RouteComponent() {
   const queryClient = useQueryClient();
   const router = useRouter();
-  
+
   const [showWelcomeDialog, setShowWelcomeDialog] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [matchFilter, setMatchFilter] = useState<"all" | "friend" | "romantic">("all");
@@ -61,6 +61,23 @@ function RouteComponent() {
     queryKey: ["session"],
     queryFn: fetchUserSession,
   });
+
+  // Helper function to get display name (nickname or real name)
+  const getDisplayName = (u?: { id?: string; name?: string } | null) => {
+    try {
+      if (!currentUserData?.data?.user) return u?.name || "Anonymous";
+      const raw = (currentUserData.data.user as any)?.nicknames;
+      if (!u) return "Anonymous";
+      if (!raw) return u.name || "Anonymous";
+      let mapping: Record<string, string> = {};
+      if (typeof raw === "string") mapping = JSON.parse(raw || "{}");
+      else mapping = raw as Record<string, string>;
+      return (u.id && mapping[u.id]) ? mapping[u.id] : (u.name || "Anonymous");
+    } catch (error) {
+      console.error("Error getting display name:", error);
+      return u?.name || "Anonymous";
+    }
+  };
 
   const { data: matches, isPending: matchesPending } = useQuery({
     queryKey: ["matches"],
@@ -501,7 +518,7 @@ function RouteComponent() {
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">
                               <h3 className="font-semibold text-base truncate">
-                                {user?.name || "Anonymous"}
+                                {getDisplayName(user)}
                               </h3>
                               <p className="text-sm text-muted-foreground truncate">
                                 {user?.major} • {user?.year}
