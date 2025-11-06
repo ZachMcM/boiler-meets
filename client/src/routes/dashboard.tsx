@@ -19,7 +19,8 @@ import {
   HouseIcon,
   PhoneCall,
   Bell,
-  XCircle
+  XCircle,
+  Video
 } from "lucide-react";
 import { getMatches, getMatchMessages, removeMatch, searchUsers, getCallHistory, type CallHistory } from "@/endpoints";
 import { useVideoCallContext } from "@/contexts/VideoCallContext";
@@ -56,6 +57,8 @@ function RouteComponent() {
   const [searchPage, setSearchPage] = useState(1);
   const [unmatchDialog, setUnmatchDialog] = useState(false);
   const [unmatchUser, setUnmatchUser] = useState<Match | null>(null);
+  const [incomingCall, setIncomingCall] = useState<{ callerId: string; callerName: string; roomId: string; matchType: string } | null>(null);
+  const [directCallSocket, setDirectCallSocket] = useState<any>(null); // Using 'any' here since it's just for socket management
 
   const { data: currentUserData, isLoading: sessionPending } = useQuery({
     queryKey: ["session"],
@@ -306,6 +309,73 @@ function RouteComponent() {
     }
   }, [currentUserData?.data?.user?.notifications])
 
+  // listen for incoming call requests from other users
+  useEffect(() => {
+    if (!currentUserData?.data?.user?.id) return;
+
+    const socket = io(`${import.meta.env.VITE_SERVER_URL}/direct-call`, {
+      auth: { userId: currentUserData.data.user.id },
+      withCredentials: true,
+    });
+
+    socket.on("incoming-call", (data: { callerId: string; callerName: string; roomId: string; matchType: string }) => {
+      setIncomingCall(data);
+    });
+
+    setDirectCallSocket(socket);
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [currentUserData?.data?.user?.id]);
+
+  const handleCallUser = async (userId: string, matchType: string) => {
+    if (!currentUserData?.data?.user?.id) return;
+
+    const socket = io(`${import.meta.env.VITE_SERVER_URL}/direct-call`, {
+      auth: { userId: currentUserData.data.user.id },
+      withCredentials: true,
+    });
+
+    socket.on("connect", () => {
+      socket.emit("initiate-call", {
+        targetUserId: userId,
+        matchType,
+      });
+    });
+
+    socket.on("call-accepted", ({ roomId }: { roomId: string }) => {
+      socket.disconnect();
+      router.navigate({ to: "/chat-room/$roomId", params: { roomId } });
+    });
+
+    socket.on("call-declined", () => {
+      socket.disconnect();
+      toast.error("Call declined");
+    });
+
+    socket.on("user-offline", () => {
+      socket.disconnect();
+      toast.error("User is offline");
+    });
+  };
+
+  const handleAcceptCall = () => {
+    if (!incomingCall || !directCallSocket) return;
+
+    directCallSocket.emit("accept-call", { roomId: incomingCall.roomId });
+    const roomId = incomingCall.roomId;
+    setIncomingCall(null);
+    router.navigate({ to: "/chat-room/$roomId", params: { roomId } });
+  };
+
+  const handleDeclineCall = () => {
+    if (!incomingCall || !directCallSocket) return;
+
+    directCallSocket.emit("decline-call", { roomId: incomingCall.roomId });
+    setIncomingCall(null);
+  };
+
   const deleteMatch = async (match: Match) => {
     console.log("MATCH DELETING", match);
     if (currentUserData?.data?.user.id) {
@@ -314,18 +384,18 @@ function RouteComponent() {
       queryClient.invalidateQueries({queryKey: ["session"]});
       queryClient.invalidateQueries({queryKey: ["matches"]});
       console.log(matches);
-      
+
       try { //Self notifications update (Other user notifications are updated in users.ts /matches delete route)
         if (!currentUserData?.data?.user.notifications) return;
         const currentNotifications = JSON.parse(currentUserData.data.user.notifications) as NotificationItem[];
-        const newSelfNotification = {  
+        const newSelfNotification = {
           timestamp: Date.now(),
           type: "unmatch",
           text: `You have unmatched with ${match.user.name}`,
           title: "Unmatch"
         } as NotificationItem;
         const updatedList = currentNotifications.concat([newSelfNotification]);
-        
+
         await authClient.updateUser({
           notifications: JSON.stringify(updatedList)
         }, {
@@ -499,13 +569,36 @@ function RouteComponent() {
                       <CardContent className="p-4">
                         <div className="flex items-center justify-between gap-4">
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <h3 className="font-semibold text-base truncate">
-                                {user?.name || "Anonymous"}
-                              </h3>
-                              <p className="text-sm text-muted-foreground truncate">
-                                {user?.major} • {user?.year}
-                              </p>
+                            <div className="flex flex-col gap-1">
+                              <div className="flex items-center gap-2">
+                                <h3 className="font-semibold text-base truncate">
+                                  {user?.name || "Anonymous"}
+                                </h3>
+                                <p className="text-sm text-muted-foreground truncate">
+                                  {user?.major} • {user?.year}
+                                </p>
+                              </div>
+                              {user?.preferences && (() => { // Parse and display user preferences as tags
+                                try {
+                                  const prefs = typeof user.preferences === 'string'
+                                    ? JSON.parse(user.preferences)
+                                    : user.preferences;
+                                  return Array.isArray(prefs) && prefs.length > 0 && (
+                                    <div className="flex flex-wrap gap-1">
+                                      {prefs.map((pref: string) => (
+                                        <span
+                                          key={pref}
+                                          className="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-200 text-gray-700"
+                                        >
+                                          {pref}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  );
+                                } catch {
+                                  return null;
+                                }
+                              })()}
                               {(isMatch ? [matchType] : callHistory
                                 ?.filter(call => (call.callType == matchFilter || matchFilter == "all") && (call.calledUserId === user.id || call.callerUserId === user.id)) //If the filters change, update this and many other lines
                                 .map(call => call.callType))
@@ -550,18 +643,29 @@ function RouteComponent() {
 
                           <div className="flex gap-2 flex-shrink-0">
                             {isMatch && (
-                              <Button
-                                onClick={() => {
-                                  setUnmatchDialog(true);
-                                  setUnmatchUser(item as Match);
-                                }}
-                                variant="outline"
-                                size="sm"
-                                className="hover:cursor-pointer hover:bg-red-500"
-                              >
-                                <XCircle />
-                                Unmatch
-                              </Button>
+                              <>
+                                <Button
+                                  onClick={() => handleCallUser(user.id, matchType || "friend")}
+                                  variant="outline"
+                                  size="sm"
+                                  className="hover:cursor-pointer"
+                                >
+                                  <Video className="w-4 h-4 mr-1" />
+                                  Call
+                                </Button>
+                                <Button
+                                  onClick={() => {
+                                    setUnmatchDialog(true);
+                                    setUnmatchUser(item as Match);
+                                  }}
+                                  variant="outline"
+                                  size="sm"
+                                  className="hover:cursor-pointer hover:bg-red-500"
+                                >
+                                  <XCircle />
+                                  Unmatch
+                                </Button>
+                              </>
                             )}
                             <Button
                               variant="outline"
@@ -867,6 +971,40 @@ function RouteComponent() {
                 </CardContent>
               </Card>
             </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Incoming Call Dialog */}
+        <Dialog open={!!incomingCall} onOpenChange={() => setIncomingCall(null)}>
+          <DialogContent className="[&>button:first-of-type]:hidden">
+            <DialogTitle className="flex items-center gap-2">
+              <PhoneCall className="w-5 h-5 text-green-500" />
+              Incoming Call
+            </DialogTitle>
+            <Card>
+              <CardContent className="pt-6">
+                <p className="text-lg mb-4">
+                  <strong>{incomingCall?.callerName}</strong> is calling you for a{" "}
+                  {incomingCall?.matchType === "friend" ? "friend" : "romantic"} video chat
+                </p>
+                <div className="flex gap-3 justify-end">
+                  <Button
+                    onClick={handleDeclineCall}
+                    variant="outline"
+                    className="hover:cursor-pointer"
+                  >
+                    Decline
+                  </Button>
+                  <Button
+                    onClick={handleAcceptCall}
+                    className="bg-green-500 hover:bg-green-600 hover:cursor-pointer"
+                  >
+                    <Video className="w-4 h-4 mr-2" />
+                    Accept
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
           </DialogContent>
         </Dialog>
       </div>

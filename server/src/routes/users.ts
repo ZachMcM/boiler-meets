@@ -30,6 +30,7 @@ usersRoute.get("/users/search", authMiddleware, async (req, res) => {
         major: user.major,
         year: user.year,
         bio: user.bio,
+        preferences: user.preferences, // include user preferences for display
       })
       .from(user)
       .where(
@@ -95,9 +96,10 @@ usersRoute.get("/user/username/:username", async (req, res) => {
       image: user.image,
       major: user.major,
       year: user.year,
-      bio: user.bio,  // Make sure this is included
+      bio: user.bio,  // make sure this is included
       birthdate: user.birthdate,
       profile: user.profile,
+      preferences: user.preferences,
     }).from(user).where(eq(user.username, username)).limit(1);
     
     if (!rows || rows.length === 0) return res.status(404).json({ error: "user not found" });
@@ -288,6 +290,7 @@ usersRoute.get("/matches", authMiddleware, async (req, res) => {
         major: user.major,
         year: user.year,
         bio: user.bio,
+        preferences: user.preferences,
       })
       .from(user)
       .where(inArray(user.id, matchedUserIds));

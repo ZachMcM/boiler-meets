@@ -43,6 +43,10 @@ export const user = pgTable("user", {
     .$type<{strengths: number, weights: number[]}>()
     .default({strengths: 0, weights: []})
     .notNull(),
+  preferences: json("preferences") // user's interests like "Friends", "Romance", etc
+    .$type<string[]>()
+    .default([])
+    .notNull(),
 });
 
 export const session = pgTable("session", {

@@ -49,6 +49,10 @@ export const authClient = createAuthClient({
           type: "string",
           required: true,
         },
+        preferences: { // user preferences like "Friends", "Romance", etc
+          type: "string",
+          required: false,
+        },
       },
     }),
     usernameClient(),

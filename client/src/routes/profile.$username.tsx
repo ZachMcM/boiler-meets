@@ -6,7 +6,7 @@ import { authClient } from "@/lib/auth-client";
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import type { DraggableModule } from "@/components/ProfileModules";
 import { useState, useEffect } from "react";
-import { Save, Home, MessageCircle, Users, Heart, ShieldX, Edit3 } from "lucide-react";
+import { Save, Home, MessageCircle, Users, Heart, ShieldX, Edit3, Check } from "lucide-react";
 import { toast } from "sonner";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import PurdueTrainHeader from '@/components/PurdueTrainAnimation';
@@ -115,6 +115,12 @@ function RouteComponent(username: string) {
   const [hasChanged, setHasChanged] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
+  // preferences state
+  const PREFERENCE_OPTIONS = ["Friends", "Romance", "Networking", "Study Buddies"];
+  const [selectedPreferences, setSelectedPreferences] = useState<string[]>([]);
+  const [savedPreferences, setSavedPreferences] = useState<string[]>([]);
+  const [preferencesChanged, setPreferencesChanged] = useState(false);
+
   // State for dialogs
   const [blockDialog, setBlockDialog] = useState(false);
   const [nicknameDialog, setNicknameDialog] = useState(false);
@@ -129,6 +135,23 @@ function RouteComponent(username: string) {
       // Handle empty bio case
       setBioText("");
       setSavedBioText("");
+    }
+
+    // load user preferences if they exist
+    if (profileUserData?.preferences) {
+      try {
+        const prefs = typeof profileUserData.preferences === 'string'
+          ? JSON.parse(profileUserData.preferences)
+          : profileUserData.preferences;
+        setSelectedPreferences(Array.isArray(prefs) ? prefs : []);
+        setSavedPreferences(Array.isArray(prefs) ? prefs : []);
+      } catch {
+        setSelectedPreferences([]);
+        setSavedPreferences([]);
+      }
+    } else {
+      setSelectedPreferences([]);
+      setSavedPreferences([]);
     }
   }, [profileUserData]);
 
@@ -272,6 +295,52 @@ function RouteComponent(username: string) {
     setNicknameDialog(false);
   };
 
+  // toggle preference selection
+  const handlePreferenceToggle = (preference: string) => {
+    if (permission !== "edit") return;
+
+    const newPreferences = selectedPreferences.includes(preference)
+      ? selectedPreferences.filter((p) => p !== preference)
+      : [...selectedPreferences, preference];
+
+    setSelectedPreferences(newPreferences);
+    setPreferencesChanged(
+      JSON.stringify(newPreferences.sort()) !== JSON.stringify(savedPreferences.sort())
+    );
+  };
+
+  // save user preferences to database
+  const handlePreferencesSave = async () => {
+    if (permission !== "edit") return;
+
+    try {
+      await authClient.updateUser(
+        {
+          preferences: JSON.stringify(selectedPreferences),
+        },
+        {
+          onError: ({ error }) => {
+            toast.error("Error: Could not save preferences!");
+            setSelectedPreferences(savedPreferences);
+            setPreferencesChanged(false);
+          },
+          onRequest: () => {
+            setIsLoading(true);
+          },
+          onSuccess: async () => {
+            await queryClient.invalidateQueries({ queryKey: ["user-profile", username] });
+            toast.success("Preferences saved successfully!");
+            setIsLoading(false);
+            setSavedPreferences(selectedPreferences);
+            setPreferencesChanged(false);
+          },
+        }
+      );
+    } catch {
+      toast.error("Error: Could not save preferences!");
+    }
+  };
+
   // Loading state
   if (isLoadingProfile) {
     return (
@@ -390,6 +459,58 @@ function RouteComponent(username: string) {
                   </div>
                 </div>
               </div>
+            </div>
+
+            {/* Preferences Section */}
+            <div className="pb-4 border-b mt-4">
+              <Label className="text-xl font-semibold mb-3 block">
+                Looking for
+              </Label>
+              {permission === "edit" ? (
+                <div className="flex flex-wrap gap-2">
+                  {PREFERENCE_OPTIONS.map((pref) => (
+                    <button
+                      key={pref}
+                      onClick={() => handlePreferenceToggle(pref)}
+                      disabled={isLoading}
+                      className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                        selectedPreferences.includes(pref)
+                          ? "bg-primary text-white"
+                          : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                      }`}
+                    >
+                      {selectedPreferences.includes(pref) && (
+                        <Check className="inline w-4 h-4 mr-1" />
+                      )}
+                      {pref}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {selectedPreferences.length > 0 ? (
+                    selectedPreferences.map((pref) => (
+                      <span
+                        key={pref}
+                        className="px-4 py-2 rounded-full text-sm font-medium bg-primary text-white"
+                      >
+                        {pref}
+                      </span>
+                    ))
+                  ) : (
+                    <span className="text-gray-500 text-sm">No preferences set</span>
+                  )}
+                </div>
+              )}
+              {permission === "edit" && preferencesChanged && !isLoading && (
+                <Button
+                  onClick={handlePreferencesSave}
+                  className="mt-3 hover:bg-[#a19072] text-white hover:cursor-pointer"
+                >
+                  <Save size={14} />
+                  Save Preferences
+                </Button>
+              )}
             </div>
             {(permission !== "view" || bioText !== "") && (
               <textarea 

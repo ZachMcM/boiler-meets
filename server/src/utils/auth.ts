@@ -58,6 +58,10 @@ export const auth = betterAuth({
         required: true,
         default: "[]",
       },
+      preferences: { // stores user's looking-for preferences as JSON string
+        type: "string",
+        required: false,
+      },
     },
   },
   emailAndPassword: {
