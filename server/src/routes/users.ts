@@ -522,3 +522,331 @@ usersRoute.delete("/profile-reactions/:reactionId", authMiddleware, async (req, 
     res.status(500).json({ error: "server error" });
   }
 });
+
+// Get current user's nicknames
+usersRoute.get("/user/nicknames", authMiddleware, async (req, res) => {
+  try {
+    const userId = res.locals.userId;
+
+    const currentUser = await db
+      .select({ nicknames: user.nicknames })
+      .from(user)
+      .where(eq(user.id, userId as string))
+      .limit(1);
+
+    if (!currentUser || currentUser.length === 0) {
+      return res.status(404).json({ error: "user not found" });
+    }
+
+    // Parse and return nicknames
+    let nicknames: Record<string, string> = {};
+    if (currentUser[0].nicknames) {
+      nicknames = typeof currentUser[0].nicknames === 'string'
+        ? JSON.parse(currentUser[0].nicknames)
+        : currentUser[0].nicknames as Record<string, string>;
+    }
+
+    res.json(nicknames);
+  } catch (error) {
+    console.error("get nicknames error:", error);
+    res.status(500).json({ error: "server error" });
+  }
+});
+
+// Set or update a nickname for another user
+usersRoute.put("/user/nickname", authMiddleware, async (req, res) => {
+  try {
+    const userId = res.locals.userId;
+    const { targetUserId, nickname } = req.body;
+
+    if (!targetUserId || !nickname) {
+      return res.status(400).json({ error: "missing targetUserId or nickname" });
+    }
+
+    // Get current user's nicknames
+    const currentUser = await db
+      .select({ nicknames: user.nicknames })
+      .from(user)
+      .where(eq(user.id, userId as string))
+      .limit(1);
+
+    if (!currentUser || currentUser.length === 0) {
+      return res.status(404).json({ error: "user not found" });
+    }
+
+    // Parse existing nicknames
+    let nicknames: Record<string, string> = {};
+    if (currentUser[0].nicknames) {
+      nicknames = typeof currentUser[0].nicknames === 'string'
+        ? JSON.parse(currentUser[0].nicknames)
+        : currentUser[0].nicknames as Record<string, string>;
+    }
+
+    // Update or add the nickname
+    nicknames[targetUserId] = nickname;
+
+    // Save back to database
+    await db
+      .update(user)
+      .set({ nicknames: nicknames })
+      .where(eq(user.id, userId as string));
+
+    res.json({ success: true, nicknames });
+  } catch (error) {
+    console.error("set nickname error:", error);
+    res.status(500).json({ error: "server error" });
+  }
+});
+
+// Remove a nickname for another user
+usersRoute.delete("/user/nickname/:targetUserId", authMiddleware, async (req, res) => {
+  try {
+    const userId = res.locals.userId;
+    const { targetUserId } = req.params;
+
+    if (!targetUserId) {
+      return res.status(400).json({ error: "missing targetUserId" });
+    }
+
+    // Get current user's nicknames
+    const currentUser = await db
+      .select({ nicknames: user.nicknames })
+      .from(user)
+      .where(eq(user.id, userId as string))
+      .limit(1);
+
+    if (!currentUser || currentUser.length === 0) {
+      return res.status(404).json({ error: "user not found" });
+    }
+
+    // Parse existing nicknames
+    let nicknames: Record<string, string> = {};
+    if (currentUser[0].nicknames) {
+      nicknames = typeof currentUser[0].nicknames === 'string'
+        ? JSON.parse(currentUser[0].nicknames)
+        : currentUser[0].nicknames as Record<string, string>;
+    }
+
+    // Remove the nickname
+    delete nicknames[targetUserId];
+
+    // Save back to database
+    await db
+      .update(user)
+      .set({ nicknames: nicknames })
+      .where(eq(user.id, userId as string));
+
+    res.json({ success: true, nicknames });
+  } catch (error) {
+    console.error("remove nickname error:", error);
+    res.status(500).json({ error: "server error" });
+  }
+});
+
+// Block a user
+usersRoute.post("/user/block", authMiddleware, async (req, res) => {
+  try {
+    const userId = res.locals.userId;
+    const { targetUserId } = req.body;
+
+    if (!targetUserId) {
+      return res.status(400).json({ error: "missing targetUserId" });
+    }
+
+    if (userId === targetUserId) {
+      return res.status(400).json({ error: "cannot block yourself" });
+    }
+
+    // Get current user's blocked users
+    const currentUser = await db
+      .select({ blockedUsers: user.blockedUsers, name: user.name })
+      .from(user)
+      .where(eq(user.id, userId as string))
+      .limit(1);
+
+    if (!currentUser || currentUser.length === 0) {
+      return res.status(404).json({ error: "user not found" });
+    }
+
+    // Parse existing blocked users
+    let blockedUsers: string[] = [];
+    if (currentUser[0].blockedUsers) {
+      blockedUsers = typeof currentUser[0].blockedUsers === 'string'
+        ? JSON.parse(currentUser[0].blockedUsers)
+        : currentUser[0].blockedUsers as string[];
+    }
+
+    // Check if already blocked
+    if (blockedUsers.includes(targetUserId)) {
+      return res.status(400).json({ error: "user already blocked" });
+    }
+
+    // Add to blocked users
+    blockedUsers.push(targetUserId);
+
+    // Save back to database
+    await db
+      .update(user)
+      .set({ blockedUsers: blockedUsers })
+      .where(eq(user.id, userId as string));
+
+    // Check if users are matched and unmatch them if so
+    const existingMatch = await db
+      .select()
+      .from(matches)
+      .where(
+        or(
+          and(
+            eq(matches.first, userId as string),
+            eq(matches.second, targetUserId)
+          ),
+          and(
+            eq(matches.first, targetUserId),
+            eq(matches.second, userId as string)
+          )
+        )
+      )
+      .limit(1);
+
+    if (existingMatch.length > 0) {
+      // Delete the match
+      await db
+        .delete(matches)
+        .where(
+          or(
+            and(
+              eq(matches.first, userId as string),
+              eq(matches.second, targetUserId)
+            ),
+            and(
+              eq(matches.first, targetUserId),
+              eq(matches.second, userId as string)
+            )
+          )
+        );
+
+      // Send notification to the blocked user
+      const otherUser = await db
+        .select({ notifications: user.notifications })
+        .from(user)
+        .where(eq(user.id, targetUserId))
+        .limit(1);
+
+      if (otherUser && otherUser.length > 0) {
+        let notifications = [];
+        try {
+          notifications = JSON.parse(otherUser[0].notifications || '[]');
+        } catch (e) {
+          console.error("Error parsing notifications:", e);
+          notifications = [];
+        }
+
+        notifications.push({
+          timestamp: Date.now(),
+          type: "unmatch",
+          text: `${currentUser[0].name} has unmatched with you`,
+          title: "Unmatch"
+        });
+
+        await db
+          .update(user)
+          .set({ notifications: JSON.stringify(notifications) })
+          .where(eq(user.id, targetUserId));
+      }
+    }
+
+    res.json({ success: true, blockedUsers, wasMatched: existingMatch.length > 0 });
+  } catch (error) {
+    console.error("block user error:", error);
+    res.status(500).json({ error: "server error" });
+  }
+});
+
+// Unblock a user
+usersRoute.delete("/user/block/:targetUserId", authMiddleware, async (req, res) => {
+  try {
+    const userId = res.locals.userId;
+    const { targetUserId } = req.params;
+
+    if (!targetUserId) {
+      return res.status(400).json({ error: "missing targetUserId" });
+    }
+
+    // Get current user's blocked users
+    const currentUser = await db
+      .select({ blockedUsers: user.blockedUsers })
+      .from(user)
+      .where(eq(user.id, userId as string))
+      .limit(1);
+
+    if (!currentUser || currentUser.length === 0) {
+      return res.status(404).json({ error: "user not found" });
+    }
+
+    // Parse existing blocked users
+    let blockedUsers: string[] = [];
+    if (currentUser[0].blockedUsers) {
+      blockedUsers = typeof currentUser[0].blockedUsers === 'string'
+        ? JSON.parse(currentUser[0].blockedUsers)
+        : currentUser[0].blockedUsers as string[];
+    }
+
+    // Remove from blocked users
+    blockedUsers = blockedUsers.filter(id => id !== targetUserId);
+
+    // Save back to database
+    await db
+      .update(user)
+      .set({ blockedUsers: blockedUsers })
+      .where(eq(user.id, userId as string));
+
+    res.json({ success: true, blockedUsers });
+  } catch (error) {
+    console.error("unblock user error:", error);
+    res.status(500).json({ error: "server error" });
+  }
+});
+
+// Get blocked users list
+usersRoute.get("/user/blocked", authMiddleware, async (_req, res) => {
+  try {
+    const userId = res.locals.userId;
+
+    const currentUser = await db
+      .select({ blockedUsers: user.blockedUsers })
+      .from(user)
+      .where(eq(user.id, userId as string))
+      .limit(1);
+
+    if (!currentUser || currentUser.length === 0) {
+      return res.status(404).json({ error: "user not found" });
+    }
+
+    let blockedUsers: string[] = [];
+    if (currentUser[0].blockedUsers) {
+      blockedUsers = typeof currentUser[0].blockedUsers === 'string'
+        ? JSON.parse(currentUser[0].blockedUsers)
+        : currentUser[0].blockedUsers as string[];
+    }
+
+    // Get user details for blocked users
+    if (blockedUsers.length === 0) {
+      return res.json([]);
+    }
+
+    const blockedUserDetails = await db
+      .select({
+        id: user.id,
+        username: user.username,
+        name: user.name,
+        image: user.image,
+      })
+      .from(user)
+      .where(inArray(user.id, blockedUsers));
+
+    res.json(blockedUserDetails);
+  } catch (error) {
+    console.error("get blocked users error:", error);
+    res.status(500).json({ error: "server error" });
+  }
+});

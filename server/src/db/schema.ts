@@ -47,6 +47,12 @@ export const user = pgTable("user", {
     .$type<string[]>()
     .default([])
     .notNull(),
+  nicknames: json()
+    .$type<Record<string, string>>()
+    .default({}),
+  blockedUsers: json()
+    .$type<string[]>()
+    .default([]),
 });
 
 export const session = pgTable("session", {

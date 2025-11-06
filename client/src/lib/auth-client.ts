@@ -39,7 +39,6 @@ export const authClient = createAuthClient({
         notifications: {
           type: "string",
           required: false,
-          default: '[]'
         },
         gender: {
           type: "string",
@@ -48,6 +47,14 @@ export const authClient = createAuthClient({
         preference: {
           type: "string",
           required: true,
+        },
+        nicknames: {
+          type: "string",
+          required: false,
+        },
+        blockedUsers: {
+          type: "string",
+          required: false,
         },
         preferences: {
           type: "string",

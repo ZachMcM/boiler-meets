@@ -221,3 +221,50 @@ export const submitReport = async ({
     formData,
   });
 };
+
+// Nickname API Functions
+export const setNickname = async (targetUserId: string, nickname: string) => {
+  return await serverRequest({
+    endpoint: "/user/nickname",
+    method: "PUT",
+    body: JSON.stringify({ targetUserId, nickname }),
+  });
+};
+
+export const removeNickname = async (targetUserId: string) => {
+  return await serverRequest({
+    endpoint: `/user/nickname/${targetUserId}`,
+    method: "DELETE",
+  });
+};
+
+// Block User API Functions
+export const blockUser = async (targetUserId: string) => {
+  return await serverRequest({
+    endpoint: "/user/block",
+    method: "POST",
+    body: JSON.stringify({ targetUserId }),
+  });
+};
+
+export const unblockUser = async (targetUserId: string) => {
+  return await serverRequest({
+    endpoint: `/user/block/${targetUserId}`,
+    method: "DELETE",
+  });
+};
+
+export const getBlockedUsers = async () => {
+  return await serverRequest({
+    endpoint: "/user/blocked",
+    method: "GET",
+  });
+};
+
+// Get current user's nicknames
+export const getNicknames = async (): Promise<Record<string, string>> => {
+  return await serverRequest({
+    endpoint: "/user/nicknames",
+    method: "GET",
+  });
+};

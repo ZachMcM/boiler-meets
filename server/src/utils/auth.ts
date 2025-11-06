@@ -62,6 +62,14 @@ export const auth = betterAuth({
         type: "string",
         required: false,
       },
+      nicknames: {
+        type: "string",
+        required: false,
+      },
+      blockedUsers: {
+        type: "string",
+        required: false,
+      },
     },
   },
   emailAndPassword: {

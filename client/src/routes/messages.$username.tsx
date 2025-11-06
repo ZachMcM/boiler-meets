@@ -47,6 +47,25 @@ function MessagesComponent() {
     enabled: !!username,
   });
 
+  // Helper function to get display name (nickname or real name)
+  const getDisplayName = (u?: { id?: string; name?: string } | null) => {
+    try {
+      // authClient.useSession() returns { data: { user, session } }
+      const sessionUser = currentUserData?.data?.user || currentUserData?.user;
+      if (!sessionUser) return u?.name || "Anonymous";
+      const raw = (sessionUser as any)?.nicknames;
+      if (!u) return "Anonymous";
+      if (!raw) return u.name || "Anonymous";
+      let mapping: Record<string, string> = {};
+      if (typeof raw === "string") mapping = JSON.parse(raw || "{}");
+      else mapping = raw as Record<string, string>;
+      return (u.id && mapping[u.id]) ? mapping[u.id] : (u.name || "Anonymous");
+    } catch (error) {
+      console.error("Error getting display name:", error);
+      return u?.name || "Anonymous";
+    }
+  };
+
   // Use real-time messaging hook
   const {
     messages,
@@ -92,7 +111,7 @@ function MessagesComponent() {
   // Convert database user to component User type
   const otherUserFormatted: User = {
     id: otherUser.id,
-    name: otherUser.name,
+    name: getDisplayName(otherUser),
     avatar: otherUser.image,
     bio: otherUser.bio || '',
     major: otherUser.major || 'Undeclared',
@@ -128,7 +147,7 @@ function MessagesComponent() {
 
       {isTyping && (
         <div className="px-4 py-2 text-sm text-muted-foreground italic">
-          {otherUser?.name} is typing...
+          {getDisplayName(otherUser)} is typing...
         </div>
       )}
 
