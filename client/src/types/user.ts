@@ -10,6 +10,7 @@ export type User = {
   year: string | null
   profile: any | null
   notifications: NotificationItem[]
+  preferences?: string | string[]
 }
 
 export type Match = {
@@ -25,6 +26,7 @@ export type Match = {
     major: string | null;
     year: string | null;
     bio: string | null;
+    preferences?: string | string[];
   };
 };
 
