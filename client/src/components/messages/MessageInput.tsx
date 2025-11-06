@@ -1,7 +1,12 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Send } from 'lucide-react';
+import { Send, Smile } from 'lucide-react';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 
 interface MessageInputProps {
   onSendMessage: (content: string) => void;
@@ -11,6 +16,20 @@ interface MessageInputProps {
   maxLength?: number;
 }
 
+const EMOJIS = [
+  '😀', '😃', '😄', '😁', '😆', '😅', '😂', '🤣', '😊', '😇',
+  '🙂', '🙃', '😉', '😌', '😍', '🥰', '😘', '😗', '😙', '😚',
+  '😋', '😛', '😝', '😜', '🤪', '🤨', '🧐', '🤓', '😎', '🤩',
+  '🥳', '😏', '😒', '😞', '😔', '😟', '😕', '🙁', '☹️', '😣',
+  '😖', '😫', '😩', '🥺', '😢', '😭', '😤', '😠', '😡', '🤬',
+  '👍', '👎', '👏', '🙌', '👐', '🤝', '🙏', '✌️', '🤞', '🤟',
+  '🤘', '🤙', '👈', '👉', '👆', '👇', '☝️', '✋', '🤚', '🖐',
+  '💪', '🦾', '🖕', '✍️', '🤳', '💅', '🦵', '🦿', '🦶', '👣',
+  '❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '🤎', '💔',
+  '❣️', '💕', '💞', '💓', '💗', '💖', '💘', '💝', '💟', '☮️',
+  '🔥', '⭐', '🌟', '✨', '⚡', '💥', '💯', '✅', '❌', '⚠️',
+];
+
 export function MessageInput({
   onSendMessage,
   onStartTyping,
@@ -19,6 +38,8 @@ export function MessageInput({
   maxLength = 500
 }: MessageInputProps) {
   const [message, setMessage] = useState('');
+  const [isEmojiOpen, setIsEmojiOpen] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const handleSend = () => {
     if (message.trim()) {
@@ -44,10 +65,54 @@ export function MessageInput({
     }
   };
 
+  const handleEmojiClick = (emoji: string) => {
+    const input = inputRef.current;
+    if (!input) return;
+
+    const start = input.selectionStart || message.length;
+    const end = input.selectionEnd || message.length;
+    const newMessage = message.slice(0, start) + emoji + message.slice(end);
+
+    setMessage(newMessage);
+    setIsEmojiOpen(false);
+
+    setTimeout(() => {
+      input.focus();
+      const newCursorPos = start + emoji.length;
+      input.setSelectionRange(newCursorPos, newCursorPos);
+    }, 0);
+  };
+
   return (
     <div className="flex flex-col gap-2 p-4 border-t bg-background">
       <div className="flex gap-2">
+        <Popover open={isEmojiOpen} onOpenChange={setIsEmojiOpen}>
+          <PopoverTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="shrink-0"
+              type="button"
+            >
+              <Smile className="h-5 w-5" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-80 p-2" align="start">
+            <div className="grid grid-cols-10 gap-1">
+              {EMOJIS.map((emoji) => (
+                <button
+                  key={emoji}
+                  onClick={() => handleEmojiClick(emoji)}
+                  className="text-2xl p-2 hover:bg-accent rounded transition-transform hover:scale-125 flex items-center justify-center"
+                >
+                  {emoji}
+                </button>
+              ))}
+            </div>
+          </PopoverContent>
+        </Popover>
         <Input
+          ref={inputRef}
           value={message}
           onChange={handleChange}
           onKeyPress={handleKeyPress}
