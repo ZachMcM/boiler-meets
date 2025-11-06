@@ -482,52 +482,6 @@ function RouteComponent(username: string) {
     }
   };
 
-  // toggle preference selection
-  const handlePreferenceToggle = (preference: string) => {
-    if (permission !== "edit") return;
-
-    const newPreferences = selectedPreferences.includes(preference)
-      ? selectedPreferences.filter((p) => p !== preference)
-      : [...selectedPreferences, preference];
-
-    setSelectedPreferences(newPreferences);
-    setPreferencesChanged(
-      JSON.stringify(newPreferences.sort()) !== JSON.stringify(savedPreferences.sort())
-    );
-  };
-
-  // save user preferences to database
-  const handlePreferencesSave = async () => {
-    if (permission !== "edit") return;
-
-    try {
-      await authClient.updateUser(
-        {
-          preferences: JSON.stringify(selectedPreferences),
-        },
-        {
-          onError: ({ error }) => {
-            toast.error("Error: Could not save preferences!");
-            setSelectedPreferences(savedPreferences);
-            setPreferencesChanged(false);
-          },
-          onRequest: () => {
-            setIsLoading(true);
-          },
-          onSuccess: async () => {
-            await queryClient.invalidateQueries({ queryKey: ["user-profile", username] });
-            toast.success("Preferences saved successfully!");
-            setIsLoading(false);
-            setSavedPreferences(selectedPreferences);
-            setPreferencesChanged(false);
-          },
-        }
-      );
-    } catch {
-      toast.error("Error: Could not save preferences!");
-    }
-  };
-
   // Loading state
   if (isLoadingProfile) {
     return (

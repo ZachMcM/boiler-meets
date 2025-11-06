@@ -45,6 +45,13 @@
       "breakpoints": true
     },
     {
+      "idx": 6,
+      "version": "7",
+      "when": 1762207709909,
+      "tag": "0006_ancient_next_avengers",
+      "breakpoints": true
+    },
+    {
       "idx": 7,
       "version": "7",
       "when": 1762207709909,
@@ -73,10 +80,10 @@
       "breakpoints": true
     },
     {
-      "idx": 10,
+      "idx": 11,
       "version": "7",
-      "when": 1762390133032,
-      "tag": "0010_mixed_vampiro",
+      "when": 1762466311450,
+      "tag": "0011_yellow_vin_gonzales",
       "breakpoints": true
     }
   ]
