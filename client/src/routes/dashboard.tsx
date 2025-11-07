@@ -517,7 +517,7 @@ function RouteComponent() {
                 <>Search Your Matches</>
               )}
             </Button>
-            {((matches && matches.length > 0) && !globalSearch) && (
+            {((matches && matches.length > 0)) && (
               <div className="flex gap-2 mb-4">
                 <Button
                   variant={matchFilter === "all" ? "default" : "outline"}
