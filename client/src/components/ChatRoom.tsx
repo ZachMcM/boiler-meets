@@ -49,6 +49,7 @@ import type { User as User_Type } from "@/types/user";
 import { Label } from "./ui/label";
 import { Input } from "./ui/input";
 import type { NotificationItem } from "./Notification";
+import { getNicknames } from '@/endpoints';
 
 export function ChatRoom({ roomId }: { roomId: string }) {
   const router = useRouter();
@@ -886,17 +887,16 @@ export function ChatRoom({ roomId }: { roomId: string }) {
     });
   }
 
-  const getDisplayName = (u?: { id?: string; name?: string; username?: string } | null) => {
-    try {
-      const raw = (session?.user as any)?.nicknames;
-      console.log(session?.user);
-      console.log(raw);
-      if (!u) return "Anonymous";
-      if (!raw || !otherUserId || !raw[otherUserId]) return u.name || "Anonymous";
-      return raw[otherUserId];
-    } catch {
-      return u?.name || "Anonymous";
-    }
+  const { data: nicknames } = useQuery({
+    queryKey: ['nicknames'],
+    queryFn: getNicknames,
+  });
+
+  // Helper function to get display name (nickname or real name)
+  const getDisplayName = (userId: string | null) => {
+    if (!userId) return "Anonymous";
+    if (!nicknames) return otherUser?.name || "Anonymous";
+    return (userId && nicknames[userId]) ? nicknames[userId] : (otherUser?.name || "Anonymous");
   };
 
   const handleAcceptIncomingCall = () => {
@@ -991,7 +991,7 @@ export function ChatRoom({ roomId }: { roomId: string }) {
                         </Avatar>
                         <div>
                           <p className="font-semibold text-foreground">
-                            {getDisplayName(otherUser) || "Anonymous"}
+                            {getDisplayName(otherUserId) || "Anonymous"}
                           </p>
                           <p>
                             {otherUser.year} | {otherUser.major}
@@ -1121,11 +1121,11 @@ export function ChatRoom({ roomId }: { roomId: string }) {
                       <div className="flex items-center gap-2">
                         <Avatar>
                           <AvatarImage src={otherUser?.image!} />
-                          <AvatarFallback>{getDisplayName(otherUser)}</AvatarFallback>
+                          <AvatarFallback>{getDisplayName(otherUserId)}</AvatarFallback>
                         </Avatar>
                         <div>
                           <p className="font-semibold text-foreground">
-                            {getDisplayName(otherUser)}
+                            {getDisplayName(otherUserId)}
                           </p>
                           <p>
                             {otherUser.year} | {otherUser.major}

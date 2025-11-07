@@ -382,6 +382,8 @@ function RouteComponent(username: string) {
     }
   };
 
+  const { data: refetchData, refetch } = authClient.useSession();
+
   // Handler for saving nickname
   const handleSaveNickname = async () => {
     if (!profileUserData?.id || !nickname.trim()) return;

@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { MoreVertical } from 'lucide-react';
+import { getNicknames } from '@/endpoints';
 
 export const Route = createFileRoute('/messages/$username')({
   component: MessagesComponent,
@@ -47,23 +48,16 @@ function MessagesComponent() {
     enabled: !!username,
   });
 
+  const { data: nicknames } = useQuery({
+    queryKey: ['nicknames'],
+    queryFn: getNicknames,
+  });
+
   // Helper function to get display name (nickname or real name)
   const getDisplayName = (u?: { id?: string; name?: string } | null) => {
-    try {
-      // authClient.useSession() returns { data: { user, session } }
-      const sessionUser = currentUserData?.data?.user || currentUserData?.user;
-      if (!sessionUser) return u?.name || "Anonymous";
-      const raw = (sessionUser as any)?.nicknames;
-      if (!u) return "Anonymous";
-      if (!raw) return u.name || "Anonymous";
-      let mapping: Record<string, string> = {};
-      if (typeof raw === "string") mapping = JSON.parse(raw || "{}");
-      else mapping = raw as Record<string, string>;
-      return (u.id && mapping[u.id]) ? mapping[u.id] : (u.name || "Anonymous");
-    } catch (error) {
-      console.error("Error getting display name:", error);
-      return u?.name || "Anonymous";
-    }
+    if (!u) return "Anonymous";
+    if (!currentUserData?.user || !nicknames) return u?.name || "Anonymous";
+    return (u.id && nicknames[u.id]) ? nicknames[u.id] : (u.name || "Anonymous");
   };
 
   // Use real-time messaging hook
