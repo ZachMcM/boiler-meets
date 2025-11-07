@@ -27,7 +27,7 @@ function RouteComponent() {
           <EmptyMedia variant="default">
             <AlertCircle />
           </EmptyMedia>
-          <EmptyTitle>You have ban banned!</EmptyTitle>
+          <EmptyTitle>You have been banned!</EmptyTitle>
           <EmptyDescription>
             You have been banned for violating Boilermeets rules.
           </EmptyDescription>
