@@ -1,6 +1,6 @@
 import FindRoomButton from "@/components/FindRoomButton";
 import { authClient, fetchUserSession, signOut } from "@/lib/auth-client";
-import { createFileRoute, redirect, useRouter } from "@tanstack/react-router";
+import { createFileRoute, redirect, useRouter, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
@@ -20,7 +20,8 @@ import {
   PhoneCall,
   Bell,
   XCircle,
-  Video
+  Video,
+  TestTube2
 } from "lucide-react";
 import { getMatches, getMatchMessages, removeMatch, searchUsers, getCallHistory, type CallHistory } from "@/endpoints";
 import { useVideoCallContext } from "@/contexts/VideoCallContext";
@@ -441,6 +442,15 @@ function RouteComponent() {
             </p>
           </div>
           <div className="flex gap-3">
+            <Link to="/test">
+              <Button
+                variant="outline"
+                className="hover:cursor-pointer"
+              >
+                <TestTube2 className="w-4 h-4 mr-2" />
+                Test Camera & Mic
+              </Button>
+            </Link>
             <FindRoomButton
               matchType="friend"
               label="Find Friends"
