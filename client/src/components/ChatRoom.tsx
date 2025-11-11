@@ -1,6 +1,3 @@
-import { useEffect, useRef, useState } from "react";
-import { useRouter } from "@tanstack/react-router";
-import { io, Socket } from "socket.io-client";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -8,30 +5,6 @@ import {
   CardFooter,
   CardHeader,
 } from "@/components/ui/card";
-import { authClient } from "@/lib/auth-client";
-import {
-  Video,
-  VideoOff,
-  Mic,
-  MicOff,
-  PhoneOff,
-  User,
-  Phone,
-  Heart,
-  PhoneCall,
-  Flag,
-  Check,
-  XCircle,
-  Users,
-} from "lucide-react";
-import { toast } from "sonner";
-import {
-  useQuery,
-  useQueryClient,
-  useMutation,
-} from "@tanstack/react-query";
-import { createMatch, getUser, submitReport, saveCallHistory } from "@/endpoints";
-import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import {
   Dialog,
   DialogClose,
@@ -42,14 +15,94 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { ProfileModuleCarousel } from "./ProfileModules";
 import { useVideoCallContext } from "@/contexts/VideoCallContext";
-import type { VideoCallData } from "@/types/video_call";
+import {
+  createMatch,
+  getNicknames,
+  getUser,
+  saveCallHistory,
+  submitReport,
+} from "@/endpoints";
+import { authClient } from "@/lib/auth-client";
 import type { User as User_Type } from "@/types/user";
-import { Label } from "./ui/label";
-import { Input } from "./ui/input";
+import type { VideoCallData } from "@/types/video_call";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "@tanstack/react-router";
+import {
+  Check,
+  Flag,
+  Heart,
+  Mic,
+  MicOff,
+  Palette,
+  Phone,
+  PhoneCall,
+  User,
+  Users,
+  Video,
+  VideoOff,
+  XCircle,
+} from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { io, Socket } from "socket.io-client";
+import { toast } from "sonner";
 import type { NotificationItem } from "./Notification";
-import { getNicknames } from '@/endpoints';
+import { ProfileModuleCarousel } from "./ProfileModules";
+import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
+import { Input } from "./ui/input";
+import { Label } from "./ui/label";
+
+const BACKGROUND_OPTIONS = [
+  {
+    type: "default",
+    name: "Default Gradient",
+    preview:
+      "linear-gradient(to bottom right, oklch(0.98 0.005 85), #CFB991, oklch(0.92 0.02 85))",
+    url: null,
+  },
+  {
+    type: "hearts",
+    name: "Love Hearts",
+    preview: null,
+    url: "https://www.hdwallpapers.in/download/love_hearts_red_background_4k-HD.jpg",
+  },
+  {
+    type: "minecraft",
+    name: "Minecraft",
+    preview: null,
+    url: "https://i.redd.it/h8bdmuyl6xea1.jpg",
+  },
+  {
+    type: "purdue",
+    name: "Purdue Campus",
+    preview: null,
+    url: "https://www.purdue.edu/newsroom/wp-content/uploads/2024/07/submit-news-pu-today-hero-banner-1920x1080-1.jpg",
+  },
+  {
+    type: "luka",
+    name: "Luka Doncic",
+    preview: null,
+    url: "https://www.kget.com/wp-content/uploads/sites/2/2024/06/6660bbadb5a153.04086348.jpeg?w=2560&h=1440&crop=1",
+  },
+  {
+    type: "ocean",
+    name: "Ocean",
+    preview: null,
+    url: "https://blog.myuvci.com/wp-content/uploads/2025/03/Update-on-Mandatory-Government-Fees-in-Cabo-scaled.jpg",
+  },
+  {
+    type: "space",
+    name: "Space",
+    preview: null,
+    url: "https://wallpapercave.com/wp/wp11709719.jpg",
+  },
+  {
+    type: "neil",
+    name: "Neil Armstrong",
+    preview: null,
+    url: "https://media.newyorker.com/photos/5fd93148f6a2407ddb7ecfcf/16:9/w_2560,h_1440,c_limit/Borowitz-NeilArmstrong.jpg",
+  },
+];
 
 export function ChatRoom({ roomId }: { roomId: string }) {
   const router = useRouter();
@@ -73,7 +126,10 @@ export function ChatRoom({ roomId }: { roomId: string }) {
   const [matchCompleted, setMatchCompleted] = useState(false);
   // const [unmatched, setUnmatched] = useState(false);
   const [unmatchedDialog, setUnmatchedDialog] = useState(false);
-  const [incomingCall, setIncomingCall] = useState<{ callerName: string; roomId: string } | null>(null);
+  const [incomingCall, setIncomingCall] = useState<{
+    callerName: string;
+    roomId: string;
+  } | null>(null);
   const [directCallSocket, setDirectCallSocket] = useState<Socket | null>(null); // socket for direct calling feature
 
   const localVideoRef = useRef<HTMLVideoElement>(null);
@@ -85,6 +141,8 @@ export function ChatRoom({ roomId }: { roomId: string }) {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const recordedAudioBlobRef = useRef<Blob | null>(null);
+  const [background, setBackground] = useState<string>("default");
+  const [backgroundDialogOpen, setBackgroundDialogOpen] = useState(false);
 
   const { data: otherUser, isPending: otherUserPending } = useQuery({
     queryKey: ["user", otherUserId],
@@ -99,10 +157,40 @@ export function ChatRoom({ roomId }: { roomId: string }) {
     numberCallExtensions: 0,
     callEndedByUser: false,
     unmatched: false,
-    callType: "friend"
-  } as VideoCallData)
+    callType: "friend",
+  } as VideoCallData);
 
   const { callSession, addNewCall } = useVideoCallContext();
+
+  function changeBackground(newBackground: string) {
+    setBackground(newBackground);
+    socketRef.current?.emit("background-changed", {
+      background: newBackground,
+    });
+    setBackgroundDialogOpen(false);
+    toast.success(
+      `Background changed to ${BACKGROUND_OPTIONS.find((b) => b.type === newBackground)?.name}`
+    );
+  }
+
+  const getBackgroundStyle = (bgType: string) => {
+    const option = BACKGROUND_OPTIONS.find((b) => b.type === bgType);
+    if (!option) return {};
+
+    if (option.url) {
+      return {
+        backgroundImage: `url(${option.url})`,
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        backgroundRepeat: "no-repeat",
+      };
+    } else if (option.preview) {
+      return {
+        background: option.preview,
+      };
+    }
+    return {};
+  };
 
   // To solve problems associated with React states not updating
   useEffect(() => {
@@ -118,9 +206,12 @@ export function ChatRoom({ roomId }: { roomId: string }) {
       withCredentials: true,
     });
 
-    socket.on("incoming-call", (data: { callerName: string; roomId: string }) => {
-      setIncomingCall(data);
-    });
+    socket.on(
+      "incoming-call",
+      (data: { callerName: string; roomId: string }) => {
+        setIncomingCall(data);
+      }
+    );
 
     setDirectCallSocket(socket);
 
@@ -421,7 +512,10 @@ export function ChatRoom({ roomId }: { roomId: string }) {
         if (userId === session?.user.id) return;
         setOtherUserId(userId);
         otherUserIdRef.current = userId;
-        if (otherUserIdRef.current) videoCallData.current.otherUser = await getUser(otherUserIdRef.current);
+        if (otherUserIdRef.current)
+          videoCallData.current.otherUser = await getUser(
+            otherUserIdRef.current
+          );
 
         // Only proceed if we're in stable state (not already negotiating)
         if (pc.signalingState !== "stable") {
@@ -468,7 +562,10 @@ export function ChatRoom({ roomId }: { roomId: string }) {
         if (from === session?.user.id) return;
         setOtherUserId(from);
         otherUserIdRef.current = from;
-        if (otherUserIdRef.current) videoCallData.current.otherUser = await getUser(otherUserIdRef.current);
+        if (otherUserIdRef.current)
+          videoCallData.current.otherUser = await getUser(
+            otherUserIdRef.current
+          );
         videoCallData.current.callType = callType;
 
         // Handle glare condition - if we're also trying to send an offer
@@ -596,7 +693,9 @@ export function ChatRoom({ roomId }: { roomId: string }) {
           /* Do not delete or alter this if statement, it fixes a critical bug where matching with a user causes 
            the user who clicked match second to not receive the other user's data in the after-call summary */
           if (otherUserIdRef.current) {
-            videoCallData.current.otherUser = await getUser(otherUserIdRef.current);
+            videoCallData.current.otherUser = await getUser(
+              otherUserIdRef.current
+            );
           }
           setWaitingUserResponse(false);
           setFeedbackPage(false);
@@ -637,7 +736,7 @@ export function ChatRoom({ roomId }: { roomId: string }) {
           //   } else {
           //     currentNotifications = [] as NotificationItem[];
           //   }
-          //   const newNotification = {  
+          //   const newNotification = {
           //     timestamp: Date.now(),
           //     type: matchType,
           //     text: `You have matched with ${videoCallData.current.otherUser?.name}`,
@@ -645,7 +744,7 @@ export function ChatRoom({ roomId }: { roomId: string }) {
           //   } as NotificationItem;
           //   const updatedList = currentNotifications.concat([newNotification]);
           //   console.log(updatedList);
-            
+
           //   await authClient.updateUser({
           //     notifications: JSON.stringify(updatedList)
           //   }, {
@@ -664,34 +763,50 @@ export function ChatRoom({ roomId }: { roomId: string }) {
         if (session?.user) {
           let currentNotifications: NotificationItem[];
           if (session.user.notifications) {
-            currentNotifications = JSON.parse(session.user.notifications) as NotificationItem[];
+            currentNotifications = JSON.parse(
+              session.user.notifications
+            ) as NotificationItem[];
           } else {
             currentNotifications = [] as NotificationItem[];
           }
-          const newNotification = {  
+          const newNotification = {
             timestamp: Date.now(),
             type: "unmatch",
             text: `You have unmatched with ${videoCallData.current.otherUser?.name}`,
-            title: "Unmatch"
+            title: "Unmatch",
           } as NotificationItem;
           const updatedList = currentNotifications.concat([newNotification]);
-          
-          await authClient.updateUser({
-            notifications: JSON.stringify(updatedList)
-          }, {
-            onError: ({ error }) => {
-              toast.error(error.message || "Notification Update Failed");
+
+          await authClient.updateUser(
+            {
+              notifications: JSON.stringify(updatedList),
             },
-          });
+            {
+              onError: ({ error }) => {
+                toast.error(error.message || "Notification Update Failed");
+              },
+            }
+          );
         }
         toast.info("You have been unmatched!");
-        videoCallData.current.unmatched = true
+        videoCallData.current.unmatched = true;
         leaveRoom();
-      })
+      });
 
       videoChatSocket.on("user-call-again", () => {
         toast.info("The other user wants to call again!");
       });
+
+      videoChatSocket.on(
+        "background-changed",
+        ({ background }: { background: string }) => {
+          console.log("Background changed event received:", background);
+          setBackground(background);
+          toast.info(
+            `Background changed to ${BACKGROUND_OPTIONS.find((b) => b.type === background)?.name}`
+          );
+        }
+      );
 
       videoChatSocket.on("error", ({ message }) => {
         console.error("Socket error:", message);
@@ -797,7 +912,7 @@ export function ChatRoom({ roomId }: { roomId: string }) {
     if (socket) {
       socket.emit("delete-match");
     }
-  }
+  };
 
   const cleanup = () => {
     console.log("Cleaning up resources");
@@ -888,7 +1003,7 @@ export function ChatRoom({ roomId }: { roomId: string }) {
   }
 
   const { data: nicknames } = useQuery({
-    queryKey: ['nicknames'],
+    queryKey: ["nicknames"],
     queryFn: getNicknames,
   });
 
@@ -896,7 +1011,9 @@ export function ChatRoom({ roomId }: { roomId: string }) {
   const getDisplayName = (userId: string | null) => {
     if (!userId) return "Anonymous";
     if (!nicknames) return otherUser?.name || "Anonymous";
-    return (userId && nicknames[userId]) ? nicknames[userId] : (otherUser?.name || "Anonymous");
+    return userId && nicknames[userId]
+      ? nicknames[userId]
+      : otherUser?.name || "Anonymous";
   };
 
   const handleAcceptIncomingCall = () => {
@@ -908,7 +1025,10 @@ export function ChatRoom({ roomId }: { roomId: string }) {
 
     // end current call and switch to the new one
     cleanup();
-    router.navigate({ to: "/chat-room/$roomId", params: { roomId: newRoomId } });
+    router.navigate({
+      to: "/chat-room/$roomId",
+      params: { roomId: newRoomId },
+    });
   };
 
   const handleDeclineIncomingCall = () => {
@@ -919,21 +1039,13 @@ export function ChatRoom({ roomId }: { roomId: string }) {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-accent to-secondary">
+    <div
+      className="min-h-screen transition-all duration-500"
+      style={getBackgroundStyle(background)}
+    >
       <div className="relative overflow-hidden">
         <div className="relative px-4 py-8 mx-auto max-w-7xl">
-          {/* Header */}
-          <Card className="mb-8 p-2">
-            <div className="space-y-2">
-              <h1 className="text-3xl md:text-4xl font-bold">Video Chat</h1>
-              <div className="space-y-1">
-                <p className="text-sm text-muted-foreground">Room: {roomId}</p>
-                <p className="text-sm font-medium text-foreground">
-                  Status: {connectionStatus}
-                </p>
-              </div>
-            </div>
-          </Card>
+          <h1 className="text-3xl md:text-4xl font-bold mb-8">Video Chat</h1>
 
           {/* incoming call notification card */}
           {incomingCall && (
@@ -942,9 +1054,7 @@ export function ChatRoom({ roomId }: { roomId: string }) {
                 <div className="flex items-center gap-3">
                   <PhoneCall className="w-5 h-5 text-blue-600 animate-pulse" />
                   <div>
-                    <p className="font-semibold text-blue-900">
-                      Incoming Call
-                    </p>
+                    <p className="font-semibold text-blue-900">Incoming Call</p>
                     <p className="text-sm text-blue-700">
                       {incomingCall.callerName} is calling you
                     </p>
@@ -1071,6 +1181,62 @@ export function ChatRoom({ roomId }: { roomId: string }) {
               </div>
             </DialogContent>
           </Dialog>
+          <Dialog
+            open={backgroundDialogOpen}
+            onOpenChange={setBackgroundDialogOpen}
+          >
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>Choose Background</DialogTitle>
+                <DialogDescription>
+                  Select a background for your video chat room. Both users will
+                  see the same background.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="grid grid-cols-2 gap-4 py-4">
+                {BACKGROUND_OPTIONS.map((option) => (
+                  <button
+                    key={option.type}
+                    onClick={() => changeBackground(option.type)}
+                    className={`relative group overflow-hidden rounded-lg border-2 transition-all hover:scale-105 ${
+                      background === option.type
+                        ? "border-primary ring-2 ring-primary ring-offset-2"
+                        : "border-muted hover:border-primary/50"
+                    }`}
+                  >
+                    <div
+                      className="aspect-video w-full"
+                      style={
+                        option.url
+                          ? {
+                              backgroundImage: `url(${option.url})`,
+                              backgroundSize: "cover",
+                              backgroundPosition: "center",
+                            }
+                          : option.preview
+                            ? { background: option.preview }
+                            : {}
+                      }
+                    >
+                      <div className="absolute inset-0 bg-black/40 group-hover:bg-black/30 transition-colors flex items-center justify-center">
+                        <div className="text-center">
+                          <p className="text-white font-semibold text-lg drop-shadow-lg">
+                            {option.name}
+                          </p>
+                          {background === option.type && (
+                            <div className="mt-2 inline-flex items-center gap-1 bg-primary text-primary-foreground px-3 py-1 rounded-full text-sm">
+                              <Check className="w-4 h-4" />
+                              Active
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </DialogContent>
+          </Dialog>
 
           <Dialog open={unmatchedDialog}>
             <DialogContent
@@ -1082,9 +1248,7 @@ export function ChatRoom({ roomId }: { roomId: string }) {
               <div className="flex flex-col space-y-4">
                 <DialogTitle>Really Unmatch?</DialogTitle>
                 <Card className="flex flex-1">
-                    <CardHeader>
-                      This action will end the call!
-                    </CardHeader>
+                  <CardHeader>This action will end the call!</CardHeader>
                   <CardContent>
                     <div className="flex items-center gap-2 justify-between">
                       <Button
@@ -1121,7 +1285,9 @@ export function ChatRoom({ roomId }: { roomId: string }) {
                       <div className="flex items-center gap-2">
                         <Avatar>
                           <AvatarImage src={otherUser?.image!} />
-                          <AvatarFallback>{getDisplayName(otherUserId)}</AvatarFallback>
+                          <AvatarFallback>
+                            {getDisplayName(otherUserId)}
+                          </AvatarFallback>
                         </Avatar>
                         <div>
                           <p className="font-semibold text-foreground">
@@ -1197,6 +1363,15 @@ export function ChatRoom({ roomId }: { roomId: string }) {
                         className="rounded-full size-12"
                       >
                         {isAudioEnabled ? <Mic /> : <MicOff />}
+                      </Button>
+                      <Button
+                        onClick={() => setBackgroundDialogOpen(true)}
+                        variant="outline"
+                        size="icon"
+                        className="rounded-full size-12"
+                        title="Change Background"
+                      >
+                        <Palette />
                       </Button>
                       <Button
                         onClick={softLeave}
