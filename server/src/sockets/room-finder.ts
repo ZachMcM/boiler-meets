@@ -7,6 +7,7 @@ import { db } from "../db";
 import { inArray } from "drizzle-orm";
 import { user } from "../db/schema";
 import { computeCompatibility } from "../lib/algorithm";
+import { RoomData } from "../types/webrtc";
 
 export async function addToQueue(
   userId: string,
@@ -134,7 +135,12 @@ export async function roomFinderHandler(socket: Socket) {
         await redis.hSet(
           "room",
           roomId,
-          JSON.stringify({ user1, user2, matchType, createdAt: Date.now() })
+          JSON.stringify({
+            user1,
+            user2,
+            matchType,
+            createdAt: Date.now(),
+          } as RoomData)
         );
 
         io.of("room-finder").to(user1).emit("room-found", { roomId });
