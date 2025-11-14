@@ -51,6 +51,7 @@ import { ProfileModuleCarousel } from "./ProfileModules";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
+import { AspectRatio } from "./ui/aspect-ratio";
 
 const BACKGROUND_OPTIONS = [
   {
@@ -143,6 +144,43 @@ export function ChatRoom({ roomId }: { roomId: string }) {
   const recordedAudioBlobRef = useRef<Blob | null>(null);
   const [background, setBackground] = useState<string>("default");
   const [backgroundDialogOpen, setBackgroundDialogOpen] = useState(false);
+
+  const [minigamesDialogOpen, setMinigamesDialogOpen] = useState(false);
+  const [selectedGame, setSelectedGame] = useState<string | null>(null);
+
+  function startHeadsupGame() {
+    console.log("Starting Headsup game");
+    setSelectedGame("headsup");
+    setMinigamesDialogOpen(false);
+    toast.success("Starting Headsup!");
+    // TODO: Implement game logic
+  }
+
+  function startWouldYouRather() {
+    console.log("Starting Would You Rather? game");
+    setSelectedGame("wouldyourather");
+    setMinigamesDialogOpen(false);
+    toast.success("Starting Would You Rather?");
+  }
+
+  const MINIGAME_OPTIONS = [
+    {
+      id: "headsup",
+      name: "Headsup",
+      description: "Guess the word on your forehead!",
+      image:
+        "https://irs.www.warnerbros.com/hero-banner-v2-mobile-jpeg/game/media/browser/heads_up_mobile_app_uber_4320x1080jpg.jpg",
+      startFunction: startHeadsupGame,
+    },
+    {
+      id: "would-you-rather",
+      name: "Would You Rather",
+      description: "Make tough choices together!",
+      image:
+        "https://parade.com/.image/w_1200,h_675,g_auto,c_fill/MTkwNTc1OTY1NjYyMTYwNzY0/would-you-rather-questions.jpg",
+      startFunction: startWouldYouRather,
+    },
+  ];
 
   const { data: otherUser, isPending: otherUserPending } = useQuery({
     queryKey: ["user", otherUserId],
@@ -1238,6 +1276,61 @@ export function ChatRoom({ roomId }: { roomId: string }) {
             </DialogContent>
           </Dialog>
 
+          <Dialog
+            open={minigamesDialogOpen}
+            onOpenChange={setMinigamesDialogOpen}
+          >
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>Choose a Minigame</DialogTitle>
+                <DialogDescription>
+                  Select a game to play together with your chat partner. Have
+                  fun!
+                </DialogDescription>
+              </DialogHeader>
+              <div className="grid grid-cols-2 gap-4 py-4">
+                {MINIGAME_OPTIONS.map((game) => (
+                  <button
+                    key={game.id}
+                    onClick={() => game.startFunction()}
+                    className={`relative group overflow-hidden rounded-lg border-2 transition-all hover:scale-105 ${
+                      selectedGame === game.id
+                        ? "border-primary ring-2 ring-primary ring-offset-2"
+                        : "border-muted hover:border-primary/50"
+                    }`}
+                  >
+                    <div
+                      className="aspect-video w-full"
+                      style={{
+                        backgroundImage: `url(${game.image})`,
+                        backgroundSize: "cover",
+                        backgroundPosition: "center",
+                        backgroundRepeat: "no-repeat",
+                      }}
+                    >
+                      <div className="absolute inset-0 bg-black/40 group-hover:bg-black/30 transition-colors flex items-center justify-center">
+                        <div className="text-center px-2">
+                          <p className="text-white font-semibold text-lg drop-shadow-lg">
+                            {game.name}
+                          </p>
+                          <p className="text-white/90 text-sm drop-shadow-lg mt-1">
+                            {game.description}
+                          </p>
+                          {selectedGame === game.id && (
+                            <div className="mt-2 inline-flex items-center gap-1 bg-primary text-primary-foreground px-3 py-1 rounded-full text-sm">
+                              <Check className="w-4 h-4" />
+                              Playing
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </DialogContent>
+          </Dialog>
+
           <Dialog open={unmatchedDialog}>
             <DialogContent
               className="[&>button:first-of-type]:hidden"
@@ -1396,6 +1489,13 @@ export function ChatRoom({ roomId }: { roomId: string }) {
                           isSubmitting={reportMutation.isPending}
                         />
                       </Dialog>
+                      <Button
+                        variant="outline"
+                        onClick={() => setMinigamesDialogOpen(true)}
+                        className="px-4"
+                      >
+                        Play Games
+                      </Button>
                       {passedFirstCall && !matchCompleted && (
                         <Button
                           onClick={toggleMatch}
@@ -1423,8 +1523,8 @@ export function ChatRoom({ roomId }: { roomId: string }) {
                 </Card>
               </div>
             }
-            <div className="flex-1 min-w-0 max-w-md">
-              <Card className="mb-4">
+            <div className="flex-1 min-w-0 max-w-md space-y-4">
+              <Card>
                 <CardContent>
                   <div className="text-xl">About Me</div>
                 </CardContent>
