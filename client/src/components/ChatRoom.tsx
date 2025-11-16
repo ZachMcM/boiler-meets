@@ -32,6 +32,7 @@ import {
   Check,
   Flag,
   Heart,
+  Loader,
   Mic,
   MicOff,
   Palette,
@@ -41,6 +42,7 @@ import {
   Users,
   Video,
   VideoOff,
+  X,
   XCircle,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -147,21 +149,12 @@ export function ChatRoom({ roomId }: { roomId: string }) {
 
   const [minigamesDialogOpen, setMinigamesDialogOpen] = useState(false);
   const [selectedGame, setSelectedGame] = useState<string | null>(null);
-
-  function startHeadsupGame() {
-    console.log("Starting Headsup game");
-    setSelectedGame("headsup");
-    setMinigamesDialogOpen(false);
-    toast.success("Starting Headsup!");
-    // TODO: Implement game logic
-  }
-
-  function startWouldYouRather() {
-    console.log("Starting Would You Rather? game");
-    setSelectedGame("wouldyourather");
-    setMinigamesDialogOpen(false);
-    toast.success("Starting Would You Rather?");
-  }
+  const [outgoingGameRequest, setOutgoingGameRequest] = useState<string | null>(
+    null
+  );
+  const [incomingGameRequest, setIncomingGameRequest] = useState<string | null>(
+    null
+  );
 
   const MINIGAME_OPTIONS = [
     {
@@ -170,7 +163,6 @@ export function ChatRoom({ roomId }: { roomId: string }) {
       description: "Guess the word on your forehead!",
       image:
         "https://irs.www.warnerbros.com/hero-banner-v2-mobile-jpeg/game/media/browser/heads_up_mobile_app_uber_4320x1080jpg.jpg",
-      startFunction: startHeadsupGame,
     },
     {
       id: "would-you-rather",
@@ -178,7 +170,6 @@ export function ChatRoom({ roomId }: { roomId: string }) {
       description: "Make tough choices together!",
       image:
         "https://parade.com/.image/w_1200,h_675,g_auto,c_fill/MTkwNTc1OTY1NjYyMTYwNzY0/would-you-rather-questions.jpg",
-      startFunction: startWouldYouRather,
     },
   ];
 
@@ -767,30 +758,6 @@ export function ChatRoom({ roomId }: { roomId: string }) {
           }
 
           setMatchCompleted(true);
-          // if (session?.user) {
-          //   let currentNotifications: NotificationItem[];
-          //   if (session.user.notifications) {
-          //     currentNotifications = JSON.parse(session.user.notifications) as NotificationItem[];
-          //   } else {
-          //     currentNotifications = [] as NotificationItem[];
-          //   }
-          //   const newNotification = {
-          //     timestamp: Date.now(),
-          //     type: matchType,
-          //     text: `You have matched with ${videoCallData.current.otherUser?.name}`,
-          //     title: "New Match!"
-          //   } as NotificationItem;
-          //   const updatedList = currentNotifications.concat([newNotification]);
-          //   console.log(updatedList);
-
-          //   await authClient.updateUser({
-          //     notifications: JSON.stringify(updatedList)
-          //   }, {
-          //     onError: ({ error }) => {
-          //       toast.error(error.message || "Notification Update Failed");
-          //     },
-          //   });
-          // }
           timeoutTransmissions(false);
         }
       );
@@ -843,6 +810,35 @@ export function ChatRoom({ roomId }: { roomId: string }) {
           toast.info(
             `Background changed to ${BACKGROUND_OPTIONS.find((b) => b.type === background)?.name}`
           );
+        }
+      );
+
+      videoChatSocket.on(
+        "game-request",
+        ({
+          gameId,
+          outgoingUserId,
+        }: {
+          gameId: string;
+          outgoingUserId: string;
+        }) => {
+          if (session?.user.id === outgoingUserId) {
+            setOutgoingGameRequest(gameId);
+          } else {
+            setIncomingGameRequest(gameId);
+          }
+        }
+      );
+
+      videoChatSocket.on("cancel-game-request", () => {
+        setOutgoingGameRequest(null);
+        setIncomingGameRequest(null);
+      });
+
+      videoChatSocket.on(
+        "accept-game-request",
+        ({ gameId }: { gameId: string }) => {
+          // TODO
         }
       );
 
@@ -1292,12 +1288,14 @@ export function ChatRoom({ roomId }: { roomId: string }) {
                 {MINIGAME_OPTIONS.map((game) => (
                   <button
                     key={game.id}
-                    onClick={() => game.startFunction()}
-                    className={`relative group overflow-hidden rounded-lg border-2 transition-all hover:scale-105 ${
-                      selectedGame === game.id
-                        ? "border-primary ring-2 ring-primary ring-offset-2"
-                        : "border-muted hover:border-primary/50"
-                    }`}
+                    onClick={() => {
+                      setMinigamesDialogOpen(false);
+                      socketRef.current?.emit("game-request", {
+                        gameId: game.id,
+                      });
+                      setOutgoingGameRequest(game.id);
+                    }}
+                    className="relative group overflow-hidden rounded-lg border-2 transition-all hover:scale-105"
                   >
                     <div
                       className="aspect-video w-full"
@@ -1316,12 +1314,6 @@ export function ChatRoom({ roomId }: { roomId: string }) {
                           <p className="text-white/90 text-sm drop-shadow-lg mt-1">
                             {game.description}
                           </p>
-                          {selectedGame === game.id && (
-                            <div className="mt-2 inline-flex items-center gap-1 bg-primary text-primary-foreground px-3 py-1 rounded-full text-sm">
-                              <Check className="w-4 h-4" />
-                              Playing
-                            </div>
-                          )}
                         </div>
                       </div>
                     </div>
@@ -1489,13 +1481,71 @@ export function ChatRoom({ roomId }: { roomId: string }) {
                           isSubmitting={reportMutation.isPending}
                         />
                       </Dialog>
-                      <Button
-                        variant="outline"
-                        onClick={() => setMinigamesDialogOpen(true)}
-                        className="px-4"
-                      >
-                        Play Games
-                      </Button>
+                      {incomingGameRequest && (
+                        <div className="space-y-2">
+                          <Button
+                            variant="outline"
+                            className="animate-pulse"
+                            onClick={() => {
+                              // TODO need a loading state
+                              socketRef.current?.emit("accept-game-request", {
+                                gameId: incomingGameRequest,
+                              });
+                            }}
+                          >
+                            <Check /> Accept{" "}
+                            {
+                              MINIGAME_OPTIONS.find(
+                                (mg) => mg.id == incomingGameRequest
+                              )?.name
+                            }{" "}
+                            Request
+                          </Button>
+                          <Button
+                            className="animate-pulse"
+                            variant="destructive"
+                            onClick={() => {
+                              setIncomingGameRequest(null);
+                              socketRef.current?.emit("cancel-game-request");
+                            }}
+                          >
+                            <X /> Cancel{" "}
+                            {
+                              MINIGAME_OPTIONS.find(
+                                (mg) => mg.id == incomingGameRequest
+                              )?.name
+                            }{" "}
+                            Request
+                          </Button>
+                        </div>
+                      )}
+                      {outgoingGameRequest && (
+                        <Button
+                          className="animate-pulse"
+                          variant="destructive"
+                          onClick={() => {
+                            setOutgoingGameRequest(null);
+                            socketRef.current?.emit("cancel-game-request");
+                          }}
+                        >
+                          <X /> Cancel{" "}
+                          {
+                            MINIGAME_OPTIONS.find(
+                              (mg) => mg.id == outgoingGameRequest
+                            )?.name
+                          }{" "}
+                          Request
+                        </Button>
+                      )}
+                      {!incomingGameRequest && !outgoingGameRequest && (
+                        <Button
+                          variant="outline"
+                          onClick={() => setMinigamesDialogOpen(true)}
+                          className="px-4"
+                        >
+                          Play Games
+                        </Button>
+                      )}
                       {passedFirstCall && !matchCompleted && (
                         <Button
                           onClick={toggleMatch}

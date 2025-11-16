@@ -205,25 +205,21 @@ export async function videoChatHandler(socket: Socket) {
     }
   });
 
-  socket.on(
-    "background-changed",
-    ({
-      background,
-    }: {
-      background: string;
-    }) => {
-      logger.info(`User ${userId} changed the background to ${background}`);
+  socket.on("background-changed", ({ background }: { background: string }) => {
+    logger.info(`User ${userId} changed the background to ${background}`);
+    io.of("/video-chat").to(roomId).emit("background-changed", { background });
+  });
 
-      // Notify both users with matchType
-      io.of("/video-chat")
-        .to(roomId)
-        .emit("background-changed", { background });
-      try {
-      } catch (error) {
-        logger.error("There was an error changing the background");
-      }
-    }
-  );
+  socket.on("game-request", ({ gameId }: { gameId: string }) => {
+    logger.info(`User ${userId} sent ${gameId} request`);
+    io.of("/video-chat")
+      .to(roomId)
+      .emit("game-request", { gameId, outgoingUserId: userId });
+  });
+
+  socket.on("cancel-game-request", () => {
+    io.of("/video-chat").to(roomId).emit("cancel-game-request");
+  });
 
   socket.on("user-match", async () => {
     try {
