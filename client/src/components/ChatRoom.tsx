@@ -54,6 +54,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { AspectRatio } from "./ui/aspect-ratio";
+import Headsup, { type HeadsupGameState } from "./Headsup";
 
 const BACKGROUND_OPTIONS = [
   {
@@ -149,6 +150,8 @@ export function ChatRoom({ roomId }: { roomId: string }) {
 
   const [minigamesDialogOpen, setMinigamesDialogOpen] = useState(false);
   const [selectedGame, setSelectedGame] = useState<string | null>(null);
+  // TODO Add more types here
+  const [gameState, setGameState] = useState<null | HeadsupGameState>(null);
   const [outgoingGameRequest, setOutgoingGameRequest] = useState<string | null>(
     null
   );
@@ -163,13 +166,6 @@ export function ChatRoom({ roomId }: { roomId: string }) {
       description: "Guess the word on your forehead!",
       image:
         "https://irs.www.warnerbros.com/hero-banner-v2-mobile-jpeg/game/media/browser/heads_up_mobile_app_uber_4320x1080jpg.jpg",
-    },
-    {
-      id: "would-you-rather",
-      name: "Would You Rather",
-      description: "Make tough choices together!",
-      image:
-        "https://parade.com/.image/w_1200,h_675,g_auto,c_fill/MTkwNTc1OTY1NjYyMTYwNzY0/would-you-rather-questions.jpg",
     },
   ];
 
@@ -835,10 +831,25 @@ export function ChatRoom({ roomId }: { roomId: string }) {
         setIncomingGameRequest(null);
       });
 
+      videoChatSocket.on("game-ended", () => {
+        setSelectedGame(null);
+        setGameState(null);
+        toast("Game Over!")
+      });
+
       videoChatSocket.on(
-        "accept-game-request",
-        ({ gameId }: { gameId: string }) => {
-          // TODO
+        "game-started",
+        ({
+          gameState,
+          gameId,
+        }: {
+          gameState: HeadsupGameState;
+          gameId: string;
+        }) => {
+          setIncomingGameRequest(null);
+          setOutgoingGameRequest(null);
+          setSelectedGame(gameId);
+          setGameState(gameState);
         }
       );
 
@@ -1487,7 +1498,8 @@ export function ChatRoom({ roomId }: { roomId: string }) {
                             variant="outline"
                             className="animate-pulse"
                             onClick={() => {
-                              // TODO need a loading state
+                              setSelectedGame(incomingGameRequest);
+                              setIncomingGameRequest(null);
                               socketRef.current?.emit("accept-game-request", {
                                 gameId: incomingGameRequest,
                               });
@@ -1537,13 +1549,23 @@ export function ChatRoom({ roomId }: { roomId: string }) {
                           Request
                         </Button>
                       )}
-                      {!incomingGameRequest && !outgoingGameRequest && (
+                      {!incomingGameRequest &&
+                      !outgoingGameRequest &&
+                      !selectedGame ? (
                         <Button
                           variant="outline"
                           onClick={() => setMinigamesDialogOpen(true)}
                           className="px-4"
                         >
                           Play Games
+                        </Button>
+                      ) : gameState != null && (
+                        <Button
+                          variant="outline"
+                          onClick={() => socketRef.current?.emit("game-ended")}
+                          className="px-4"
+                        >
+                          End Game
                         </Button>
                       )}
                       {passedFirstCall && !matchCompleted && (
@@ -1574,17 +1596,34 @@ export function ChatRoom({ roomId }: { roomId: string }) {
               </div>
             }
             <div className="flex-1 min-w-0 max-w-md space-y-4">
-              <Card>
-                <CardContent>
-                  <div className="text-xl">About Me</div>
-                </CardContent>
-              </Card>
-              {otherUser?.profile?.modules ? (
-                <ProfileModuleCarousel
-                  initialModules={otherUser.profile.modules}
-                />
+              {selectedGame ? (
+                selectedGame === "headsup" &&
+                (gameState == null ? (
+                  <Loader className="animate-spin" />
+                ) : (
+                  <Headsup
+                    initialGameState={gameState}
+                    roomId={roomId}
+                    socketRef={socketRef}
+                  />
+                ))
               ) : (
-                <Card className="p-4 text-center text-3xl">No profile :(</Card>
+                <>
+                  <Card>
+                    <CardContent>
+                      <div className="text-xl">About Me</div>
+                    </CardContent>
+                  </Card>
+                  {otherUser?.profile?.modules ? (
+                    <ProfileModuleCarousel
+                      initialModules={otherUser.profile.modules}
+                    />
+                  ) : (
+                    <Card className="p-4 text-center text-3xl">
+                      No profile :(
+                    </Card>
+                  )}
+                </>
               )}
             </div>
           </div>

@@ -5,7 +5,12 @@ import { WebRTCOffer, WebRTCAnswer, WebRTCIceCandidate } from "../types/webrtc";
 import { RoomManager } from "../utils/room-manager";
 import { db } from "../db";
 import { sql } from "drizzle-orm";
-import { matches } from "../db/schema";
+import { matches, user } from "../db/schema";
+import { redis } from "../redis";
+import { headsupItems } from "../data/headsupItems";
+import { HeadsupGameState } from "../types/gameState";
+
+const gameTurnTimeouts = new Map<string, NodeJS.Timeout>();
 
 export async function videoChatHandler(socket: Socket) {
   const userId = socket.handshake.auth.userId as string | undefined;
@@ -221,6 +226,56 @@ export async function videoChatHandler(socket: Socket) {
     io.of("/video-chat").to(roomId).emit("cancel-game-request");
   });
 
+  socket.on("accept-game-request", async ({ gameId }: { gameId: string }) => {
+    const randomNum = Math.random();
+    const firstTurn = randomNum < 0.5 ? userId : otherUsers[0];
+
+    if (gameId == "headsup") {
+      const itemIndex = Math.floor(Math.random() * headsupItems.length);
+
+      const expiryTime = Date.now() + 60 * 1000;
+
+      const turnTimeout = setTimeout(() => {
+        advanceHeadsupTurn(roomId, null);
+      }, 60 * 1000);
+
+      gameTurnTimeouts.set(roomId, turnTimeout);
+
+      const gameState: HeadsupGameState = {
+        turnNumber: 1,
+        currentTurn: firstTurn,
+        turnOverTime: expiryTime,
+        numCorrect: 0,
+        item: headsupItems[itemIndex],
+        previousItemIndexes: [itemIndex],
+      };
+
+      await redis.set(`game:${roomId}`, JSON.stringify(gameState), {
+        EX: 3600,
+      });
+
+      io.of("/video-chat")
+        .to(roomId)
+        .emit("game-started", { gameState, gameId });
+    }
+  });
+
+  socket.on("game-ended", async () => {
+    const timeout = gameTurnTimeouts.get(roomId);
+    if (timeout) {
+      clearTimeout(timeout);
+      gameTurnTimeouts.delete(roomId);
+    }
+
+    await redis.del(`game:${roomId}`);
+
+    io.of("/video-chat").to(roomId).emit("game-ended");
+  });
+
+  socket.on("headsup-answer", ({ answer }: { answer: string }) => {
+    advanceHeadsupTurn(roomId, answer);
+  });
+
   socket.on("user-match", async () => {
     try {
       logger.info(`User ${userId} clicked match in room ${roomId}`);
@@ -349,4 +404,78 @@ export async function videoChatHandler(socket: Socket) {
       });
     }
   });
+}
+
+async function advanceHeadsupTurn(
+  roomId: string,
+  answer: string | null
+) {
+  const gameStateStr = await redis.get(`game:${roomId}`);
+  if (!gameStateStr) {
+    logger.warn(`Game state not found for room ${roomId}, cannot advance turn`);
+    return;
+  }
+  const oldGameState = JSON.parse(gameStateStr) as HeadsupGameState;
+
+  // Get room data to determine both users
+  const roomData = await RoomManager.getRoomData(roomId);
+  if (!roomData) {
+    logger.warn(`Room data not found for room ${roomId}`);
+    return;
+  }
+
+  const { user1, user2 } = roomData;
+
+  const existingTimeout = gameTurnTimeouts.get(roomId);
+  if (existingTimeout) {
+    clearTimeout(existingTimeout);
+  }
+
+  if (oldGameState.turnNumber >= 10) {
+    io.of("/video-chat").to(roomId).emit("game-ended");
+    await redis.del(`game:${roomId}`);
+    gameTurnTimeouts.delete(roomId);
+    return;
+  }
+
+  const expiresAt = Date.now() + 60 * 1000;
+
+  const turnTimeout = setTimeout(() => {
+    advanceHeadsupTurn(roomId, null);
+  }, 60 * 1000);
+
+  gameTurnTimeouts.set(roomId, turnTimeout);
+
+  let index = Math.floor(Math.random() * headsupItems.length);
+  let attempts = 0;
+  while (oldGameState.previousItemIndexes.includes(index) && attempts < 1000) {
+    index = Math.floor(Math.random() * headsupItems.length);
+    attempts++;
+  }
+
+  // Swap turn to the other user
+  const nextTurn = oldGameState.currentTurn === user1 ? user2 : user1;
+
+  const newGameState: HeadsupGameState = {
+    currentTurn: nextTurn,
+    turnNumber: oldGameState.turnNumber + 1,
+    turnOverTime: expiresAt,
+    numCorrect:
+      answer?.toLowerCase().trim() === oldGameState.item.toLowerCase().trim()
+        ? oldGameState.numCorrect + 1
+        : oldGameState.numCorrect,
+    item: headsupItems[index],
+    previousItemIndexes: [...oldGameState.previousItemIndexes, index],
+  };
+
+  await redis.set(`game:${roomId}`, JSON.stringify(newGameState), { EX: 3600 });
+
+  io.of("/video-chat")
+    .to(roomId)
+    .emit("headsup-turn-advanced", {
+      gameState: newGameState,
+      correct:
+        answer?.toLowerCase().trim() === oldGameState.item.toLowerCase().trim(),
+      correctAnswer: oldGameState.item,
+    });
 }
