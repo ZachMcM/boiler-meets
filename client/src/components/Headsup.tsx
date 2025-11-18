@@ -1,6 +1,12 @@
 import { useEffect, useState } from "react";
 import type { Socket } from "socket.io-client";
-import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "./ui/card";
 import { authClient } from "@/lib/auth-client";
 import { useCountdown } from "@/hooks/useCountdown";
 import { Input } from "./ui/input";
@@ -66,12 +72,17 @@ export default function Headsup({
     <Card>
       <CardHeader>
         <CardTitle>Headsup!</CardTitle>
+        <CardDescription>
+          {gameState.currentTurn !== currentUserData?.user.id
+            ? `Give hints about ${gameState.item} without saying the actual word so the other player can guess!`
+            : `Based on the hints the other user is giving, try to guess the item!`}
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
           {gameState.currentTurn !== currentUserData?.user.id && (
             <p>
-              Their item is a{" "}
+              Their item is {" "}
               <span className="font-bold">{gameState.item}</span>
             </p>
           )}
@@ -112,7 +123,6 @@ export default function Headsup({
                   socketRef.current?.emit("headsup-answer", { answer });
                   setAnswer("");
                 }}
-                size="sm"
               >
                 <Check /> Submit
               </Button>
