@@ -8,7 +8,8 @@ import { sql } from "drizzle-orm";
 import { matches, user } from "../db/schema";
 import { redis } from "../redis";
 import { headsupItems } from "../data/headsupItems";
-import { HeadsupGameState } from "../types/gameState";
+import { HeadsupGameState, TicTacToeGameState } from "../types/gameState";
+import { checkWinner, checkTie } from "../utils/tictactoe";
 
 const gameTurnTimeouts = new Map<string, NodeJS.Timeout>();
 
@@ -227,8 +228,24 @@ export async function videoChatHandler(socket: Socket) {
   });
 
   socket.on("accept-game-request", async ({ gameId }: { gameId: string }) => {
+    const roomData = await RoomManager.getRoomData(roomId);
+    if (!roomData) {
+      logger.error(`Room data missing when starting game ${gameId} in ${roomId}`);
+      socket.emit("error", { message: "Unable to start game - room not found" });
+      return;
+    }
+
+    const opponentId = roomData.user1 === userId ? roomData.user2 : roomData.user1;
+    if (!opponentId) {
+      logger.error(
+        `Could not determine opponent for user ${userId} when starting game ${gameId} in room ${roomId}`
+      );
+      socket.emit("error", { message: "Unable to start game - opponent missing" });
+      return;
+    }
+
     const randomNum = Math.random();
-    const firstTurn = randomNum < 0.5 ? userId : otherUsers[0];
+    const firstTurn = randomNum < 0.5 ? userId : opponentId;
 
     if (gameId == "headsup") {
       const itemIndex = Math.floor(Math.random() * headsupItems.length);
@@ -257,6 +274,29 @@ export async function videoChatHandler(socket: Socket) {
       io.of("/video-chat")
         .to(roomId)
         .emit("game-started", { gameState, gameId });
+    } else if (gameId == "tictactoe") {
+      const randomNum = Math.random();
+      const playerX = randomNum < 0.5 ? userId : opponentId;
+      const playerO = playerX === userId ? opponentId : userId;
+
+      const gameState: TicTacToeGameState = {
+        board: Array(9).fill(null),
+        currentTurn: playerX,
+        playerX,
+        playerO,
+        winner: null,
+        turnNumber: 1,
+      };
+
+      logger.info(`Tic-tac-toe game started: room ${roomId}, playerX: ${playerX}, playerO: ${playerO}, first turn: ${playerX}`);
+
+      await redis.set(`game:${roomId}`, JSON.stringify(gameState), {
+        EX: 3600,
+      });
+
+      io.of("/video-chat")
+        .to(roomId)
+        .emit("game-started", { gameState, gameId });
     }
   });
 
@@ -274,6 +314,11 @@ export async function videoChatHandler(socket: Socket) {
 
   socket.on("headsup-answer", ({ answer }: { answer: string }) => {
     advanceHeadsupTurn(roomId, answer);
+  });
+
+  socket.on("tictactoe-move", async ({ cellIndex }: { cellIndex: number }) => {
+    logger.info(`User ${userId} attempting move at cell ${cellIndex} in room ${roomId}`);
+    processTicTacToeMove(roomId, cellIndex, userId);
   });
 
   socket.on("user-match", async () => {
@@ -478,4 +523,77 @@ async function advanceHeadsupTurn(
         answer?.toLowerCase().trim() === oldGameState.item.toLowerCase().trim(),
       correctAnswer: oldGameState.item,
     });
+}
+
+async function processTicTacToeMove(
+  roomId: string,
+  cellIndex: number,
+  userId: string
+) {
+  const gameStateStr = await redis.get(`game:${roomId}`);
+  if (!gameStateStr) {
+    logger.warn(`Game state not found for room ${roomId}, cannot process move`);
+    return;
+  }
+
+  const gameState = JSON.parse(gameStateStr) as TicTacToeGameState;
+
+  // Validate it's the player's turn
+  if (gameState.currentTurn !== userId) {
+    logger.warn(`User ${userId} tried to move but it's not their turn`);
+    return;
+  }
+
+  // Validate cell is empty
+  if (gameState.board[cellIndex] !== null) {
+    logger.warn(`User ${userId} tried to move to occupied cell ${cellIndex}`);
+    return;
+  }
+
+  // Validate cell index is valid
+  if (cellIndex < 0 || cellIndex > 8) {
+    logger.warn(`Invalid cell index ${cellIndex}`);
+    return;
+  }
+
+  // Make the move
+  const symbol = userId === gameState.playerX ? 'X' : 'O';
+  const newBoard = [...gameState.board];
+  newBoard[cellIndex] = symbol;
+
+  // Check for winner or tie
+  const winner = checkWinner(newBoard);
+  const isTie = checkTie(newBoard);
+
+  // Determine next turn (only switch if game continues)
+  const nextTurn = winner || isTie
+    ? gameState.currentTurn
+    : (userId === gameState.playerX ? gameState.playerO : gameState.playerX);
+
+  const newGameState: TicTacToeGameState = {
+    ...gameState,
+    board: newBoard,
+    currentTurn: nextTurn,
+    winner: winner === 'X' ? gameState.playerX : winner === 'O' ? gameState.playerO : (isTie ? 'tie' : null),
+    turnNumber: gameState.turnNumber + 1,
+  };
+
+  logger.info(`Tic-tac-toe move processed: room ${roomId}, user ${userId} (${symbol}), cell ${cellIndex}, next turn: ${nextTurn}, winner: ${newGameState.winner}`);
+
+  await redis.set(`game:${roomId}`, JSON.stringify(newGameState), { EX: 3600 });
+
+  io.of("/video-chat")
+    .to(roomId)
+    .emit("tictactoe-move-made", {
+      gameState: newGameState,
+      cellIndex,
+    });
+
+  // Auto-end game if there's a winner or tie
+  if (winner || isTie) {
+    setTimeout(async () => {
+      io.of("/video-chat").to(roomId).emit("game-ended");
+      await redis.del(`game:${roomId}`);
+    }, 3000); // 3 second delay to show the final state
+  }
 }

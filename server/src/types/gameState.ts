@@ -6,3 +6,12 @@ export interface HeadsupGameState {
   item: string;
   previousItemIndexes: number[],
 }
+
+export interface TicTacToeGameState {
+  board: ('X' | 'O' | null)[];
+  currentTurn: string;
+  playerX: string;
+  playerO: string;
+  winner: string | null;
+  turnNumber: number;
+}

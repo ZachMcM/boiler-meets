@@ -55,6 +55,7 @@ import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { AspectRatio } from "./ui/aspect-ratio";
 import Headsup, { type HeadsupGameState } from "./Headsup";
+import TicTacToe, { type TicTacToeGameState } from "./TicTacToe";
 
 const BACKGROUND_OPTIONS = [
   {
@@ -151,7 +152,7 @@ export function ChatRoom({ roomId }: { roomId: string }) {
   const [minigamesDialogOpen, setMinigamesDialogOpen] = useState(false);
   const [selectedGame, setSelectedGame] = useState<string | null>(null);
   // TODO Add more types here
-  const [gameState, setGameState] = useState<null | HeadsupGameState>(null);
+  const [gameState, setGameState] = useState<null | HeadsupGameState | TicTacToeGameState>(null);
   const [outgoingGameRequest, setOutgoingGameRequest] = useState<string | null>(
     null
   );
@@ -166,6 +167,13 @@ export function ChatRoom({ roomId }: { roomId: string }) {
       description: "Guess the word on your forehead!",
       image:
         "https://irs.www.warnerbros.com/hero-banner-v2-mobile-jpeg/game/media/browser/heads_up_mobile_app_uber_4320x1080jpg.jpg",
+    },
+    {
+      id: "tictactoe",
+      name: "Tic-Tac-Toe",
+      description: "Classic strategy game - get three in a row!",
+      image:
+        "https://upload.wikimedia.org/wikipedia/commons/thumb/3/32/Tic_tac_toe.svg/1200px-Tic_tac_toe.svg.png",
     },
   ];
 
@@ -843,7 +851,7 @@ export function ChatRoom({ roomId }: { roomId: string }) {
           gameState,
           gameId,
         }: {
-          gameState: HeadsupGameState;
+          gameState: HeadsupGameState | TicTacToeGameState;
           gameId: string;
         }) => {
           setIncomingGameRequest(null);
@@ -1597,16 +1605,21 @@ export function ChatRoom({ roomId }: { roomId: string }) {
             }
             <div className="flex-1 min-w-0 max-w-md space-y-4">
               {selectedGame ? (
-                selectedGame === "headsup" &&
-                (gameState == null ? (
+                gameState == null ? (
                   <Loader className="animate-spin" />
-                ) : (
+                ) : selectedGame === "headsup" ? (
                   <Headsup
-                    initialGameState={gameState}
+                    initialGameState={gameState as HeadsupGameState}
                     roomId={roomId}
                     socketRef={socketRef}
                   />
-                ))
+                ) : selectedGame === "tictactoe" ? (
+                  <TicTacToe
+                    initialGameState={gameState as TicTacToeGameState}
+                    roomId={roomId}
+                    socketRef={socketRef}
+                  />
+                ) : null
               ) : (
                 <>
                   <Card>
