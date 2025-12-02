@@ -8,7 +8,7 @@ import { sql } from "drizzle-orm";
 import { matches, user } from "../db/schema";
 import { redis } from "../redis";
 import { headsupItems } from "../data/headsupItems";
-import { HeadsupGameState, TicTacToeGameState } from "../types/gameState";
+import { HeadsupGameState, TicTacToeGameState, TwoTruthsGameState } from "../types/gameState";
 import { checkWinner, checkTie } from "../utils/tictactoe";
 
 const gameTurnTimeouts = new Map<string, NodeJS.Timeout>();
@@ -297,6 +297,37 @@ export async function videoChatHandler(socket: Socket) {
       io.of("/video-chat")
         .to(roomId)
         .emit("game-started", { gameState, gameId });
+    } else if (gameId == "twotruthslie") {
+      const randomNum = Math.random();
+      const player1 = randomNum < 0.5 ? userId : opponentId;
+      const player2 = player1 === userId ? opponentId : userId;
+
+      const gameState: TwoTruthsGameState = {
+        turnNumber: 1,
+        roundNumber: 1,
+        currentPhase: 'submitting',
+        currentTurn: player1,
+        player1,
+        player2,
+        scores: {
+          [player1]: 0,
+          [player2]: 0,
+        },
+        currentStatements: null,
+        currentLieIndex: null,
+        currentSubmitter: null,
+        roundHistory: [],
+      };
+
+      logger.info(`Two Truths game started: room ${roomId}, first turn: ${player1}`);
+
+      await redis.set(`game:${roomId}`, JSON.stringify(gameState), {
+        EX: 3600,
+      });
+
+      io.of("/video-chat")
+        .to(roomId)
+        .emit("game-started", { gameState, gameId });
     }
   });
 
@@ -319,6 +350,24 @@ export async function videoChatHandler(socket: Socket) {
   socket.on("tictactoe-move", async ({ cellIndex }: { cellIndex: number }) => {
     logger.info(`User ${userId} attempting move at cell ${cellIndex} in room ${roomId}`);
     processTicTacToeMove(roomId, cellIndex, userId);
+  });
+
+  socket.on("twotruthslie-submit-statements", async ({
+    statements,
+    lieIndex
+  }: {
+    statements: [string, string, string];
+    lieIndex: number;
+  }) => {
+    processTwoTruthsSubmission(roomId, userId, statements, lieIndex);
+  });
+
+  socket.on("twotruthslie-guess", async ({
+    guessedIndex
+  }: {
+    guessedIndex: number;
+  }) => {
+    processTwoTruthsGuess(roomId, userId, guessedIndex);
   });
 
   socket.on("user-match", async () => {
@@ -596,4 +645,181 @@ async function processTicTacToeMove(
       await redis.del(`game:${roomId}`);
     }, 3000); // 3 second delay to show the final state
   }
+}
+
+async function processTwoTruthsSubmission(
+  roomId: string,
+  userId: string,
+  statements: [string, string, string],
+  lieIndex: number
+) {
+  const gameStateStr = await redis.get(`game:${roomId}`);
+  if (!gameStateStr) {
+    logger.warn(`Game state not found for room ${roomId}`);
+    return;
+  }
+
+  const gameState = JSON.parse(gameStateStr) as TwoTruthsGameState;
+
+  // Validation
+  if (gameState.currentPhase !== 'submitting') {
+    logger.warn(`Invalid phase: ${gameState.currentPhase}`);
+    return;
+  }
+
+  if (gameState.currentTurn !== userId) {
+    logger.warn(`Not user's turn: ${userId}`);
+    return;
+  }
+
+  if (lieIndex < 0 || lieIndex > 2) {
+    logger.warn(`Invalid lieIndex: ${lieIndex}`);
+    return;
+  }
+
+  if (statements.some(s => !s || s.trim().length === 0)) {
+    logger.warn(`Empty statements submitted`);
+    return;
+  }
+
+  // Transition to guessing phase
+  const opponentId = gameState.player1 === userId ? gameState.player2 : gameState.player1;
+
+  const newGameState: TwoTruthsGameState = {
+    ...gameState,
+    currentPhase: 'guessing',
+    currentTurn: opponentId,
+    currentStatements: statements,
+    currentLieIndex: lieIndex,
+    currentSubmitter: userId,
+  };
+
+  await redis.set(`game:${roomId}`, JSON.stringify(newGameState), { EX: 3600 });
+
+  logger.info(`Statements submitted in room ${roomId}, now guessing phase`);
+
+  io.of("/video-chat")
+    .to(roomId)
+    .emit("twotruthslie-phase-changed", { gameState: newGameState });
+}
+
+async function processTwoTruthsGuess(
+  roomId: string,
+  userId: string,
+  guessedIndex: number
+) {
+  const gameStateStr = await redis.get(`game:${roomId}`);
+  if (!gameStateStr) {
+    logger.warn(`Game state not found for room ${roomId}`);
+    return;
+  }
+
+  const gameState = JSON.parse(gameStateStr) as TwoTruthsGameState;
+
+  // Validation
+  if (gameState.currentPhase !== 'guessing') {
+    logger.warn(`Invalid phase: ${gameState.currentPhase}`);
+    return;
+  }
+
+  if (gameState.currentTurn !== userId) {
+    logger.warn(`Not user's turn: ${userId}`);
+    return;
+  }
+
+  if (guessedIndex < 0 || guessedIndex > 2) {
+    logger.warn(`Invalid guessedIndex: ${guessedIndex}`);
+    return;
+  }
+
+  // Check correctness and award points
+  const correct = guessedIndex === gameState.currentLieIndex;
+  const submitterId = gameState.currentSubmitter!;
+  const guesserId = userId;
+
+  const newScores = { ...gameState.scores };
+  if (correct) {
+    newScores[guesserId] += 1;  // Guesser scores
+  } else {
+    newScores[submitterId] += 1;  // Submitter fooled them
+  }
+
+  // Record in history
+  const roundHistoryEntry = {
+    roundNumber: gameState.roundNumber,
+    submitter: submitterId,
+    statements: gameState.currentStatements!,
+    lieIndex: gameState.currentLieIndex!,
+    guesser: guesserId,
+    guessedIndex,
+    correct,
+    pointsAwarded: {
+      submitter: correct ? 0 : 1,
+      guesser: correct ? 1 : 0,
+    },
+  };
+
+  const newGameState: TwoTruthsGameState = {
+    ...gameState,
+    currentPhase: 'revealing',
+    scores: newScores,
+    roundHistory: [...gameState.roundHistory, roundHistoryEntry],
+  };
+
+  await redis.set(`game:${roomId}`, JSON.stringify(newGameState), { EX: 3600 });
+
+  logger.info(`Guess in room ${roomId}: ${correct ? 'correct' : 'incorrect'}`);
+
+  io.of("/video-chat")
+    .to(roomId)
+    .emit("twotruthslie-phase-changed", { gameState: newGameState });
+
+  // Auto-advance after 2 seconds
+  setTimeout(() => {
+    advanceTwoTruthsTurn(roomId);
+  }, 2000);
+}
+
+async function advanceTwoTruthsTurn(roomId: string) {
+  const gameStateStr = await redis.get(`game:${roomId}`);
+  if (!gameStateStr) {
+    logger.warn(`Game state not found for room ${roomId}`);
+    return;
+  }
+
+  const gameState = JSON.parse(gameStateStr) as TwoTruthsGameState;
+
+  // Check if game over
+  if (gameState.turnNumber >= 6) {
+    logger.info(`Two Truths game ended in room ${roomId}`);
+    io.of("/video-chat").to(roomId).emit("game-ended");
+    await redis.del(`game:${roomId}`);
+    return;
+  }
+
+  // Advance turn
+  const nextTurnNumber = gameState.turnNumber + 1;
+  const nextRoundNumber = Math.ceil(nextTurnNumber / 2);
+  const nextSubmitter = nextTurnNumber % 2 === 1
+    ? gameState.player1
+    : gameState.player2;
+
+  const newGameState: TwoTruthsGameState = {
+    ...gameState,
+    turnNumber: nextTurnNumber,
+    roundNumber: nextRoundNumber,
+    currentPhase: 'submitting',
+    currentTurn: nextSubmitter,
+    currentStatements: null,
+    currentLieIndex: null,
+    currentSubmitter: null,
+  };
+
+  await redis.set(`game:${roomId}`, JSON.stringify(newGameState), { EX: 3600 });
+
+  logger.info(`Two Truths turn advanced to ${nextTurnNumber} in room ${roomId}`);
+
+  io.of("/video-chat")
+    .to(roomId)
+    .emit("twotruthslie-phase-changed", { gameState: newGameState });
 }

@@ -56,6 +56,7 @@ import { Label } from "./ui/label";
 import { AspectRatio } from "./ui/aspect-ratio";
 import Headsup, { type HeadsupGameState } from "./Headsup";
 import TicTacToe, { type TicTacToeGameState } from "./TicTacToe";
+import TwoTruthsAndALie, { type TwoTruthsGameState } from "./TwoTruthsAndALie";
 
 const BACKGROUND_OPTIONS = [
   {
@@ -152,7 +153,7 @@ export function ChatRoom({ roomId }: { roomId: string }) {
   const [minigamesDialogOpen, setMinigamesDialogOpen] = useState(false);
   const [selectedGame, setSelectedGame] = useState<string | null>(null);
   // TODO Add more types here
-  const [gameState, setGameState] = useState<null | HeadsupGameState | TicTacToeGameState>(null);
+  const [gameState, setGameState] = useState<null | HeadsupGameState | TicTacToeGameState | TwoTruthsGameState>(null);
   const [outgoingGameRequest, setOutgoingGameRequest] = useState<string | null>(
     null
   );
@@ -174,6 +175,13 @@ export function ChatRoom({ roomId }: { roomId: string }) {
       description: "Classic strategy game - get three in a row!",
       image:
         "https://upload.wikimedia.org/wikipedia/commons/thumb/3/32/Tic_tac_toe.svg/1200px-Tic_tac_toe.svg.png",
+    },
+    {
+      id: "twotruthslie",
+      name: "Two Truths and a Lie",
+      description: "Guess which statement is false!",
+      image:
+        "https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=400",
     },
   ];
 
@@ -851,7 +859,7 @@ export function ChatRoom({ roomId }: { roomId: string }) {
           gameState,
           gameId,
         }: {
-          gameState: HeadsupGameState | TicTacToeGameState;
+          gameState: HeadsupGameState | TicTacToeGameState | TwoTruthsGameState;
           gameId: string;
         }) => {
           setIncomingGameRequest(null);
@@ -860,6 +868,10 @@ export function ChatRoom({ roomId }: { roomId: string }) {
           setGameState(gameState);
         }
       );
+
+      videoChatSocket.on("twotruthslie-phase-changed", ({ gameState }: { gameState: TwoTruthsGameState }) => {
+        setGameState(gameState);
+      });
 
       videoChatSocket.on("error", ({ message }) => {
         console.error("Socket error:", message);
@@ -1616,6 +1628,12 @@ export function ChatRoom({ roomId }: { roomId: string }) {
                 ) : selectedGame === "tictactoe" ? (
                   <TicTacToe
                     initialGameState={gameState as TicTacToeGameState}
+                    roomId={roomId}
+                    socketRef={socketRef}
+                  />
+                ) : selectedGame === "twotruthslie" ? (
+                  <TwoTruthsAndALie
+                    initialGameState={gameState as TwoTruthsGameState}
                     roomId={roomId}
                     socketRef={socketRef}
                   />
