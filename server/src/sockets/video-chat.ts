@@ -8,7 +8,8 @@ import { sql } from "drizzle-orm";
 import { matches, user } from "../db/schema";
 import { redis } from "../redis";
 import { headsupItems } from "../data/headsupItems";
-import { HeadsupGameState, TicTacToeGameState, TwoTruthsGameState } from "../types/gameState";
+import { purdueTrivia } from "../data/purdueTrivia";
+import { HeadsupGameState, TicTacToeGameState, TwoTruthsGameState, TriviaGameState, TriviaQuestion } from "../types/gameState";
 import { checkWinner, checkTie } from "../utils/tictactoe";
 
 const gameTurnTimeouts = new Map<string, NodeJS.Timeout>();
@@ -328,6 +329,35 @@ export async function videoChatHandler(socket: Socket) {
       io.of("/video-chat")
         .to(roomId)
         .emit("game-started", { gameState, gameId });
+    } else if (gameId == "trivia") {
+      // Select first random question
+      const firstQuestion = purdueTrivia[Math.floor(Math.random() * purdueTrivia.length)];
+      const questionStartTime = Date.now() + 15000;
+
+      const gameState: TriviaGameState = {
+        questionNumber: 1,
+        currentPhase: 'answering',
+        currentQuestion: firstQuestion,
+        questionStartTime,
+        player1: userId,
+        player2: opponentId,
+        player1Answer: null,
+        player2Answer: null,
+        teamScore: 0,
+        usedQuestionIds: [firstQuestion.id],
+        roundHistory: [],
+      };
+
+      // Set timeout for auto-advance
+      const timeout = setTimeout(() => {
+        advanceTriviaQuestion(roomId);
+      }, 15000);
+      gameTurnTimeouts.set(roomId, timeout);
+
+      await redis.set(`game:${roomId}`, JSON.stringify(gameState), { EX: 3600 });
+
+      logger.info(`Trivia game started: room ${roomId}`);
+      io.of("/video-chat").to(roomId).emit("game-started", { gameState, gameId });
     }
   });
 
@@ -368,6 +398,10 @@ export async function videoChatHandler(socket: Socket) {
     guessedIndex: number;
   }) => {
     processTwoTruthsGuess(roomId, userId, guessedIndex);
+  });
+
+  socket.on("trivia-answer", async ({ answerIndex }: { answerIndex: number }) => {
+    processTriviaAnswer(roomId, userId, answerIndex);
   });
 
   socket.on("user-match", async () => {
@@ -822,4 +856,174 @@ async function advanceTwoTruthsTurn(roomId: string) {
   io.of("/video-chat")
     .to(roomId)
     .emit("twotruthslie-phase-changed", { gameState: newGameState });
+}
+
+function getRandomTriviaQuestion(usedIds: number[]): TriviaQuestion {
+  let availableQuestions = purdueTrivia.filter(q => !usedIds.includes(q.id));
+
+  // If all used, reset and start over
+  if (availableQuestions.length === 0) {
+    availableQuestions = purdueTrivia;
+  }
+
+  const randomIndex = Math.floor(Math.random() * availableQuestions.length);
+  return availableQuestions[randomIndex];
+}
+
+async function processTriviaAnswer(
+  roomId: string,
+  userId: string,
+  answerIndex: number
+) {
+  const gameStateStr = await redis.get(`game:${roomId}`);
+  if (!gameStateStr) {
+    logger.warn(`Game state not found for room ${roomId}`);
+    return;
+  }
+
+  const gameState = JSON.parse(gameStateStr) as TriviaGameState;
+
+  // Validation
+  if (gameState.currentPhase !== 'answering') {
+    logger.warn(`Invalid phase: ${gameState.currentPhase}`);
+    return;
+  }
+
+  if (answerIndex < 0 || answerIndex >= gameState.currentQuestion.options.length) {
+    logger.warn(`Invalid answerIndex: ${answerIndex}`);
+    return;
+  }
+
+  // Check if user already answered
+  if (userId === gameState.player1 && gameState.player1Answer !== null) {
+    logger.warn(`Player 1 already answered`);
+    return;
+  }
+  if (userId === gameState.player2 && gameState.player2Answer !== null) {
+    logger.warn(`Player 2 already answered`);
+    return;
+  }
+
+  // Record answer
+  const newGameState = {
+    ...gameState,
+    ...(userId === gameState.player1
+      ? { player1Answer: answerIndex }
+      : { player2Answer: answerIndex }
+    ),
+  };
+
+  await redis.set(`game:${roomId}`, JSON.stringify(newGameState), { EX: 3600 });
+
+  logger.info(`Player ${userId} answered ${answerIndex} in room ${roomId}`);
+
+  // First player answered - advance immediately
+  clearTimeout(gameTurnTimeouts.get(roomId));
+  gameTurnTimeouts.delete(roomId);
+
+  // Small delay to allow potential simultaneous submission
+  setTimeout(() => {
+    advanceTriviaQuestion(roomId);
+  }, 200);
+}
+
+async function advanceTriviaQuestion(roomId: string) {
+  const gameStateStr = await redis.get(`game:${roomId}`);
+  if (!gameStateStr) {
+    logger.warn(`Game state not found for room ${roomId}`);
+    return;
+  }
+
+  const gameState = JSON.parse(gameStateStr) as TriviaGameState;
+
+  // If already in revealing phase, skip (prevent double-processing)
+  if (gameState.currentPhase === 'revealing') {
+    return;
+  }
+
+  // Calculate correctness
+  const p1Correct = gameState.player1Answer === gameState.currentQuestion.correctIndex;
+  const p2Correct = gameState.player2Answer === gameState.currentQuestion.correctIndex;
+  const teamScoredPoint = p1Correct || p2Correct;
+
+  // Record in history
+  const historyEntry = {
+    questionNumber: gameState.questionNumber,
+    question: gameState.currentQuestion,
+    player1Answer: gameState.player1Answer,
+    player2Answer: gameState.player2Answer,
+    correctIndex: gameState.currentQuestion.correctIndex,
+    player1Correct: p1Correct,
+    player2Correct: p2Correct,
+    teamScoredPoint,
+  };
+
+  const newTeamScore = gameState.teamScore + (teamScoredPoint ? 1 : 0);
+
+  // Transition to revealing phase
+  const revealingGameState: TriviaGameState = {
+    ...gameState,
+    currentPhase: 'revealing',
+    teamScore: newTeamScore,
+    roundHistory: [...gameState.roundHistory, historyEntry],
+  };
+
+  await redis.set(`game:${roomId}`, JSON.stringify(revealingGameState), { EX: 3600 });
+
+  logger.info(`Trivia question ${gameState.questionNumber} answered in room ${roomId}, revealing results`);
+
+  io.of("/video-chat")
+    .to(roomId)
+    .emit("trivia-question-advanced", {
+      gameState: revealingGameState,
+      result: historyEntry,
+    });
+
+  // Check if game over
+  if (gameState.questionNumber >= 10) {
+    // Auto-end after 3 seconds to show results
+    setTimeout(async () => {
+      io.of("/video-chat").to(roomId).emit("game-ended");
+      await redis.del(`game:${roomId}`);
+      logger.info(`Trivia game ended in room ${roomId}, final score: ${newTeamScore}/10`);
+    }, 3000);
+    return;
+  }
+
+  // Auto-advance to next question after 3 seconds
+  setTimeout(async () => {
+    const currentStateStr = await redis.get(`game:${roomId}`);
+    if (!currentStateStr) return;
+
+    const currentState = JSON.parse(currentStateStr) as TriviaGameState;
+
+    // Get next question
+    const nextQuestion = getRandomTriviaQuestion(currentState.usedQuestionIds);
+    const questionStartTime = Date.now() + 15000;
+
+    const nextGameState: TriviaGameState = {
+      ...currentState,
+      questionNumber: currentState.questionNumber + 1,
+      currentPhase: 'answering',
+      currentQuestion: nextQuestion,
+      questionStartTime,
+      player1Answer: null,
+      player2Answer: null,
+      usedQuestionIds: [...currentState.usedQuestionIds, nextQuestion.id],
+    };
+
+    await redis.set(`game:${roomId}`, JSON.stringify(nextGameState), { EX: 3600 });
+
+    logger.info(`Trivia question ${nextGameState.questionNumber} started in room ${roomId}`);
+
+    io.of("/video-chat")
+      .to(roomId)
+      .emit("trivia-question-started", { gameState: nextGameState });
+
+    // Set new timeout
+    const timeout = setTimeout(() => {
+      advanceTriviaQuestion(roomId);
+    }, 15000);
+    gameTurnTimeouts.set(roomId, timeout);
+  }, 3000);
 }

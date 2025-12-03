@@ -52,3 +52,35 @@ export interface TwoTruthsGameState {
     };
   }>;
 }
+
+export interface TriviaQuestion {
+  id: number;
+  question: string;
+  type: "multiple_choice" | "true_false";
+  options: string[];
+  correctIndex: number;
+  category: string;
+}
+
+export interface TriviaGameState {
+  questionNumber: number;
+  currentPhase: 'answering' | 'revealing';
+  currentQuestion: TriviaQuestion;
+  questionStartTime: number;
+  player1: string;
+  player2: string;
+  player1Answer: number | null;
+  player2Answer: number | null;
+  teamScore: number;
+  usedQuestionIds: number[];
+  roundHistory: Array<{
+    questionNumber: number;
+    question: TriviaQuestion;
+    player1Answer: number | null;
+    player2Answer: number | null;
+    correctIndex: number;
+    player1Correct: boolean;
+    player2Correct: boolean;
+    teamScoredPoint: boolean;
+  }>;
+}

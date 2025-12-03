@@ -57,6 +57,7 @@ import { AspectRatio } from "./ui/aspect-ratio";
 import Headsup, { type HeadsupGameState } from "./Headsup";
 import TicTacToe, { type TicTacToeGameState } from "./TicTacToe";
 import TwoTruthsAndALie, { type TwoTruthsGameState } from "./TwoTruthsAndALie";
+import PurdueTrivia, { type TriviaGameState } from "./PurdueTrivia";
 
 const BACKGROUND_OPTIONS = [
   {
@@ -153,7 +154,13 @@ export function ChatRoom({ roomId }: { roomId: string }) {
   const [minigamesDialogOpen, setMinigamesDialogOpen] = useState(false);
   const [selectedGame, setSelectedGame] = useState<string | null>(null);
   // TODO Add more types here
-  const [gameState, setGameState] = useState<null | HeadsupGameState | TicTacToeGameState | TwoTruthsGameState>(null);
+  const [gameState, setGameState] = useState<
+    | null
+    | HeadsupGameState
+    | TicTacToeGameState
+    | TwoTruthsGameState
+    | TriviaGameState
+  >(null);
   const [outgoingGameRequest, setOutgoingGameRequest] = useState<string | null>(
     null
   );
@@ -182,6 +189,13 @@ export function ChatRoom({ roomId }: { roomId: string }) {
       description: "Guess which statement is false!",
       image:
         "https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=400",
+    },
+    {
+      id: "trivia",
+      name: "Purdue Trivia",
+      description: "Test your Boilermaker knowledge!",
+      image:
+        "https://images.unsplash.com/photo-1606326608606-aa0b62935f2b?w=400",
     },
   ];
 
@@ -850,7 +864,7 @@ export function ChatRoom({ roomId }: { roomId: string }) {
       videoChatSocket.on("game-ended", () => {
         setSelectedGame(null);
         setGameState(null);
-        toast("Game Over!")
+        toast("Game Over!");
       });
 
       videoChatSocket.on(
@@ -859,7 +873,11 @@ export function ChatRoom({ roomId }: { roomId: string }) {
           gameState,
           gameId,
         }: {
-          gameState: HeadsupGameState | TicTacToeGameState | TwoTruthsGameState;
+          gameState:
+            | HeadsupGameState
+            | TicTacToeGameState
+            | TwoTruthsGameState
+            | TriviaGameState;
           gameId: string;
         }) => {
           setIncomingGameRequest(null);
@@ -869,9 +887,26 @@ export function ChatRoom({ roomId }: { roomId: string }) {
         }
       );
 
-      videoChatSocket.on("twotruthslie-phase-changed", ({ gameState }: { gameState: TwoTruthsGameState }) => {
-        setGameState(gameState);
-      });
+      videoChatSocket.on(
+        "twotruthslie-phase-changed",
+        ({ gameState }: { gameState: TwoTruthsGameState }) => {
+          setGameState(gameState);
+        }
+      );
+
+      videoChatSocket.on(
+        "trivia-question-advanced",
+        ({ gameState }: { gameState: TriviaGameState }) => {
+          setGameState(gameState);
+        }
+      );
+
+      videoChatSocket.on(
+        "trivia-question-started",
+        ({ gameState }: { gameState: TriviaGameState }) => {
+          setGameState(gameState);
+        }
+      );
 
       videoChatSocket.on("error", ({ message }) => {
         console.error("Socket error:", message);
@@ -1158,7 +1193,7 @@ export function ChatRoom({ roomId }: { roomId: string }) {
                 <DialogTitle>End of Call!</DialogTitle>
                 <Card className="max-w-3xl flex flex-1">
                   {otherUser && !otherUserPending ? (
-                    <CardHeader>
+                    <CardHeader className="flex justify-between items-center">
                       <div className="flex items-center gap-2">
                         <Avatar>
                           <AvatarImage src={otherUser?.image!} />
@@ -1176,6 +1211,21 @@ export function ChatRoom({ roomId }: { roomId: string }) {
                           </p>
                         </div>
                       </div>
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button variant="destructive">
+                            <Flag />
+                            Report
+                          </Button>
+                        </DialogTrigger>
+                        <ReportDialogContent
+                          details={reportDetails}
+                          setDetails={setReportDetails}
+                          onSubmit={onReportSubmit}
+                          otherUser={otherUser!}
+                          isSubmitting={reportMutation.isPending}
+                        />
+                      </Dialog>
                     </CardHeader>
                   ) : (
                     <CardHeader>
@@ -1497,23 +1547,8 @@ export function ChatRoom({ roomId }: { roomId: string }) {
                       >
                         <Phone />
                       </Button>
-                      <Dialog>
-                        <DialogTrigger asChild>
-                          <Button variant="destructive">
-                            <Flag />
-                            Report
-                          </Button>
-                        </DialogTrigger>
-                        <ReportDialogContent
-                          details={reportDetails}
-                          setDetails={setReportDetails}
-                          onSubmit={onReportSubmit}
-                          otherUser={otherUser!}
-                          isSubmitting={reportMutation.isPending}
-                        />
-                      </Dialog>
                       {incomingGameRequest && (
-                        <div className="space-y-2">
+                        <div className="flex flex-col space-y-2">
                           <Button
                             variant="outline"
                             className="animate-pulse"
@@ -1579,14 +1614,18 @@ export function ChatRoom({ roomId }: { roomId: string }) {
                         >
                           Play Games
                         </Button>
-                      ) : gameState != null && (
-                        <Button
-                          variant="outline"
-                          onClick={() => socketRef.current?.emit("game-ended")}
-                          className="px-4"
-                        >
-                          End Game
-                        </Button>
+                      ) : (
+                        gameState != null && (
+                          <Button
+                            variant="outline"
+                            onClick={() =>
+                              socketRef.current?.emit("game-ended")
+                            }
+                            className="px-4"
+                          >
+                            End Game
+                          </Button>
+                        )
                       )}
                       {passedFirstCall && !matchCompleted && (
                         <Button
@@ -1634,6 +1673,12 @@ export function ChatRoom({ roomId }: { roomId: string }) {
                 ) : selectedGame === "twotruthslie" ? (
                   <TwoTruthsAndALie
                     initialGameState={gameState as TwoTruthsGameState}
+                    roomId={roomId}
+                    socketRef={socketRef}
+                  />
+                ) : selectedGame === "trivia" ? (
+                  <PurdueTrivia
+                    initialGameState={gameState as TriviaGameState}
                     roomId={roomId}
                     socketRef={socketRef}
                   />
