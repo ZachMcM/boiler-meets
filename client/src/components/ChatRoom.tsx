@@ -32,6 +32,7 @@ import {
   Check,
   Flag,
   Heart,
+  Loader,
   Mic,
   MicOff,
   Palette,
@@ -41,6 +42,7 @@ import {
   Users,
   Video,
   VideoOff,
+  X,
   XCircle,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -51,6 +53,11 @@ import { ProfileModuleCarousel } from "./ProfileModules";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
+import { AspectRatio } from "./ui/aspect-ratio";
+import Headsup, { type HeadsupGameState } from "./Headsup";
+import TicTacToe, { type TicTacToeGameState } from "./TicTacToe";
+import TwoTruthsAndALie, { type TwoTruthsGameState } from "./TwoTruthsAndALie";
+import PurdueTrivia, { type TriviaGameState } from "./PurdueTrivia";
 
 const BACKGROUND_OPTIONS = [
   {
@@ -143,6 +150,54 @@ export function ChatRoom({ roomId }: { roomId: string }) {
   const recordedAudioBlobRef = useRef<Blob | null>(null);
   const [background, setBackground] = useState<string>("default");
   const [backgroundDialogOpen, setBackgroundDialogOpen] = useState(false);
+
+  const [minigamesDialogOpen, setMinigamesDialogOpen] = useState(false);
+  const [selectedGame, setSelectedGame] = useState<string | null>(null);
+  // TODO Add more types here
+  const [gameState, setGameState] = useState<
+    | null
+    | HeadsupGameState
+    | TicTacToeGameState
+    | TwoTruthsGameState
+    | TriviaGameState
+  >(null);
+  const [outgoingGameRequest, setOutgoingGameRequest] = useState<string | null>(
+    null
+  );
+  const [incomingGameRequest, setIncomingGameRequest] = useState<string | null>(
+    null
+  );
+
+  const MINIGAME_OPTIONS = [
+    {
+      id: "headsup",
+      name: "Headsup",
+      description: "Guess the word on your forehead!",
+      image:
+        "https://irs.www.warnerbros.com/hero-banner-v2-mobile-jpeg/game/media/browser/heads_up_mobile_app_uber_4320x1080jpg.jpg",
+    },
+    {
+      id: "tictactoe",
+      name: "Tic-Tac-Toe",
+      description: "Classic strategy game - get three in a row!",
+      image:
+        "https://upload.wikimedia.org/wikipedia/commons/thumb/3/32/Tic_tac_toe.svg/1200px-Tic_tac_toe.svg.png",
+    },
+    {
+      id: "twotruthslie",
+      name: "Two Truths and a Lie",
+      description: "Guess which statement is false!",
+      image:
+        "https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=400",
+    },
+    {
+      id: "trivia",
+      name: "Purdue Trivia",
+      description: "Test your Boilermaker knowledge!",
+      image:
+        "https://images.unsplash.com/photo-1606326608606-aa0b62935f2b?w=400",
+    },
+  ];
 
   const { data: otherUser, isPending: otherUserPending } = useQuery({
     queryKey: ["user", otherUserId],
@@ -729,30 +784,6 @@ export function ChatRoom({ roomId }: { roomId: string }) {
           }
 
           setMatchCompleted(true);
-          // if (session?.user) {
-          //   let currentNotifications: NotificationItem[];
-          //   if (session.user.notifications) {
-          //     currentNotifications = JSON.parse(session.user.notifications) as NotificationItem[];
-          //   } else {
-          //     currentNotifications = [] as NotificationItem[];
-          //   }
-          //   const newNotification = {
-          //     timestamp: Date.now(),
-          //     type: matchType,
-          //     text: `You have matched with ${videoCallData.current.otherUser?.name}`,
-          //     title: "New Match!"
-          //   } as NotificationItem;
-          //   const updatedList = currentNotifications.concat([newNotification]);
-          //   console.log(updatedList);
-
-          //   await authClient.updateUser({
-          //     notifications: JSON.stringify(updatedList)
-          //   }, {
-          //     onError: ({ error }) => {
-          //       toast.error(error.message || "Notification Update Failed");
-          //     },
-          //   });
-          // }
           timeoutTransmissions(false);
         }
       );
@@ -805,6 +836,75 @@ export function ChatRoom({ roomId }: { roomId: string }) {
           toast.info(
             `Background changed to ${BACKGROUND_OPTIONS.find((b) => b.type === background)?.name}`
           );
+        }
+      );
+
+      videoChatSocket.on(
+        "game-request",
+        ({
+          gameId,
+          outgoingUserId,
+        }: {
+          gameId: string;
+          outgoingUserId: string;
+        }) => {
+          if (session?.user.id === outgoingUserId) {
+            setOutgoingGameRequest(gameId);
+          } else {
+            setIncomingGameRequest(gameId);
+          }
+        }
+      );
+
+      videoChatSocket.on("cancel-game-request", () => {
+        setOutgoingGameRequest(null);
+        setIncomingGameRequest(null);
+      });
+
+      videoChatSocket.on("game-ended", () => {
+        setSelectedGame(null);
+        setGameState(null);
+        toast("Game Over!");
+      });
+
+      videoChatSocket.on(
+        "game-started",
+        ({
+          gameState,
+          gameId,
+        }: {
+          gameState:
+            | HeadsupGameState
+            | TicTacToeGameState
+            | TwoTruthsGameState
+            | TriviaGameState;
+          gameId: string;
+        }) => {
+          setIncomingGameRequest(null);
+          setOutgoingGameRequest(null);
+          setSelectedGame(gameId);
+          setGameState(gameState);
+        }
+      );
+
+      videoChatSocket.on(
+        "twotruthslie-phase-changed",
+        ({ gameState }: { gameState: TwoTruthsGameState }) => {
+          setGameState(gameState);
+        }
+      );
+
+      videoChatSocket.on(
+        "trivia-question-advanced",
+        ({ gameState }: { gameState: TriviaGameState }) => {
+          setGameState(gameState);
+        }
+      );
+
+      videoChatSocket.on(
+        "trivia-question-started",
+        ({ gameState }: { gameState: TriviaGameState }) => {
+          setGameState(gameState);
         }
       );
 
@@ -1093,7 +1193,7 @@ export function ChatRoom({ roomId }: { roomId: string }) {
                 <DialogTitle>End of Call!</DialogTitle>
                 <Card className="max-w-3xl flex flex-1">
                   {otherUser && !otherUserPending ? (
-                    <CardHeader>
+                    <CardHeader className="flex justify-between items-center">
                       <div className="flex items-center gap-2">
                         <Avatar>
                           <AvatarImage src={otherUser?.image!} />
@@ -1111,6 +1211,21 @@ export function ChatRoom({ roomId }: { roomId: string }) {
                           </p>
                         </div>
                       </div>
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button variant="destructive">
+                            <Flag />
+                            Report
+                          </Button>
+                        </DialogTrigger>
+                        <ReportDialogContent
+                          details={reportDetails}
+                          setDetails={setReportDetails}
+                          onSubmit={onReportSubmit}
+                          otherUser={otherUser!}
+                          isSubmitting={reportMutation.isPending}
+                        />
+                      </Dialog>
                     </CardHeader>
                   ) : (
                     <CardHeader>
@@ -1229,6 +1344,57 @@ export function ChatRoom({ roomId }: { roomId: string }) {
                               Active
                             </div>
                           )}
+                        </div>
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog
+            open={minigamesDialogOpen}
+            onOpenChange={setMinigamesDialogOpen}
+          >
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>Choose a Minigame</DialogTitle>
+                <DialogDescription>
+                  Select a game to play together with your chat partner. Have
+                  fun!
+                </DialogDescription>
+              </DialogHeader>
+              <div className="grid grid-cols-2 gap-4 py-4">
+                {MINIGAME_OPTIONS.map((game) => (
+                  <button
+                    key={game.id}
+                    onClick={() => {
+                      setMinigamesDialogOpen(false);
+                      socketRef.current?.emit("game-request", {
+                        gameId: game.id,
+                      });
+                      setOutgoingGameRequest(game.id);
+                    }}
+                    className="relative group overflow-hidden rounded-lg border-2 transition-all hover:scale-105"
+                  >
+                    <div
+                      className="aspect-video w-full"
+                      style={{
+                        backgroundImage: `url(${game.image})`,
+                        backgroundSize: "cover",
+                        backgroundPosition: "center",
+                        backgroundRepeat: "no-repeat",
+                      }}
+                    >
+                      <div className="absolute inset-0 bg-black/40 group-hover:bg-black/30 transition-colors flex items-center justify-center">
+                        <div className="text-center px-2">
+                          <p className="text-white font-semibold text-lg drop-shadow-lg">
+                            {game.name}
+                          </p>
+                          <p className="text-white/90 text-sm drop-shadow-lg mt-1">
+                            {game.description}
+                          </p>
                         </div>
                       </div>
                     </div>
@@ -1381,21 +1547,86 @@ export function ChatRoom({ roomId }: { roomId: string }) {
                       >
                         <Phone />
                       </Button>
-                      <Dialog>
-                        <DialogTrigger asChild>
-                          <Button variant="destructive">
-                            <Flag />
-                            Report
+                      {incomingGameRequest && (
+                        <div className="flex flex-col space-y-2">
+                          <Button
+                            variant="outline"
+                            className="animate-pulse"
+                            onClick={() => {
+                              setSelectedGame(incomingGameRequest);
+                              setIncomingGameRequest(null);
+                              socketRef.current?.emit("accept-game-request", {
+                                gameId: incomingGameRequest,
+                              });
+                            }}
+                          >
+                            <Check /> Accept{" "}
+                            {
+                              MINIGAME_OPTIONS.find(
+                                (mg) => mg.id == incomingGameRequest
+                              )?.name
+                            }{" "}
+                            Request
                           </Button>
-                        </DialogTrigger>
-                        <ReportDialogContent
-                          details={reportDetails}
-                          setDetails={setReportDetails}
-                          onSubmit={onReportSubmit}
-                          otherUser={otherUser!}
-                          isSubmitting={reportMutation.isPending}
-                        />
-                      </Dialog>
+                          <Button
+                            className="animate-pulse"
+                            variant="destructive"
+                            onClick={() => {
+                              setIncomingGameRequest(null);
+                              socketRef.current?.emit("cancel-game-request");
+                            }}
+                          >
+                            <X /> Cancel{" "}
+                            {
+                              MINIGAME_OPTIONS.find(
+                                (mg) => mg.id == incomingGameRequest
+                              )?.name
+                            }{" "}
+                            Request
+                          </Button>
+                        </div>
+                      )}
+                      {outgoingGameRequest && (
+                        <Button
+                          className="animate-pulse"
+                          variant="destructive"
+                          onClick={() => {
+                            setOutgoingGameRequest(null);
+                            socketRef.current?.emit("cancel-game-request");
+                          }}
+                        >
+                          <X /> Cancel{" "}
+                          {
+                            MINIGAME_OPTIONS.find(
+                              (mg) => mg.id == outgoingGameRequest
+                            )?.name
+                          }{" "}
+                          Request
+                        </Button>
+                      )}
+                      {!incomingGameRequest &&
+                      !outgoingGameRequest &&
+                      !selectedGame ? (
+                        <Button
+                          variant="outline"
+                          onClick={() => setMinigamesDialogOpen(true)}
+                          className="px-4"
+                        >
+                          Play Games
+                        </Button>
+                      ) : (
+                        gameState != null && (
+                          <Button
+                            variant="outline"
+                            onClick={() =>
+                              socketRef.current?.emit("game-ended")
+                            }
+                            className="px-4"
+                          >
+                            End Game
+                          </Button>
+                        )
+                      )}
                       {passedFirstCall && !matchCompleted && (
                         <Button
                           onClick={toggleMatch}
@@ -1423,18 +1654,52 @@ export function ChatRoom({ roomId }: { roomId: string }) {
                 </Card>
               </div>
             }
-            <div className="flex-1 min-w-0 max-w-md">
-              <Card className="mb-4">
-                <CardContent>
-                  <div className="text-xl">About Me</div>
-                </CardContent>
-              </Card>
-              {otherUser?.profile?.modules ? (
-                <ProfileModuleCarousel
-                  initialModules={otherUser.profile.modules}
-                />
+            <div className="flex-1 min-w-0 max-w-md space-y-4">
+              {selectedGame ? (
+                gameState == null ? (
+                  <Loader className="animate-spin" />
+                ) : selectedGame === "headsup" ? (
+                  <Headsup
+                    initialGameState={gameState as HeadsupGameState}
+                    roomId={roomId}
+                    socketRef={socketRef}
+                  />
+                ) : selectedGame === "tictactoe" ? (
+                  <TicTacToe
+                    initialGameState={gameState as TicTacToeGameState}
+                    roomId={roomId}
+                    socketRef={socketRef}
+                  />
+                ) : selectedGame === "twotruthslie" ? (
+                  <TwoTruthsAndALie
+                    initialGameState={gameState as TwoTruthsGameState}
+                    roomId={roomId}
+                    socketRef={socketRef}
+                  />
+                ) : selectedGame === "trivia" ? (
+                  <PurdueTrivia
+                    initialGameState={gameState as TriviaGameState}
+                    roomId={roomId}
+                    socketRef={socketRef}
+                  />
+                ) : null
               ) : (
-                <Card className="p-4 text-center text-3xl">No profile :(</Card>
+                <>
+                  <Card>
+                    <CardContent>
+                      <div className="text-xl">About Me</div>
+                    </CardContent>
+                  </Card>
+                  {otherUser?.profile?.modules ? (
+                    <ProfileModuleCarousel
+                      initialModules={otherUser.profile.modules}
+                    />
+                  ) : (
+                    <Card className="p-4 text-center text-3xl">
+                      No profile :(
+                    </Card>
+                  )}
+                </>
               )}
             </div>
           </div>
