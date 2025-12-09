@@ -7,14 +7,34 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
+import { FontSelector } from './FontSelector';
+import { cn } from '@/lib/utils';
 
 interface MessageInputProps {
-  onSendMessage: (content: string) => void;
+  onSendMessage: (content: string, font?: string) => void;
   onStartTyping?: () => void;
   onStopTyping?: () => void;
   placeholder?: string;
   maxLength?: number;
 }
+
+const fontClassMap: Record<string, string> = {
+  // Professional
+  sans: 'font-sans',
+  serif: 'font-serif',
+  mono: 'font-mono',
+  'font-georgia': 'font-georgia',
+  'font-retro': 'font-retro',
+  
+  // Fun & Wacky
+  'font-comic': 'font-comic',
+  'font-papyrus': 'font-papyrus',
+  'font-impact': 'font-impact',
+  'font-wingdings': 'font-wingdings',
+  'font-chalk': 'font-chalk',
+  'font-algerian': 'font-algerian',
+  'font-bradley': 'font-bradley',
+};
 
 const EMOJIS = [
   '😀', '😃', '😄', '😁', '😆', '😅', '😂', '🤣', '😊', '😇',
@@ -38,12 +58,13 @@ export function MessageInput({
   maxLength = 500
 }: MessageInputProps) {
   const [message, setMessage] = useState('');
+  const [selectedFont, setSelectedFont] = useState('sans');
   const [isEmojiOpen, setIsEmojiOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const handleSend = () => {
     if (message.trim()) {
-      onSendMessage(message.trim());
+      onSendMessage(message.trim(), selectedFont);
       setMessage('');
       onStopTyping?.();
     }
@@ -117,9 +138,10 @@ export function MessageInput({
           onChange={handleChange}
           onKeyPress={handleKeyPress}
           placeholder={placeholder}
-          className="flex-1"
+          className={cn("flex-1", (fontClassMap[selectedFont || 'sans'] || 'font-sans'))}
           maxLength={maxLength}
         />
+        <FontSelector value={selectedFont} onValueChange={setSelectedFont} />
         <Button
           onClick={handleSend}
           disabled={!message.trim()}

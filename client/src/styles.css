@@ -4,6 +4,28 @@
 
 @custom-variant dark (&:is(.dark *));
 
+@theme {
+  /* Serious Fonts */
+  --font-georgia: 'Georgia', "sans-serif";
+
+  /* Silly fonts */
+  --font-comic: 'Comic Sans MS', "sans-serif";
+  --font-papyrus: 'Papyrus', "cursive";
+
+  --font-impact: 'Impact', "sans-serif";
+  --font-wingdings: 'Wingdings', "symbol";
+  --font-retro: 'Retro', "monospace";
+  --font-chalk: "Segoe Print", "cursive";
+  --font-algerian: "Algerian", 'sans-serif';
+  --font-bradley: "Bradley Hand ITC", 'sans-serif';
+/*
+  --font-bradley: "Bradley Hand ITC", 'sans-serif';
+*/
+}
+
+/* System Font Fallbacks - These use fonts already installed on user's system */
+/* No need for @font-face declarations for system fonts */
+
 body {
   @apply m-0;
   font-family:

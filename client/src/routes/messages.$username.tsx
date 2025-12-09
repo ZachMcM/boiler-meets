@@ -73,8 +73,8 @@ function MessagesComponent() {
     otherUserId: otherUser?.id || '',
   });
 
-  const handleSendMessage = (content: string) => {
-    sendMessage(content);
+  const handleSendMessage = (content: string, font?: string) => {
+    sendMessage(content, font);
     stopTyping();
   };
 

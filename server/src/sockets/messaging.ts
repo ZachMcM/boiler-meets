@@ -7,6 +7,7 @@ import { eq, and } from "drizzle-orm";
 interface MessageData {
   receiverId: string;
   content: string;
+  font?: string;
 }
 
 interface TypingData {
@@ -37,7 +38,7 @@ export function messagingHandler(socket: Socket) {
   // Handle sending a message
   socket.on("send-message", async (data: MessageData) => {
     try {
-      const { receiverId, content } = data;
+      const { receiverId, content, font } = data;
 
       if (!receiverId || !content) {
         socket.emit("error", { message: "Missing receiverId or content" });
@@ -62,6 +63,7 @@ export function messagingHandler(socket: Socket) {
           senderId: userId,
           receiverId,
           content: content.trim(),
+          font: font,
         })
         .returning();
 
@@ -73,6 +75,7 @@ export function messagingHandler(socket: Socket) {
         senderId: savedMessage.senderId,
         receiverId: savedMessage.receiverId,
         content: savedMessage.content,
+        font: savedMessage.font,
         isRead: savedMessage.isRead,
         timestamp: savedMessage.createdAt,
       });
@@ -83,6 +86,7 @@ export function messagingHandler(socket: Socket) {
         senderId: savedMessage.senderId,
         receiverId: savedMessage.receiverId,
         content: savedMessage.content,
+        font: savedMessage.font,
         isRead: savedMessage.isRead,
         timestamp: savedMessage.createdAt,
       });

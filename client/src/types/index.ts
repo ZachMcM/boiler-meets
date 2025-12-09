@@ -15,6 +15,7 @@ export interface Message {
   content: string;
   senderId: string;
   receiverId: string;
+  font?: string;
   timestamp: Date;
   isRead: boolean;
 }

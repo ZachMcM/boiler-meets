@@ -1,0 +1,1 @@
+ALTER TABLE "messages" ADD COLUMN "font" text DEFAULT 'sans' NOT NULL;

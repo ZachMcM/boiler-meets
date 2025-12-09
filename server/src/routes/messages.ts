@@ -51,6 +51,7 @@ messagesRoute.get("/messages/:otherUserId", authMiddleware, async (req, res) => 
         senderId: messages.senderId,
         receiverId: messages.receiverId,
         content: messages.content,
+        font: messages.font,
         isRead: messages.isRead,
         createdAt: messages.createdAt,
       })
@@ -92,7 +93,7 @@ messagesRoute.get("/messages/:otherUserId", authMiddleware, async (req, res) => 
 messagesRoute.post("/messages", authMiddleware, async (req, res) => {
   try {
     const senderId = res.locals.userId;
-    const { receiverId, content } = req.body;
+    const { receiverId, content, font } = req.body;
 
     if (!senderId) {
       return res.status(401).json({ error: "unauthorized" });
@@ -118,6 +119,7 @@ messagesRoute.post("/messages", authMiddleware, async (req, res) => {
         senderId,
         receiverId,
         content: content.trim(),
+        font: font,
       })
       .returning();
 
@@ -217,6 +219,7 @@ messagesRoute.get("/messages/match/:username", authMiddleware, async (req, res) 
         senderId: messages.senderId,
         receiverId: messages.receiverId,
         content: messages.content,
+        font: messages.font,
         isRead: messages.isRead,
         createdAt: messages.createdAt,
       })

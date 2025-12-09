@@ -11,7 +11,7 @@ interface UseMessagingReturn {
   messages: Message[];
   isConnected: boolean;
   isTyping: boolean;
-  sendMessage: (content: string) => void;
+  sendMessage: (content: string, font?: string) => void;
   startTyping: () => void;
   stopTyping: () => void;
   markAsRead: () => void;
@@ -57,6 +57,7 @@ export function useMessaging({ userId, otherUserId }: UseMessagingProps): UseMes
           content: message.content,
           senderId: message.senderId,
           receiverId: message.receiverId,
+          font: message.font || 'sans',
           timestamp: new Date(message.timestamp),
           isRead: message.isRead,
         },
@@ -72,6 +73,7 @@ export function useMessaging({ userId, otherUserId }: UseMessagingProps): UseMes
           content: message.content,
           senderId: message.senderId,
           receiverId: message.receiverId,
+          font: message.font || 'sans',
           timestamp: new Date(message.timestamp),
           isRead: message.isRead,
         },
@@ -148,6 +150,7 @@ export function useMessaging({ userId, otherUserId }: UseMessagingProps): UseMes
             content: msg.content,
             senderId: msg.senderId,
             receiverId: msg.receiverId,
+            font: msg.font || 'sans',
             timestamp: new Date(msg.createdAt),
             isRead: msg.isRead,
           }))
@@ -161,12 +164,13 @@ export function useMessaging({ userId, otherUserId }: UseMessagingProps): UseMes
   }, [userId, otherUserId]);
 
   const sendMessage = useCallback(
-    (content: string) => {
+    (content: string, font?: string) => {
       if (!socketRef.current || !content.trim()) return;
 
       socketRef.current.emit('send-message', {
         receiverId: otherUserId,
         content: content.trim(),
+        font: font || 'sans',
       });
     },
     [otherUserId]
