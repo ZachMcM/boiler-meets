@@ -31,6 +31,7 @@ import { useRouter } from "@tanstack/react-router";
 import {
   Check,
   Flag,
+  Headphones,
   Heart,
   Loader,
   Mic,
@@ -148,8 +149,23 @@ export function ChatRoom({ roomId }: { roomId: string }) {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const recordedAudioBlobRef = useRef<Blob | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const gainNodeRef = useRef<GainNode | null>(null);
   const [background, setBackground] = useState<string>("default");
   const [backgroundDialogOpen, setBackgroundDialogOpen] = useState(false);
+
+  // These states are related to changing microphone sensitivity and volume
+  const [audioSettingsOpen, setAudioSettingsOpen] = useState(false);
+  const [audioSettingsType, setAudioSettingsType] = useState<'mic' | 'volume'>('mic');
+  const [micSensitivity, setMicSensitivity] = useState(() => {
+    const stored = localStorage.getItem('boilermeets_mic_sensitivity');
+    return stored ? Number(stored) : 1.5;
+  });
+  const [outputVolume, setOutputVolume] = useState(() => {
+    const stored = localStorage.getItem('boilermeets_output_volume');
+    return stored ? Number(stored) : 1;
+  });
 
   const [minigamesDialogOpen, setMinigamesDialogOpen] = useState(false);
   const [selectedGame, setSelectedGame] = useState<string | null>(null);
@@ -339,6 +355,21 @@ export function ChatRoom({ roomId }: { roomId: string }) {
     }
   }, [localStream, remoteStream]);
 
+  // These use effects apply the volume and microphone sensitivity changes
+  useEffect(() => {
+    localStorage.setItem('boilermeets_mic_sensitivity', micSensitivity.toString());
+    if (gainNodeRef.current) {
+      gainNodeRef.current.gain.value = micSensitivity;
+    }
+  }, [micSensitivity]);
+
+  useEffect(() => {
+    localStorage.setItem('boilermeets_output_volume', outputVolume.toString());
+    if (remoteVideoRef.current) {
+      remoteVideoRef.current.volume = outputVolume;
+    }
+  }, [outputVolume]);
+
   const toggleVideo = () => {
     if (localStreamRef.current) {
       const videoTrack = localStreamRef.current.getVideoTracks()[0];
@@ -465,15 +496,46 @@ export function ChatRoom({ roomId }: { roomId: string }) {
     }
   };
 
+  // Check the test page for how this is implemented
+  const setupAudioAnalyzer = (stream: MediaStream) => {
+    const audioContext = new AudioContext();
+    const analyser = audioContext.createAnalyser();
+    const microphone = audioContext.createMediaStreamSource(stream);
+    const gainNode = audioContext.createGain();
+    const destination = audioContext.createMediaStreamDestination();
+
+    analyser.fftSize = 256;
+    microphone.connect(gainNode);
+    gainNode.connect(analyser);
+    gainNode.connect(destination);
+
+    audioContextRef.current = audioContext;
+    analyserRef.current = analyser;
+    gainNodeRef.current = gainNode;
+
+    gainNode.gain.value = micSensitivity;
+
+    const processedStream = new MediaStream([
+      ...stream.getVideoTracks(),
+      ...destination.stream.getAudioTracks(),
+    ]);
+
+    return processedStream;
+  }
+
   const initializeWebRTC = async () => {
     try {
       setConnectionStatus("Getting camera and microphone...");
 
       // Get user media
-      const stream = await navigator.mediaDevices.getUserMedia({
+      const unprocessedStream = await navigator.mediaDevices.getUserMedia({
         video: true,
         audio: true,
       });
+
+      // This is here because we have to apply audio changes beforehand
+      const stream = setupAudioAnalyzer(unprocessedStream);
+
       console.log("STREAM", stream);
       setLocalStream(stream);
       localStreamRef.current = stream;
@@ -1029,6 +1091,13 @@ export function ChatRoom({ roomId }: { roomId: string }) {
       }
     }
 
+    if (audioContextRef.current) {
+      audioContextRef.current.close();
+      audioContextRef.current = null;
+    }
+    analyserRef.current = null;
+    gainNodeRef.current = null;
+
     if (localStreamRef.current) {
       localStreamRef.current.getTracks().forEach((track) => track.stop());
       localStreamRef.current = null;
@@ -1404,6 +1473,61 @@ export function ChatRoom({ roomId }: { roomId: string }) {
             </DialogContent>
           </Dialog>
 
+          <Dialog open={audioSettingsOpen} onOpenChange={setAudioSettingsOpen}>
+            <DialogContent className="max-w-sm">
+              <DialogHeader>
+                <DialogTitle>Audio Settings</DialogTitle>
+                <DialogDescription>
+                  Adjust microphone sensitivity and output volume
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-6 py-4">
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    Microphone Sensitivity
+                  </label>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="range"
+                      min={0}
+                      max={3}
+                      step={0.1}
+                      value={micSensitivity}
+                      onChange={(e) => setMicSensitivity(Number(e.target.value))}
+                      className="w-full cursor-e-resize"
+                    />
+                    <span className="text-sm font-medium min-w-[3ch] text-right">
+                      {Math.round((micSensitivity / 3) * 100)}
+                    </span>
+                  </div>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    Output Volume
+                  </label>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="range"
+                      min={0}
+                      max={1}
+                      step={0.01}
+                      value={outputVolume}
+                      onChange={(e) => setOutputVolume(Number(e.target.value))}
+                      className="w-full cursor-e-resize"
+                    />
+                    <span className="text-sm font-medium min-w-[3ch] text-right">
+                      {Math.round(outputVolume * 100)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button onClick={() => setAudioSettingsOpen(false)} className = "cursor-pointer">Done</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
           <Dialog open={unmatchedDialog}>
             <DialogContent
               className="[&>button:first-of-type]:hidden"
@@ -1517,8 +1641,9 @@ export function ChatRoom({ roomId }: { roomId: string }) {
                       <Button
                         onClick={toggleVideo}
                         variant={isVideoEnabled ? "default" : "destructive"}
+                        title={isVideoEnabled ? "Turn off camera" : "Turn on camera"}
                         size="icon"
-                        className="rounded-full size-12"
+                        className="rounded-full size-12 cursor-pointer"
                       >
                         {isVideoEnabled ? <Video /> : <VideoOff />}
                       </Button>
@@ -1526,15 +1651,30 @@ export function ChatRoom({ roomId }: { roomId: string }) {
                         onClick={toggleAudio}
                         variant={isAudioEnabled ? "default" : "destructive"}
                         size="icon"
-                        className="rounded-full size-12"
+                        className="rounded-full size-12 cursor-pointer"
+                        title={isAudioEnabled ? "Mute" : "Unmute"}
+                        onContextMenu={(e) => {
+                          e.preventDefault();
+                          setAudioSettingsOpen(true);
+                        }}
+                        onDoubleClick={() => setAudioSettingsOpen(true)}
                       >
                         {isAudioEnabled ? <Mic /> : <MicOff />}
+                      </Button>
+                      <Button
+                        onClick={() => setAudioSettingsOpen(true)}
+                        variant="outline"
+                        size="icon"
+                        className="rounded-full size-12 cursor-pointer"
+                        title="Audio Settings"
+                      >
+                        <Headphones className="w-5 h-5" />
                       </Button>
                       <Button
                         onClick={() => setBackgroundDialogOpen(true)}
                         variant="outline"
                         size="icon"
-                        className="rounded-full size-12"
+                        className="rounded-full size-12 cursor-pointer"
                         title="Change Background"
                       >
                         <Palette />
@@ -1543,7 +1683,7 @@ export function ChatRoom({ roomId }: { roomId: string }) {
                         onClick={softLeave}
                         variant="destructive"
                         size="icon"
-                        className="rounded-full size-12"
+                        className="rounded-full size-12 cursor-pointer"
                       >
                         <Phone />
                       </Button>
