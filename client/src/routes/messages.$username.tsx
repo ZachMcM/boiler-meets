@@ -66,6 +66,7 @@ function MessagesComponent() {
     isConnected,
     isTyping,
     sendMessage,
+    reactToMessage,
     startTyping,
     stopTyping,
   } = useMessaging({
@@ -148,6 +149,7 @@ function MessagesComponent() {
       <MessageList
         messages={messages}
         currentUserId={currentUserData?.user?.id || ''}
+        reactToMessage={reactToMessage}
         className="flex-1"
       />
 

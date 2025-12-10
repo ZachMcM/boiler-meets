@@ -51,6 +51,7 @@ messagesRoute.get("/messages/:otherUserId", authMiddleware, async (req, res) => 
         senderId: messages.senderId,
         receiverId: messages.receiverId,
         content: messages.content,
+        reaction: messages.reaction,
         font: messages.font,
         isRead: messages.isRead,
         createdAt: messages.createdAt,
@@ -120,6 +121,7 @@ messagesRoute.post("/messages", authMiddleware, async (req, res) => {
         receiverId,
         content: content.trim(),
         font: font,
+        reaction: null,
       })
       .returning();
 
@@ -219,6 +221,7 @@ messagesRoute.get("/messages/match/:username", authMiddleware, async (req, res) 
         senderId: messages.senderId,
         receiverId: messages.receiverId,
         content: messages.content,
+        reaction: messages.reaction,
         font: messages.font,
         isRead: messages.isRead,
         createdAt: messages.createdAt,
@@ -244,3 +247,63 @@ messagesRoute.get("/messages/match/:username", authMiddleware, async (req, res) 
     res.status(500).json({ error: "server error" });
   }
 });
+
+// React to a message (only receiver of the message may react)
+messagesRoute.post(
+  "/messages/:id/reaction",
+  authMiddleware,
+  async (req, res) => {
+    try {
+      const userId = res.locals.userId;
+      const { id } = req.params;
+      const { emoji } = req.body;
+
+      if (!userId) {
+        return res.status(401).json({ error: "unauthorized" });
+      }
+
+      if (!id) {
+        return res.status(400).json({ error: "missing message id" });
+      }
+
+      // Basic validation for emoji: allow null/empty to clear reaction or short strings
+      if (emoji && typeof emoji !== 'string') {
+        return res.status(400).json({ error: 'invalid emoji' });
+      }
+
+      // Fetch the message
+      const messageRes = await db
+        .select({
+          id: messages.id,
+          senderId: messages.senderId,
+          receiverId: messages.receiverId,
+        })
+        .from(messages)
+        .where(eq(messages.id, Number(id)))
+        .limit(1);
+
+      if (!messageRes || messageRes.length === 0) {
+        return res.status(404).json({ error: 'message not found' });
+      }
+
+      const msg = messageRes[0];
+
+      // Only receiver can react to a message
+      if (msg.receiverId !== userId) {
+        return res.status(403).json({ error: 'forbidden' });
+      }
+
+      // Update reaction
+      const updated = await db
+        .update(messages)
+        .set({ reaction: emoji || null })
+        .where(eq(messages.id, Number(id)))
+        .returning();
+
+      res.json(updated[0]);
+    } catch (error) {
+      console.error('set reaction error:', error);
+      res.status(500).json({ error: 'server error' });
+    }
+  }
+);

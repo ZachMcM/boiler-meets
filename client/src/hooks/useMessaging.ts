@@ -12,6 +12,7 @@ interface UseMessagingReturn {
   isConnected: boolean;
   isTyping: boolean;
   sendMessage: (content: string, font?: string) => void;
+  reactToMessage: (messageId: string, emoji?: string | null) => void;
   startTyping: () => void;
   stopTyping: () => void;
   markAsRead: () => void;
@@ -58,6 +59,7 @@ export function useMessaging({ userId, otherUserId }: UseMessagingProps): UseMes
           senderId: message.senderId,
           receiverId: message.receiverId,
           font: message.font || 'sans',
+          reaction: message.reaction || null,
           timestamp: new Date(message.timestamp),
           isRead: message.isRead,
         },
@@ -74,6 +76,7 @@ export function useMessaging({ userId, otherUserId }: UseMessagingProps): UseMes
           senderId: message.senderId,
           receiverId: message.receiverId,
           font: message.font || 'sans',
+          reaction: message.reaction || null,
           timestamp: new Date(message.timestamp),
           isRead: message.isRead,
         },
@@ -108,6 +111,24 @@ export function useMessaging({ userId, otherUserId }: UseMessagingProps): UseMes
           msg.senderId === userId && msg.receiverId === otherUserId
             ? { ...msg, isRead: true }
             : msg
+        )
+      );
+    });
+
+    // Listen for message updates (reactions, edits)
+    socket.on('message-updated', (message: any) => {
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === message.id.toString()
+            ? {
+                ...m,
+                content: message.content,
+                font: message.font || m.font,
+                reaction: message.reaction || null,
+                isRead: message.isRead,
+                timestamp: new Date(message.timestamp),
+              }
+            : m
         )
       );
     });
@@ -151,6 +172,7 @@ export function useMessaging({ userId, otherUserId }: UseMessagingProps): UseMes
             senderId: msg.senderId,
             receiverId: msg.receiverId,
             font: msg.font || 'sans',
+            reaction: msg.reaction || null,
             timestamp: new Date(msg.createdAt),
             isRead: msg.isRead,
           }))
@@ -176,6 +198,15 @@ export function useMessaging({ userId, otherUserId }: UseMessagingProps): UseMes
     [otherUserId]
   );
 
+  const reactToMessage = useCallback(
+    (messageId: string, emoji?: string | null) => {
+      if (!socketRef.current) return;
+      const idNum = Number(messageId);
+      socketRef.current.emit('react-message', { messageId: idNum, emoji });
+    },
+    []
+  );
+
   const startTyping = useCallback(() => {
     if (!socketRef.current) return;
     socketRef.current.emit('typing', { receiverId: otherUserId });
@@ -196,6 +227,7 @@ export function useMessaging({ userId, otherUserId }: UseMessagingProps): UseMes
     isConnected,
     isTyping,
     sendMessage,
+    reactToMessage,
     startTyping,
     stopTyping,
     markAsRead,

@@ -76,6 +76,7 @@ export function messagingHandler(socket: Socket) {
         receiverId: savedMessage.receiverId,
         content: savedMessage.content,
         font: savedMessage.font,
+        reaction: savedMessage.reaction,
         isRead: savedMessage.isRead,
         timestamp: savedMessage.createdAt,
       });
@@ -87,6 +88,7 @@ export function messagingHandler(socket: Socket) {
         receiverId: savedMessage.receiverId,
         content: savedMessage.content,
         font: savedMessage.font,
+        reaction: savedMessage.reaction,
         isRead: savedMessage.isRead,
         timestamp: savedMessage.createdAt,
       });
@@ -145,6 +147,74 @@ export function messagingHandler(socket: Socket) {
       logger.info(`Messages from ${otherUserId} to ${userId} marked as read`);
     } catch (error) {
       logger.error("Error marking messages as read:", error);
+    }
+  });
+
+  // Handle reacting to a message (only receiver allowed to react)
+  socket.on("react-message", async (data: { messageId: number; emoji?: string | null }) => {
+    try {
+      const { messageId, emoji } = data;
+
+      if (!messageId) {
+        socket.emit("error", { message: "missing messageId" });
+        return;
+      }
+
+      // Fetch message to verify the receiver
+      const msgRes = await db
+        .select({ id: messages.id, senderId: messages.senderId, receiverId: messages.receiverId, content: messages.content, reaction: messages.reaction, font: messages.font, isRead: messages.isRead, createdAt: messages.createdAt })
+        .from(messages)
+        .where(eq(messages.id, messageId))
+        .limit(1);
+
+      if (!msgRes || msgRes.length === 0) {
+        socket.emit("error", { message: "message not found" });
+        return;
+      }
+
+      const msg = msgRes[0];
+
+      // only the receiver may react to the message
+      if (msg.receiverId !== userId) {
+        socket.emit("error", { message: "forbidden" });
+        return;
+      }
+
+      // Update reaction in DB
+      const updated = await db
+        .update(messages)
+        .set({ reaction: emoji || null })
+        .where(eq(messages.id, messageId))
+        .returning();
+
+      const updatedMsg = updated[0];
+
+      // Notify both participants that the message was updated
+      socket.emit("message-updated", {
+        id: updatedMsg.id,
+        senderId: updatedMsg.senderId,
+        receiverId: updatedMsg.receiverId,
+        content: updatedMsg.content,
+        font: updatedMsg.font,
+        reaction: updatedMsg.reaction,
+        isRead: updatedMsg.isRead,
+        timestamp: updatedMsg.createdAt,
+      });
+
+      socket.to(`user-${updatedMsg.senderId}`).emit("message-updated", {
+        id: updatedMsg.id,
+        senderId: updatedMsg.senderId,
+        receiverId: updatedMsg.receiverId,
+        content: updatedMsg.content,
+        font: updatedMsg.font,
+        reaction: updatedMsg.reaction,
+        isRead: updatedMsg.isRead,
+        timestamp: updatedMsg.createdAt,
+      });
+
+    } catch (error) {
+      logger.error("Error reacting to message:", error);
+      socket.emit("error", { message: "Failed to react to message" });
     }
   });
 
