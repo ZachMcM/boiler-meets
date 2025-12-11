@@ -25,3 +25,12 @@ routes.get("/reset_password", async (_req, res) => {
     res.redirect(`${process.env.CLIENT_URL!}/login`);
   }
 });
+
+routes.get("/delete-account", async (_req, res) => {
+  const token = _req.query.token as string;
+  if (token) {
+    res.redirect(`${process.env.CLIENT_URL!}/delete-account?token=${token}`);
+  } else {
+    res.redirect(`${process.env.CLIENT_URL!}/login`);
+  }
+});

@@ -18,6 +18,7 @@ import { Route as Register_final_setupRouteImport } from './routes/register_fina
 import { Route as RegisterRouteImport } from './routes/register'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as End_of_callRouteImport } from './routes/end_of_call'
+import { Route as DeleteAccountRouteImport } from './routes/delete-account'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as BannedRouteImport } from './routes/banned'
 import { Route as IndexRouteImport } from './routes/index'
@@ -70,6 +71,11 @@ const End_of_callRoute = End_of_callRouteImport.update({
   path: '/end_of_call',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DeleteAccountRoute = DeleteAccountRouteImport.update({
+  id: '/delete-account',
+  path: '/delete-account',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DashboardRoute = DashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -105,6 +111,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/banned': typeof BannedRoute
   '/dashboard': typeof DashboardRoute
+  '/delete-account': typeof DeleteAccountRoute
   '/end_of_call': typeof End_of_callRoute
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
@@ -122,6 +129,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/banned': typeof BannedRoute
   '/dashboard': typeof DashboardRoute
+  '/delete-account': typeof DeleteAccountRoute
   '/end_of_call': typeof End_of_callRoute
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
@@ -140,6 +148,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/banned': typeof BannedRoute
   '/dashboard': typeof DashboardRoute
+  '/delete-account': typeof DeleteAccountRoute
   '/end_of_call': typeof End_of_callRoute
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
@@ -159,6 +168,7 @@ export interface FileRouteTypes {
     | '/'
     | '/banned'
     | '/dashboard'
+    | '/delete-account'
     | '/end_of_call'
     | '/login'
     | '/register'
@@ -176,6 +186,7 @@ export interface FileRouteTypes {
     | '/'
     | '/banned'
     | '/dashboard'
+    | '/delete-account'
     | '/end_of_call'
     | '/login'
     | '/register'
@@ -193,6 +204,7 @@ export interface FileRouteTypes {
     | '/'
     | '/banned'
     | '/dashboard'
+    | '/delete-account'
     | '/end_of_call'
     | '/login'
     | '/register'
@@ -211,6 +223,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   BannedRoute: typeof BannedRoute
   DashboardRoute: typeof DashboardRoute
+  DeleteAccountRoute: typeof DeleteAccountRoute
   End_of_callRoute: typeof End_of_callRoute
   LoginRoute: typeof LoginRoute
   RegisterRoute: typeof RegisterRoute
@@ -290,6 +303,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof End_of_callRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/delete-account': {
+      id: '/delete-account'
+      path: '/delete-account'
+      fullPath: '/delete-account'
+      preLoaderRoute: typeof DeleteAccountRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/dashboard': {
       id: '/dashboard'
       path: '/dashboard'
@@ -339,6 +359,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   BannedRoute: BannedRoute,
   DashboardRoute: DashboardRoute,
+  DeleteAccountRoute: DeleteAccountRoute,
   End_of_callRoute: End_of_callRoute,
   LoginRoute: LoginRoute,
   RegisterRoute: RegisterRoute,

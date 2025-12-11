@@ -268,3 +268,18 @@ export const getNicknames = async (): Promise<Record<string, string>> => {
     method: "GET",
   });
 };
+
+// Account Deletion API Functions
+export const requestAccountDeletion = async () => {
+  return await serverRequest({
+    endpoint: "/user/account/delete-request",
+    method: "POST",
+  });
+};
+
+export const confirmAccountDeletion = async (token: string) => {
+  return await serverRequest({
+    endpoint: `/user/account/delete-confirm/${token}`,
+    method: "DELETE",
+  });
+};
