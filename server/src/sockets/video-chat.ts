@@ -14,6 +14,24 @@ import { checkWinner, checkTie } from "../utils/tictactoe";
 
 const gameTurnTimeouts = new Map<string, NodeJS.Timeout>();
 
+const CONVERSATION_PROMPTS = [
+  "What's the most spontaneous thing you've ever done?",
+  "If you could have dinner with anyone, dead or alive, who would it be?",
+  "What's your hidden talent?",
+  "What's the best advice you've ever received?",
+  "If you could live in any time period, when would it be?",
+  "What's something that always makes you laugh?",
+  "What's your biggest goal right now?",
+  "What's the most interesting place you've visited?",
+  "If you could master any skill instantly, what would it be?",
+  "What's your favorite way to spend a weekend?",
+  "What's a skill you'd love to learn?",
+  "What's your go-to comfort food?",
+  "If you could travel anywhere tomorrow, where would you go?",
+  "What's the best concert or live event you've been to?",
+  "What's something you're really passionate about?"
+];
+
 export async function videoChatHandler(socket: Socket) {
   const userId = socket.handshake.auth.userId as string | undefined;
   let roomId = socket.handshake.auth.roomId as string | string[] | undefined;
@@ -123,6 +141,9 @@ export async function videoChatHandler(socket: Socket) {
     if (socketsInRoom.length === 0) {
       logger.info(`Room ${roomId} is empty, cleaning up`);
       await RoomManager.deleteRoom(roomId);
+
+      // This just deletes the redis stored random prompt
+      await redis.del(`prompt:${roomId}`);
     }
   });
 
@@ -146,6 +167,9 @@ export async function videoChatHandler(socket: Socket) {
     if (socketsInRoom.length === 0) {
       logger.info(`Room ${roomId} is empty, cleaning up`);
       await RoomManager.deleteRoom(roomId);
+
+      // This just deletes the redis stored random prompt
+      await redis.del(`prompt:${roomId}`);
     }
 
     socket.disconnect();
@@ -531,6 +555,60 @@ export async function videoChatHandler(socket: Socket) {
         message: "An error occurred while processing unmatch",
       });
     }
+  });
+
+  // Sockets relating to random prompting in the video call
+
+  socket.on("request-prompt", async () => {
+    logger.info(`User ${userId} requested prompt in room ${roomId}`);
+    const currentPrompt = await redis.get(`prompt:${roomId}`);
+    
+    if (currentPrompt) {
+      socket.emit("initial-prompt", { prompt: currentPrompt });
+    } else {
+      const usedPromptsStr = await redis.get(`prompts-used:${roomId}`);
+      const usedPrompts: string[] = usedPromptsStr ? JSON.parse(usedPromptsStr) : [];
+      
+      let availablePrompts = CONVERSATION_PROMPTS.filter(p => !usedPrompts.includes(p));
+      
+      if (availablePrompts.length === 0) {
+        availablePrompts = CONVERSATION_PROMPTS;
+        await redis.set(`prompts-used:${roomId}`, JSON.stringify([]), { EX: 3600 });
+      }
+      
+      const randomIndex = Math.floor(Math.random() * availablePrompts.length);
+      const newPrompt = availablePrompts[randomIndex];
+      await redis.set(`prompt:${roomId}`, newPrompt, { EX: 3600 });
+      
+      const updatedUsedPrompts = usedPrompts.length === 0 ? [newPrompt] : [...usedPrompts, newPrompt];
+      await redis.set(`prompts-used:${roomId}`, JSON.stringify(updatedUsedPrompts), { EX: 3600 });
+      
+      socket.emit("initial-prompt", { prompt: newPrompt });
+    }
+  });
+
+  socket.on("request-new-prompt", async () => {
+    logger.info(`User ${userId} requested new prompt in room ${roomId}`);
+    
+    const usedPromptsStr = await redis.get(`prompts-used:${roomId}`);
+    const usedPrompts: string[] = usedPromptsStr ? JSON.parse(usedPromptsStr) : [];
+    
+    let availablePrompts = CONVERSATION_PROMPTS.filter(p => !usedPrompts.includes(p));
+    
+    if (availablePrompts.length === 0) {
+      availablePrompts = CONVERSATION_PROMPTS;
+      await redis.set(`prompts-used:${roomId}`, JSON.stringify([]), { EX: 3600 });
+    }
+    
+    const randomIndex = Math.floor(Math.random() * availablePrompts.length);
+    const newPrompt = availablePrompts[randomIndex];
+    
+    await redis.set(`prompt:${roomId}`, newPrompt, { EX: 3600 });
+    
+    const updatedUsedPrompts = availablePrompts.length === CONVERSATION_PROMPTS.length ? [newPrompt] : [...usedPrompts, newPrompt];
+    await redis.set(`prompts-used:${roomId}`, JSON.stringify(updatedUsedPrompts), { EX: 3600 });
+    
+    io.of("/video-chat").to(roomId).emit("prompt-updated", { prompt: newPrompt });
   });
 }
 

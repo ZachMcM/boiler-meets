@@ -39,6 +39,7 @@ import {
   Palette,
   Phone,
   PhoneCall,
+  RefreshCw,
   User,
   Users,
   Video,
@@ -166,6 +167,9 @@ export function ChatRoom({ roomId }: { roomId: string }) {
     const stored = localStorage.getItem('boilermeets_output_volume');
     return stored ? Number(stored) : 1;
   });
+
+  // Random prompts
+  const [currentPrompt, setCurrentPrompt] = useState<string>("");
 
   const [minigamesDialogOpen, setMinigamesDialogOpen] = useState(false);
   const [selectedGame, setSelectedGame] = useState<string | null>(null);
@@ -970,6 +974,16 @@ export function ChatRoom({ roomId }: { roomId: string }) {
         }
       );
 
+      videoChatSocket.on("prompt-updated", ({ prompt }: { prompt: string }) => {
+        console.log("Received new prompt:", prompt);
+        setCurrentPrompt(prompt);
+      });
+
+      videoChatSocket.on("initial-prompt", ({ prompt }: { prompt: string }) => {
+        console.log("Received initial prompt:", prompt);
+        setCurrentPrompt(prompt);
+      });
+
       videoChatSocket.on("error", ({ message }) => {
         console.error("Socket error:", message);
         toast.error(message);
@@ -979,6 +993,7 @@ export function ChatRoom({ roomId }: { roomId: string }) {
       setSocket(videoChatSocket);
       socketRef.current = videoChatSocket;
       setConnectionStatus("Waiting for other user...");
+      videoChatSocket.emit("request-prompt");
       console.log("Socket connected, waiting for signaling from server");
     } catch (error) {
       console.error("Error initializing WebRTC:", error);
@@ -1184,6 +1199,16 @@ export function ChatRoom({ roomId }: { roomId: string }) {
       ? nicknames[userId]
       : otherUser?.name || "Anonymous";
   };
+
+  const requestNewPrompt = () => {
+    if (socket) {
+      socket.emit("request-new-prompt");
+    }
+  }; 
+
+  if (!currentPrompt) {
+    requestNewPrompt();
+  }
 
   const handleAcceptIncomingCall = () => {
     if (!incomingCall || !directCallSocket) return;
@@ -1843,6 +1868,22 @@ export function ChatRoom({ roomId }: { roomId: string }) {
               )}
             </div>
           </div>
+          {currentPrompt && (
+            <div className="bg-background/95 backdrop-blur-sm rounded-lg p-3 shadow-lg border mt-4">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-sm font-medium flex-1">Ask them: {currentPrompt}</p>
+                <Button
+                  onClick={requestNewPrompt}
+                  variant="ghost"
+                  size="sm"
+                  className="shrink-0 h-8 w-8 p-0 cursor-pointer"
+                  title="Get new prompt"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
