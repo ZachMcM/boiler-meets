@@ -6,11 +6,11 @@ import { authClient } from "@/lib/auth-client";
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import type { DraggableModule } from "@/components/ProfileModules";
 import React, { useState, useEffect } from "react";
-import { Save, Home, MessageCircle, Users, Heart, ShieldX, Edit3, Check } from "lucide-react";
+import { Save, Home, MessageCircle, Users, Heart, ShieldX, Edit3, Check, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import PurdueTrainHeader from '@/components/PurdueTrainAnimation';
-import { getMatches, getProfileReactions, addProfileReaction, blockUser, unblockUser, setNickname as saveNickname, removeNickname, getNicknames, getBlockedUsers } from "@/endpoints";
+import { getMatches, getProfileReactions, addProfileReaction, blockUser, unblockUser, setNickname as saveNickname, removeNickname, getNicknames, getBlockedUsers, requestAccountDeletion } from "@/endpoints";
 import type { Reaction } from "@/types/user";
 import { Dialog, DialogContent, DialogTitle, DialogHeader, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -87,6 +87,9 @@ function RouteComponent(username: string) {
   const [blockDialog, setBlockDialog] = useState(false);
   const [nicknameDialog, setNicknameDialog] = useState(false);
   const [nickname, setNickname] = useState("");
+  const [deleteAccountDialog, setDeleteAccountDialog] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Local state for block status and nicknames (for instant UI updates)
   const [localIsBlocked, setLocalIsBlocked] = useState<boolean | null>(null);
@@ -484,6 +487,26 @@ function RouteComponent(username: string) {
     }
   };
 
+  // Handle account deletion request
+  const handleDeleteAccount = async () => {
+    if (deleteConfirmText !== "DELETE") {
+      toast.error("Please type DELETE to confirm");
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      await requestAccountDeletion();
+      toast.success("Confirmation email sent! Please check your email to complete deletion.");
+      setDeleteAccountDialog(false);
+      setDeleteConfirmText("");
+    } catch (error) {
+      toast.error("Failed to request account deletion. Please try again.");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   // Loading state
   if (isLoadingProfile) {
     return (
@@ -676,6 +699,23 @@ function RouteComponent(username: string) {
                 Save Bio
               </Button>
             )}
+
+            {/* Delete Account Section - only in edit mode */}
+            {permission === "edit" && (
+              <div className="mt-8 pt-6 border-t border-gray-200">
+                <div className="space-y-3">
+                  <Label className="text-lg font-semibold text-red-600">Danger Zone</Label>
+                  <Button
+                    onClick={() => setDeleteAccountDialog(true)}
+                    variant="destructive"
+                    className="hover:cursor-pointer flex items-center gap-2"
+                  >
+                    <Trash2 size={16} />
+                    Delete Account
+                  </Button>
+                </div>
+              </div>
+            )}
             {permission === "view" && isMatched && (
               <div className="mt-4 border-t pt-3 bg-slate-50 -mx-6 px-6 py-3">
                 <div className="flex items-center gap-2">
@@ -799,6 +839,76 @@ function RouteComponent(username: string) {
                 className="hover:cursor-pointer"
               >
                 Save Nickname
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Account Dialog */}
+      <Dialog open={deleteAccountDialog} onOpenChange={(open) => {
+        setDeleteAccountDialog(open);
+        if (!open) {
+          setDeleteConfirmText("");
+        }
+      }}>
+        <DialogContent
+          className="sm:max-w-md"
+          onInteractOutside={(e) => e.preventDefault()}
+        >
+          <DialogHeader>
+            <DialogTitle>Delete Your Account?</DialogTitle>
+            <DialogDescription className="space-y-2">
+              <span className="block text-red-600 font-semibold">
+                This action is permanent and cannot be undone!
+              </span>
+              <span className="block">
+                Deleting your account will:
+              </span>
+              <ul className="list-disc list-inside text-sm space-y-1 ml-2">
+                <li>Remove all your profile information</li>
+                <li>Delete all your matches and messages</li>
+                <li>Cancel any ongoing conversations</li>
+                <li>Remove you from other users' match lists</li>
+              </ul>
+              <span className="block mt-3">
+                To confirm, type <span className="font-mono font-bold">DELETE</span> below:
+              </span>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 mt-4">
+            <Input
+              placeholder="Type DELETE to confirm"
+              value={deleteConfirmText}
+              onChange={(e) => setDeleteConfirmText(e.target.value)}
+              disabled={isDeleting}
+            />
+            <div className="flex justify-between gap-3">
+              <Button
+                onClick={() => {
+                  setDeleteAccountDialog(false);
+                  setDeleteConfirmText("");
+                }}
+                variant="outline"
+                className="hover:cursor-pointer"
+                disabled={isDeleting}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleDeleteAccount}
+                variant="destructive"
+                className="hover:cursor-pointer flex items-center gap-2"
+                disabled={deleteConfirmText !== "DELETE" || isDeleting}
+              >
+                {isDeleting ? (
+                  <>Processing...</>
+                ) : (
+                  <>
+                    <Trash2 size={16} />
+                    Delete My Account
+                  </>
+                )}
               </Button>
             </div>
           </div>

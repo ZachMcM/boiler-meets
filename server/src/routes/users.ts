@@ -850,3 +850,164 @@ usersRoute.get("/user/blocked", authMiddleware, async (_req, res) => {
     res.status(500).json({ error: "server error" });
   }
 });
+
+// Account deletion with email confirmation
+const deleteTokens = new Map<string, { userId: string; expires: number }>();
+
+// Request account deletion (sends email)
+usersRoute.post("/user/account/delete-request", authMiddleware, async (_req, res) => {
+  try {
+    const userId = res.locals.userId;
+
+    // Get user details for email
+    const currentUser = await db
+      .select({ email: user.email, name: user.name })
+      .from(user)
+      .where(eq(user.id, userId as string))
+      .limit(1);
+
+    if (!currentUser || currentUser.length === 0) {
+      return res.status(404).json({ error: "user not found" });
+    }
+
+    // Generate deletion token
+    const token = Math.random().toString(36).substring(2) + Date.now().toString(36);
+
+    // Store token with 1 hour expiry
+    deleteTokens.set(token, {
+      userId: userId as string,
+      expires: Date.now() + 60 * 60 * 1000, // 1 hour
+    });
+
+    // Import sendEmail from mailer
+    const { sendEmail } = await import("../utils/mailer");
+
+    // Send confirmation email (using server URL which will redirect to client)
+    const serverUrl = `http://localhost:${process.env.PORT || 8080}`;
+    await sendEmail({
+      to: currentUser[0].email,
+      subject: "Confirm Account Deletion - BoilerMeets",
+      html: `
+        <h2>Account Deletion Request</h2>
+        <p>Hello ${currentUser[0].name},</p>
+        <p>You have requested to delete your BoilerMeets account. This action is <strong>permanent and cannot be undone</strong>.</p>
+        <p>If you want to proceed with deleting your account, please click the link below:</p>
+        <p><a href="${serverUrl}/delete-account?token=${token}">Confirm Account Deletion</a></p>
+        <p>This link will expire in 1 hour.</p>
+        <p>If you did not request this, please ignore this email.</p>
+        <br>
+        <p>Best regards,<br>The BoilerMeets Team</p>
+      `,
+      text: `Account Deletion Request\n\nHello ${currentUser[0].name},\n\nYou have requested to delete your BoilerMeets account. This action is permanent and cannot be undone.\n\nIf you want to proceed with deleting your account, please visit this link:\n${serverUrl}/delete-account?token=${token}\n\nThis link will expire in 1 hour.\n\nIf you did not request this, please ignore this email.\n\nBest regards,\nThe BoilerMeets Team`,
+    });
+
+    res.json({ success: true, message: "Confirmation email sent" });
+  } catch (error) {
+    console.error("request account deletion error:", error);
+    res.status(500).json({ error: "server error" });
+  }
+});
+
+// Confirm account deletion and delete account
+usersRoute.delete("/user/account/delete-confirm/:token", authMiddleware, async (req, res) => {
+  try {
+    const { token } = req.params;
+    const userId = res.locals.userId;
+
+    if (!token) {
+      return res.status(400).json({ error: "missing token" });
+    }
+
+    // Check token validity
+    const tokenData = deleteTokens.get(token);
+    if (!tokenData) {
+      return res.status(400).json({ error: "invalid token" });
+    }
+
+    if (Date.now() > tokenData.expires) {
+      deleteTokens.delete(token);
+      return res.status(400).json({ error: "token expired" });
+    }
+
+    // Verify token matches current user
+    if (tokenData.userId !== userId) {
+      return res.status(403).json({ error: "unauthorized" });
+    }
+
+    // Clean up token
+    deleteTokens.delete(token);
+
+    // 1. Delete all matches where user is involved
+    await db
+      .delete(matches)
+      .where(
+        or(
+          eq(matches.first, userId as string),
+          eq(matches.second, userId as string)
+        )
+      );
+
+    // 2. Clean up references in other users' JSON fields
+    // Get all users who might have this user in their nicknames or blockedUsers
+    const allUsers = await db
+      .select({
+        id: user.id,
+        nicknames: user.nicknames,
+        blockedUsers: user.blockedUsers
+      })
+      .from(user);
+
+    // Clean up each user's JSON fields
+    for (const otherUser of allUsers) {
+      let updated = false;
+      let nicknames: Record<string, string> = {};
+      let blockedUsers: string[] = [];
+
+      // Clean nicknames
+      if (otherUser.nicknames) {
+        nicknames = typeof otherUser.nicknames === 'string'
+          ? JSON.parse(otherUser.nicknames)
+          : otherUser.nicknames as Record<string, string>;
+
+        if (nicknames[userId as string]) {
+          delete nicknames[userId as string];
+          updated = true;
+        }
+      }
+
+      // Clean blockedUsers
+      if (otherUser.blockedUsers) {
+        blockedUsers = typeof otherUser.blockedUsers === 'string'
+          ? JSON.parse(otherUser.blockedUsers)
+          : otherUser.blockedUsers as string[];
+
+        const newBlockedUsers = blockedUsers.filter(id => id !== userId);
+        if (newBlockedUsers.length !== blockedUsers.length) {
+          blockedUsers = newBlockedUsers;
+          updated = true;
+        }
+      }
+
+      // Update if needed
+      if (updated) {
+        await db
+          .update(user)
+          .set({
+            nicknames: nicknames,
+            blockedUsers: blockedUsers
+          })
+          .where(eq(user.id, otherUser.id));
+      }
+    }
+
+    // 3. Delete the user (cascades will handle sessions, messages, etc.)
+    await db
+      .delete(user)
+      .where(eq(user.id, userId as string));
+
+    res.json({ success: true, message: "Account deleted successfully" });
+  } catch (error) {
+    console.error("confirm account deletion error:", error);
+    res.status(500).json({ error: "server error" });
+  }
+});
