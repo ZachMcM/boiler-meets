@@ -66,6 +66,7 @@ function MessagesComponent() {
     isConnected,
     isTyping,
     sendMessage,
+    editMessage,
     startTyping,
     stopTyping,
   } = useMessaging({
@@ -149,6 +150,7 @@ function MessagesComponent() {
         messages={messages}
         currentUserId={currentUserData?.user?.id || ''}
         className="flex-1"
+        onEditMessage={editMessage}
       />
 
       <MessageInput

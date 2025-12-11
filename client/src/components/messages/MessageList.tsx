@@ -7,9 +7,10 @@ interface MessageListProps {
   messages: Message[];
   currentUserId: string;
   className?: string;
+  onEditMessage?: (messageId: string, newContent: string) => void;
 }
 
-export function MessageList({ messages, currentUserId, className }: MessageListProps) {
+export function MessageList({ messages, currentUserId, className, onEditMessage }: MessageListProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -40,6 +41,7 @@ export function MessageList({ messages, currentUserId, className }: MessageListP
           key={message.id}
           message={message}
           isCurrentUser={message.senderId === currentUserId}
+          onEditMessage={onEditMessage}
         />
       ))}
       <div ref={messagesEndRef} />

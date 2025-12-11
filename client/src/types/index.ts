@@ -17,6 +17,8 @@ export interface Message {
   receiverId: string;
   timestamp: Date;
   isRead: boolean;
+  isEdited?: boolean;
+  editedAt?: Date;
 }
 
 export interface Reaction {

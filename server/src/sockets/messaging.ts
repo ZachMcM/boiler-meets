@@ -74,6 +74,8 @@ export function messagingHandler(socket: Socket) {
         receiverId: savedMessage.receiverId,
         content: savedMessage.content,
         isRead: savedMessage.isRead,
+        isEdited: savedMessage.isEdited,
+        editedAt: savedMessage.editedAt,
         timestamp: savedMessage.createdAt,
       });
 
@@ -84,6 +86,8 @@ export function messagingHandler(socket: Socket) {
         receiverId: savedMessage.receiverId,
         content: savedMessage.content,
         isRead: savedMessage.isRead,
+        isEdited: savedMessage.isEdited,
+        editedAt: savedMessage.editedAt,
         timestamp: savedMessage.createdAt,
       });
 
@@ -113,6 +117,101 @@ export function messagingHandler(socket: Socket) {
         userId,
         isTyping: false,
       });
+    }
+  });
+
+  // Handle editing a message
+  socket.on("edit-message", async (data: { messageId: number; content: string }) => {
+    try {
+      const { messageId, content } = data;
+
+      if (!messageId || !content) {
+        socket.emit("error", { message: "Missing messageId or content" });
+        return;
+      }
+
+      // Validate content
+      if (typeof content !== "string" || content.trim().length === 0) {
+        socket.emit("error", { message: "Content must be a non-empty string" });
+        return;
+      }
+
+      if (content.length > 5000) {
+        socket.emit("error", { message: "Content too long (max 5000 characters)" });
+        return;
+      }
+
+      // Get the original message
+      const originalMessage = await db
+        .select()
+        .from(messages)
+        .where(eq(messages.id, messageId))
+        .limit(1);
+
+      if (originalMessage.length === 0) {
+        socket.emit("error", { message: "Message not found" });
+        return;
+      }
+
+      const message = originalMessage[0];
+
+      // Check if user is the sender
+      if (message.senderId !== userId) {
+        socket.emit("error", { message: "You can only edit your own messages" });
+        return;
+      }
+
+      // Check if message is within edit time window (15 minutes)
+      const messageAge = Date.now() - new Date(message.createdAt).getTime();
+      const EDIT_TIME_WINDOW = 15 * 60 * 1000; // 15 minutes in milliseconds
+
+      if (messageAge > EDIT_TIME_WINDOW) {
+        socket.emit("error", { message: "Edit time window has expired (15 minutes)" });
+        return;
+      }
+
+      // Update the message
+      const updatedMessage = await db
+        .update(messages)
+        .set({
+          content: content.trim(),
+          isEdited: true,
+          editedAt: new Date(),
+          originalContent: message.originalContent || message.content, // Store original if first edit
+        })
+        .where(eq(messages.id, messageId))
+        .returning();
+
+      const editedMessage = updatedMessage[0];
+
+      // Emit to sender (confirmation)
+      socket.emit("message-edited", {
+        id: editedMessage.id,
+        senderId: editedMessage.senderId,
+        receiverId: editedMessage.receiverId,
+        content: editedMessage.content,
+        isRead: editedMessage.isRead,
+        isEdited: editedMessage.isEdited,
+        editedAt: editedMessage.editedAt,
+        timestamp: editedMessage.createdAt,
+      });
+
+      // Emit to receiver (if they're online)
+      socket.to(`user-${message.receiverId}`).emit("message-edited", {
+        id: editedMessage.id,
+        senderId: editedMessage.senderId,
+        receiverId: editedMessage.receiverId,
+        content: editedMessage.content,
+        isRead: editedMessage.isRead,
+        isEdited: editedMessage.isEdited,
+        editedAt: editedMessage.editedAt,
+        timestamp: editedMessage.createdAt,
+      });
+
+      logger.info(`Message ${messageId} edited by ${userId}`);
+    } catch (error) {
+      logger.error("Error editing message:", error);
+      socket.emit("error", { message: "Failed to edit message" });
     }
   });
 
