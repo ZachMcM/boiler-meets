@@ -23,7 +23,19 @@ import {
   Video,
   TestTube2
 } from "lucide-react";
-import { getMatches, getMatchMessages, removeMatch, searchUsers, getCallHistory, type CallHistory } from "@/endpoints";
+import {
+  getMatches,
+  getMatchMessages,
+  removeMatch,
+  searchUsers,
+  getCallHistory,
+  type CallHistory,
+  submitRecommendation,
+  getReceivedRecommendations,
+  getSentRecommendations,
+  type Recommendation,
+  updateRecommendationStatus
+} from "@/endpoints";
 import { useVideoCallContext } from "@/contexts/VideoCallContext";
 import { io } from "socket.io-client";
 import Notification from "@/components/Notification";
@@ -79,6 +91,12 @@ function RouteComponent() {
   const [incomingCall, setIncomingCall] = useState<{ callerId: string; callerName: string; roomId: string; matchType: string } | null>(null);
   const [directCallSocket, setDirectCallSocket] = useState<any>(null); // Using 'any' here since it's just for socket management
 
+  // Recommendation state
+  const [recommendDialog, setRecommendDialog] = useState(false);
+  const [recommendUser, setRecommendUser] = useState<Match | null>(null);
+  const [selectedRecipient, setSelectedRecipient] = useState<string>("");
+  const [recommendMessage, setRecommendMessage] = useState("");
+
   const [userStatuses, setUserStatuses] = useState<Record<string, "online" | "in-call" | "offline">>({});
   const [userStatusSocket, setUserStatusSocket] = useState<any>(null);
 
@@ -120,6 +138,17 @@ function RouteComponent() {
     queryKey: ["callHistory", globalSearch],
     queryFn: () => getCallHistory(),
     enabled: globalSearch,
+  });
+
+  // Get recommendations
+  const { data: receivedRecommendations, refetch: refetchReceived } = useQuery({
+    queryKey: ["receivedRecommendations"],
+    queryFn: getReceivedRecommendations,
+  });
+
+  const { data: sentRecommendations, refetch: refetchSent } = useQuery({
+    queryKey: ["sentRecommendations"],
+    queryFn: getSentRecommendations,
   });
 
   const [notificationReload, setNotificationReload] = useState([] as NotificationItem[]);
@@ -506,6 +535,45 @@ function RouteComponent() {
     }
   }
 
+  const handleSubmitRecommendation = async () => {
+    if (!recommendUser?.user?.id || !selectedRecipient) {
+      toast.error("Please select a recipient");
+      return;
+    }
+
+    try {
+      await submitRecommendation(recommendUser.user.id, selectedRecipient, recommendMessage);
+      toast.success("Recommendation sent successfully!");
+      setRecommendDialog(false);
+      setRecommendUser(null);
+      setSelectedRecipient("");
+      setRecommendMessage("");
+      refetchSent();
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to send recommendation");
+    }
+  };
+
+  const handleAcceptRecommendation = async (recommendationId: number) => {
+    try {
+      await updateRecommendationStatus(recommendationId, "accepted");
+      toast.success("Recommendation accepted!");
+      refetchReceived();
+    } catch (error) {
+      toast.error("Failed to accept recommendation");
+    }
+  };
+
+  const handleDeclineRecommendation = async (recommendationId: number) => {
+    try {
+      await updateRecommendationStatus(recommendationId, "declined");
+      toast.success("Recommendation declined");
+      refetchReceived();
+    } catch (error) {
+      toast.error("Failed to decline recommendation");
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-accent to-secondary">
       <div className="container mx-auto px-4 py-8">
@@ -763,6 +831,20 @@ function RouteComponent() {
                                 </Button>
                                 <Button
                                   onClick={() => {
+                                    setRecommendDialog(true);
+                                    setRecommendUser(item as Match);
+                                    setSelectedRecipient("");
+                                    setRecommendMessage("");
+                                  }}
+                                  variant="outline"
+                                  size="sm"
+                                  className="hover:cursor-pointer"
+                                >
+                                  <Sparkles className="w-4 h-4 mr-1" />
+                                  Recommend
+                                </Button>
+                                <Button
+                                  onClick={() => {
                                     setUnmatchDialog(true);
                                     setUnmatchUser(item as Match);
                                   }}
@@ -865,6 +947,78 @@ function RouteComponent() {
         </Card>
         </div>
 
+        {/* Received Recommendations */}
+        {receivedRecommendations?.recommendations && receivedRecommendations.recommendations.length > 0 && (
+          <Card className="mb-8">
+            <CardHeader>
+              <div className="flex items-center gap-3">
+                <Sparkles className="w-6 h-6 text-yellow-500" />
+                <div>
+                  <h2 className="text-2xl font-bold">Recommendations for You</h2>
+                  <p className="text-sm text-muted-foreground">
+                    Friends think you might connect well with these people
+                  </p>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {receivedRecommendations.recommendations.map((rec) => (
+                  <Card key={rec.id} className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h4 className="font-semibold">{rec.recommendedUser?.name}</h4>
+                          {rec.alreadyMatched && (
+                            <span className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded">
+                              Already Matched
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-sm text-muted-foreground mb-1">
+                          {rec.recommendedUser?.major} • {rec.recommendedUser?.year}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          Recommended by {rec.recommender?.name}
+                          {rec.message && `: "${rec.message}"`}
+                        </p>
+                      </div>
+                      <div className="flex gap-2">
+                        {!rec.alreadyMatched && (
+                          <>
+                            <Button
+                              size="sm"
+                              onClick={() => handleAcceptRecommendation(rec.id)}
+                            >
+                              View Profile
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleDeclineRecommendation(rec.id)}
+                            >
+                              Dismiss
+                            </Button>
+                          </>
+                        )}
+                        {rec.alreadyMatched && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleVisitProfile(rec.recommendedUser?.username)}
+                          >
+                            View Profile
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Unmatch Dialog */}
         <Dialog open={unmatchDialog}>
           <DialogContent
@@ -911,7 +1065,70 @@ function RouteComponent() {
             </div>
           </DialogContent>
         </Dialog>
-        
+
+        {/* Recommendation Dialog */}
+        <Dialog open={recommendDialog}>
+          <DialogContent
+            className="[&>button:first-of-type]:hidden"
+            onInteractOutside={(e) => {
+              e.preventDefault();
+            }}
+          >
+            <div className="flex flex-col space-y-4">
+              <DialogTitle>Recommend {recommendUser?.user?.name} to a friend</DialogTitle>
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-sm font-medium">Select recipient:</label>
+                      <select
+                        value={selectedRecipient}
+                        onChange={(e) => setSelectedRecipient(e.target.value)}
+                        className="w-full mt-1 px-3 py-2 border rounded-md"
+                      >
+                        <option value="">Choose a match...</option>
+                        {matches
+                          ?.filter(m => m.user?.id !== recommendUser?.user?.id)
+                          ?.map(match => (
+                            <option key={match.user?.id} value={match.user?.id}>
+                              {getDisplayName(match.user)}
+                            </option>
+                          ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium">Message (optional):</label>
+                      <Input
+                        value={recommendMessage}
+                        onChange={(e) => setRecommendMessage(e.target.value)}
+                        placeholder="Why do you think they'd be a good match?"
+                        className="mt-1"
+                      />
+                    </div>
+                    <div className="flex gap-2 justify-end">
+                      <Button
+                        onClick={() => {
+                          setRecommendDialog(false);
+                          setRecommendUser(null);
+                        }}
+                        variant="outline"
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        onClick={handleSubmitRecommendation}
+                        disabled={!selectedRecipient}
+                      >
+                        Send Recommendation
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </DialogContent>
+        </Dialog>
+
         {/* Welcome Dialog */}
         <Dialog open={showWelcomeDialog}>
           <DialogContent

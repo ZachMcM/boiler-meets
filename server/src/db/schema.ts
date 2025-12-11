@@ -184,3 +184,19 @@ export const callHistory = pgTable("call_history", {
   callDuration: integer("call_duration").notNull(), // in milliseconds
   wasMatched: boolean("was_matched").default(false).notNull(),
 });
+
+export const recommendations = pgTable("recommendations", {
+  id: serial("id").primaryKey(),
+  recommenderId: text("recommender_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  recommendedUserId: text("recommended_user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  recipientId: text("recipient_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  message: text("message"),
+  status: text("status").notNull().default("pending"), // pending, accepted, declined
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
