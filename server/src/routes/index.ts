@@ -3,6 +3,7 @@ import { usersRoute } from "./users";
 import { messagesRoute } from "./messages";
 import { unitTestsRoute } from "./unit_tests";
 import { reportsRoute } from "./reports";
+import { imagesRoute } from "./images";
 import { callsRoute } from "./calls";
 
 export const routes = express.Router();
@@ -11,6 +12,7 @@ routes.use(usersRoute);
 routes.use(messagesRoute);
 routes.use(unitTestsRoute);
 routes.use(reportsRoute);
+routes.use(imagesRoute);
 routes.use(callsRoute);
 
 routes.get("/login", async (_req, res) => {

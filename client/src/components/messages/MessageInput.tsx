@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Send, Smile } from 'lucide-react';
+import { Send, Smile, Image as ImageIcon, X } from 'lucide-react';
 import {
   Popover,
   PopoverContent,
@@ -11,7 +11,7 @@ import { FontSelector } from './FontSelector';
 import { cn } from '@/lib/utils';
 
 interface MessageInputProps {
-  onSendMessage: (content: string, font?: string) => void;
+  onSendMessage: (content: string | null, font?: string, imageUrl?: string | null) => void;
   onStartTyping?: () => void;
   onStopTyping?: () => void;
   placeholder?: string;
@@ -61,12 +61,50 @@ export function MessageInput({
   const [selectedFont, setSelectedFont] = useState('sans');
   const [isEmojiOpen, setIsEmojiOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   const handleSend = () => {
-    if (message.trim()) {
-      onSendMessage(message.trim(), selectedFont);
-      setMessage('');
-      onStopTyping?.();
+    const hasText = message.trim().length > 0;
+    const hasImage = !!previewUrl;
+
+    if (!hasText && !hasImage) return;
+
+    const contentToSend = hasText ? message.trim() : null;
+    onSendMessage(contentToSend, selectedFont, previewUrl ?? null);
+
+    setMessage('');
+    setPreviewUrl(null);
+    onStopTyping?.();
+  };
+
+  const handleImageSelect = async (file?: File) => {
+    try {
+      const selected = file;
+      if (!selected) return;
+      setUploading(true);
+
+      const form = new FormData();
+      form.append('image', selected, selected.name);
+
+      const resp = await fetch(`${import.meta.env.VITE_SERVER_URL}/images/upload`, {
+        method: 'POST',
+        credentials: 'include',
+        body: form,
+      });
+
+      if (!resp.ok) {
+        throw new Error('Image upload failed');
+      }
+
+      const data = await resp.json();
+      const imageUrl = data.imageUrl;
+      setPreviewUrl(imageUrl);
+    } catch (err) {
+      console.error('Image upload failed', err);
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -102,6 +140,10 @@ export function MessageInput({
       const newCursorPos = start + emoji.length;
       input.setSelectionRange(newCursorPos, newCursorPos);
     }, 0);
+  };
+
+  const removePreview = () => {
+    setPreviewUrl(null);
   };
 
   return (
@@ -141,16 +183,51 @@ export function MessageInput({
           className={cn("flex-1", (fontClassMap[selectedFont || 'sans'] || 'font-sans'))}
           maxLength={maxLength}
         />
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) handleImageSelect(f);
+          }}
+        />
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => fileInputRef.current?.click()}
+          className="shrink-0"
+          title="Upload image"
+        >
+          <ImageIcon className="h-5 w-5" />
+        </Button>
         <FontSelector value={selectedFont} onValueChange={setSelectedFont} />
         <Button
           onClick={handleSend}
-          disabled={!message.trim()}
+          disabled={!message.trim() && !previewUrl}
           size="icon"
           className="shrink-0"
         >
           <Send className="h-4 w-4" />
         </Button>
       </div>
+      {previewUrl && (
+        <div className="flex items-center gap-2">
+          <div className="relative">
+            <img src={previewUrl} alt="attachment preview" className="h-24 w-24 object-cover rounded" />
+            <button
+              type="button"
+              onClick={removePreview}
+              className="absolute -top-1 -right-1 bg-black/60 text-white rounded-full p-1"
+              aria-label="Remove attachment"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+          {uploading ? <div className="text-sm text-muted-foreground">Uploading...</div> : null}
+        </div>
+      )}
       <div className="text-xs text-muted-foreground text-right">
         {message.length}/{maxLength}
       </div>

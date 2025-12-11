@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
 import { EMOJIS } from './MessageInput';
-import { Circle, Plus } from 'lucide-react';
+import { Plus } from 'lucide-react';
 
 interface MessageBubbleProps {
   message: Message;
@@ -63,8 +63,8 @@ export function MessageBubble({ message, isCurrentUser, onReact }: MessageBubble
     });
   };
 
-  // const fontClass = fontClassMap[message.font || 'sans'] || 'font-sans';
-  const fontClass = 'font-algerian';
+  const fontClass = fontClassMap[message.font || 'sans'] || 'font-sans';
+  // const fontClass = 'font-algerian';
 
   return (
     <div
@@ -83,8 +83,20 @@ export function MessageBubble({ message, isCurrentUser, onReact }: MessageBubble
               : 'bg-muted text-foreground rounded-bl-md'
           )}
         >
-        <div className="flex items-center">
-          <p className="text-sm">{message.content}</p>
+        <div className="flex flex-col">
+          {message.imageUrl && (
+            <div className="mb-2">
+              <img
+                src={message.imageUrl}
+                alt="sent image"
+                className="max-w-xs max-h-60 rounded-md object-cover cursor-pointer"
+                onClick={() => window.open(message.imageUrl || '', '_blank')}
+              />
+            </div>
+          )}
+          {message.content && (
+            <p className="text-sm">{message.content}</p>
+          )}
         </div>
         </div>
         {/* Reaction display */}

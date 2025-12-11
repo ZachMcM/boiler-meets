@@ -52,6 +52,7 @@ messagesRoute.get("/messages/:otherUserId", authMiddleware, async (req, res) => 
         receiverId: messages.receiverId,
         content: messages.content,
         reaction: messages.reaction,
+        imageUrl: messages.imageUrl,
         font: messages.font,
         isRead: messages.isRead,
         createdAt: messages.createdAt,
@@ -94,22 +95,22 @@ messagesRoute.get("/messages/:otherUserId", authMiddleware, async (req, res) => 
 messagesRoute.post("/messages", authMiddleware, async (req, res) => {
   try {
     const senderId = res.locals.userId;
-    const { receiverId, content, font } = req.body;
+    const { receiverId, content, font, imageUrl } = req.body;
 
     if (!senderId) {
       return res.status(401).json({ error: "unauthorized" });
     }
 
-    if (!receiverId || !content) {
-      return res.status(400).json({ error: "missing receiverId or content" });
+    if (!receiverId || (!content && !imageUrl)) {
+      return res.status(400).json({ error: "missing receiverId or content/image" });
     }
 
-    // Validate content
-    if (typeof content !== "string" || content.trim().length === 0) {
+    // Validate content if provided
+    if (content && (typeof content !== "string" || content.trim().length === 0)) {
       return res.status(400).json({ error: "content must be a non-empty string" });
     }
 
-    if (content.length > 5000) {
+    if (content && content.length > 5000) {
       return res.status(400).json({ error: "content too long (max 5000 characters)" });
     }
 
@@ -119,9 +120,10 @@ messagesRoute.post("/messages", authMiddleware, async (req, res) => {
       .values({
         senderId,
         receiverId,
-        content: content.trim(),
+        content: content ? content.trim() : null,
         font: font,
         reaction: null,
+        imageUrl: imageUrl || null,
       })
       .returning();
 
@@ -222,6 +224,7 @@ messagesRoute.get("/messages/match/:username", authMiddleware, async (req, res) 
         receiverId: messages.receiverId,
         content: messages.content,
         reaction: messages.reaction,
+        imageUrl: messages.imageUrl,
         font: messages.font,
         isRead: messages.isRead,
         createdAt: messages.createdAt,

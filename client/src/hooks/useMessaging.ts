@@ -11,7 +11,7 @@ interface UseMessagingReturn {
   messages: Message[];
   isConnected: boolean;
   isTyping: boolean;
-  sendMessage: (content: string, font?: string) => void;
+  sendMessage: (content: string | null, font?: string, imageUrl?: string | null) => void;
   reactToMessage: (messageId: string, emoji?: string | null) => void;
   startTyping: () => void;
   stopTyping: () => void;
@@ -60,6 +60,7 @@ export function useMessaging({ userId, otherUserId }: UseMessagingProps): UseMes
           receiverId: message.receiverId,
           font: message.font || 'sans',
           reaction: message.reaction || null,
+          imageUrl: message.imageUrl || null,
           timestamp: new Date(message.timestamp),
           isRead: message.isRead,
         },
@@ -77,6 +78,7 @@ export function useMessaging({ userId, otherUserId }: UseMessagingProps): UseMes
           receiverId: message.receiverId,
           font: message.font || 'sans',
           reaction: message.reaction || null,
+          imageUrl: message.imageUrl || null,
           timestamp: new Date(message.timestamp),
           isRead: message.isRead,
         },
@@ -125,6 +127,7 @@ export function useMessaging({ userId, otherUserId }: UseMessagingProps): UseMes
                 content: message.content,
                 font: message.font || m.font,
                 reaction: message.reaction || null,
+                imageUrl: message.imageUrl || m.imageUrl,
                 isRead: message.isRead,
                 timestamp: new Date(message.timestamp),
               }
@@ -167,12 +170,13 @@ export function useMessaging({ userId, otherUserId }: UseMessagingProps): UseMes
 
         setMessages(
           data.map((msg: any) => ({
-            id: msg.id.toString(),
+                id: msg.id.toString(),
             content: msg.content,
             senderId: msg.senderId,
             receiverId: msg.receiverId,
-            font: msg.font || 'sans',
-            reaction: msg.reaction || null,
+                font: msg.font || 'sans',
+                reaction: msg.reaction || null,
+                imageUrl: msg.imageUrl || null,
             timestamp: new Date(msg.createdAt),
             isRead: msg.isRead,
           }))
@@ -186,14 +190,17 @@ export function useMessaging({ userId, otherUserId }: UseMessagingProps): UseMes
   }, [userId, otherUserId]);
 
   const sendMessage = useCallback(
-    (content: string, font?: string) => {
-      if (!socketRef.current || !content.trim()) return;
+    (content: string | null, font?: string, imageUrl?: string | null) => {
+      if (!socketRef.current) return;
 
-      socketRef.current.emit('send-message', {
-        receiverId: otherUserId,
-        content: content.trim(),
-        font: font || 'sans',
-      });
+      const payload: any = { receiverId: otherUserId, font: font || 'sans' };
+      if (content) payload.content = content.trim();
+      if (imageUrl) payload.imageUrl = imageUrl;
+
+      // Make sure at least content or imageUrl exists
+      if (!payload.content && !payload.imageUrl) return;
+
+      socketRef.current.emit('send-message', payload);
     },
     [otherUserId]
   );

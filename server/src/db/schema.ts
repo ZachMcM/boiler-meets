@@ -166,6 +166,7 @@ export const messages = pgTable("messages", {
   content: text("content").notNull(),
   font: text("font").default("sans").notNull(),
   reaction: text("reaction"),
+  imageUrl: text("image_url"),
   isRead: boolean("is_read").default(false).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });

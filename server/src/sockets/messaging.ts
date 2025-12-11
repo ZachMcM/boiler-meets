@@ -8,6 +8,7 @@ interface MessageData {
   receiverId: string;
   content: string;
   font?: string;
+  imageUrl?: string | null;
 }
 
 interface TypingData {
@@ -38,21 +39,20 @@ export function messagingHandler(socket: Socket) {
   // Handle sending a message
   socket.on("send-message", async (data: MessageData) => {
     try {
-      const { receiverId, content, font } = data;
+      const { receiverId, content, font, imageUrl } = data;
 
-      if (!receiverId || !content) {
-        socket.emit("error", { message: "Missing receiverId or content" });
+      if (!receiverId || (!content && !imageUrl)) {
+        socket.emit("error", { message: "Missing receiverId or content/image" } as any);
         return;
       }
 
-      // Validate content
-      if (typeof content !== "string" || content.trim().length === 0) {
-        socket.emit("error", { message: "Content must be a non-empty string" });
+      if (content && (typeof content !== "string" || content.trim().length === 0)) {
+        socket.emit("error", { message: "Content must be a non-empty string" } as any);
         return;
       }
 
-      if (content.length > 5000) {
-        socket.emit("error", { message: "Content too long (max 5000 characters)" });
+      if (content && content.length > 5000) {
+        socket.emit("error", { message: "Content too long (max 5000 characters)" } as any);
         return;
       }
 
@@ -62,8 +62,9 @@ export function messagingHandler(socket: Socket) {
         .values({
           senderId: userId,
           receiverId,
-          content: content.trim(),
+          content: content ? content.trim() : "",
           font: font,
+          imageUrl: imageUrl || null,
         })
         .returning();
 
@@ -77,6 +78,7 @@ export function messagingHandler(socket: Socket) {
         content: savedMessage.content,
         font: savedMessage.font,
         reaction: savedMessage.reaction,
+        imageUrl: savedMessage.imageUrl,
         isRead: savedMessage.isRead,
         timestamp: savedMessage.createdAt,
       });
@@ -89,6 +91,7 @@ export function messagingHandler(socket: Socket) {
         content: savedMessage.content,
         font: savedMessage.font,
         reaction: savedMessage.reaction,
+        imageUrl: savedMessage.imageUrl,
         isRead: savedMessage.isRead,
         timestamp: savedMessage.createdAt,
       });
@@ -96,7 +99,7 @@ export function messagingHandler(socket: Socket) {
       logger.info(`Message ${savedMessage.id} sent from ${userId} to ${receiverId}`);
     } catch (error) {
       logger.error("Error sending message:", error);
-      socket.emit("error", { message: "Failed to send message" });
+      socket.emit("error", { message: "Failed to send message" } as any);
     }
   });
 
@@ -162,7 +165,7 @@ export function messagingHandler(socket: Socket) {
 
       // Fetch message to verify the receiver
       const msgRes = await db
-        .select({ id: messages.id, senderId: messages.senderId, receiverId: messages.receiverId, content: messages.content, reaction: messages.reaction, font: messages.font, isRead: messages.isRead, createdAt: messages.createdAt })
+        .select({ id: messages.id, senderId: messages.senderId, receiverId: messages.receiverId, content: messages.content, reaction: messages.reaction, imageUrl: messages.imageUrl, font: messages.font, isRead: messages.isRead, createdAt: messages.createdAt })
         .from(messages)
         .where(eq(messages.id, messageId))
         .limit(1);
@@ -197,6 +200,7 @@ export function messagingHandler(socket: Socket) {
         content: updatedMsg.content,
         font: updatedMsg.font,
         reaction: updatedMsg.reaction,
+        imageUrl: updatedMsg.imageUrl,
         isRead: updatedMsg.isRead,
         timestamp: updatedMsg.createdAt,
       });
@@ -208,6 +212,7 @@ export function messagingHandler(socket: Socket) {
         content: updatedMsg.content,
         font: updatedMsg.font,
         reaction: updatedMsg.reaction,
+        imageUrl: updatedMsg.imageUrl,
         isRead: updatedMsg.isRead,
         timestamp: updatedMsg.createdAt,
       });

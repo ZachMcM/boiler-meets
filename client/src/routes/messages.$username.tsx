@@ -74,8 +74,9 @@ function MessagesComponent() {
     otherUserId: otherUser?.id || '',
   });
 
-  const handleSendMessage = (content: string, font?: string) => {
-    sendMessage(content, font);
+  const handleSendMessage = (content: string | null, font?: string, imageUrl?: string | null) => {
+    // Forward content, font, and optional imageUrl to the messaging hook
+    sendMessage(content, font, imageUrl);
     stopTyping();
   };
 
