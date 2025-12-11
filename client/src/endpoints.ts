@@ -268,3 +268,63 @@ export const getNicknames = async (): Promise<Record<string, string>> => {
     method: "GET",
   });
 };
+
+// Account Deletion API Functions
+export const requestAccountDeletion = async () => {
+  return await serverRequest({
+    endpoint: "/user/account/delete-request",
+    method: "POST",
+  });
+};
+
+export const confirmAccountDeletion = async (token: string) => {
+  return await serverRequest({
+    endpoint: `/user/account/delete-confirm/${token}`,
+    method: "DELETE",
+  });
+};
+
+// Recommendation API Functions
+export type Recommendation = {
+  id: number;
+  recommenderId: string;
+  recommendedUserId: string;
+  recipientId: string;
+  message: string | null;
+  status: "pending" | "accepted" | "declined";
+  createdAt: string;
+  recommendedUser?: User;
+  recommender?: User;
+  recipient?: User;
+  alreadyMatched?: boolean;
+};
+
+export const submitRecommendation = async (recommendedUserId: string, recipientId: string, message?: string) => {
+  return await serverRequest({
+    endpoint: "/recommendations",
+    method: "POST",
+    body: JSON.stringify({ recommendedUserId, recipientId, message }),
+  });
+};
+
+export const getSentRecommendations = async (): Promise<{ recommendations: Recommendation[] }> => {
+  return await serverRequest({
+    endpoint: "/recommendations/sent",
+    method: "GET",
+  });
+};
+
+export const getReceivedRecommendations = async (): Promise<{ recommendations: Recommendation[] }> => {
+  return await serverRequest({
+    endpoint: "/recommendations/received",
+    method: "GET",
+  });
+};
+
+export const updateRecommendationStatus = async (id: number, status: "accepted" | "declined") => {
+  return await serverRequest({
+    endpoint: `/recommendations/${id}/status`,
+    method: "PUT",
+    body: JSON.stringify({ status }),
+  });
+};

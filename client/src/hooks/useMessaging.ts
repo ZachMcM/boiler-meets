@@ -13,6 +13,7 @@ interface UseMessagingReturn {
   isTyping: boolean;
   sendMessage: (content: string | null, font?: string, imageUrl?: string | null) => void;
   reactToMessage: (messageId: string, emoji?: string | null) => void;
+  editMessage: (messageId: string, newContent: string) => void;
   startTyping: () => void;
   stopTyping: () => void;
   markAsRead: () => void;
@@ -63,6 +64,8 @@ export function useMessaging({ userId, otherUserId }: UseMessagingProps): UseMes
           imageUrl: message.imageUrl || null,
           timestamp: new Date(message.timestamp),
           isRead: message.isRead,
+          isEdited: message.isEdited || false,
+          editedAt: message.editedAt ? new Date(message.editedAt) : undefined,
         },
       ]);
     });
@@ -81,6 +84,8 @@ export function useMessaging({ userId, otherUserId }: UseMessagingProps): UseMes
           imageUrl: message.imageUrl || null,
           timestamp: new Date(message.timestamp),
           isRead: message.isRead,
+          isEdited: message.isEdited || false,
+          editedAt: message.editedAt ? new Date(message.editedAt) : undefined,
         },
       ]);
 
@@ -103,6 +108,22 @@ export function useMessaging({ userId, otherUserId }: UseMessagingProps): UseMes
           }, 3000);
         }
       }
+    });
+
+    // Listen for message edited
+    socket.on('message-edited', (message: any) => {
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === message.id.toString()
+            ? {
+                ...msg,
+                content: message.content,
+                isEdited: message.isEdited,
+                editedAt: message.editedAt ? new Date(message.editedAt) : undefined,
+              }
+            : msg
+        )
+      );
     });
 
     // Listen for messages read confirmation
@@ -179,6 +200,8 @@ export function useMessaging({ userId, otherUserId }: UseMessagingProps): UseMes
                 imageUrl: msg.imageUrl || null,
             timestamp: new Date(msg.createdAt),
             isRead: msg.isRead,
+            isEdited: msg.isEdited,
+            editedAt: msg.editedAt ? new Date(msg.editedAt) : undefined,
           }))
         );
       } catch (error) {
@@ -224,6 +247,18 @@ export function useMessaging({ userId, otherUserId }: UseMessagingProps): UseMes
     socketRef.current.emit('stop-typing', { receiverId: otherUserId });
   }, [otherUserId]);
 
+  const editMessage = useCallback(
+    (messageId: string, newContent: string) => {
+      if (!socketRef.current || !newContent.trim()) return;
+
+      socketRef.current.emit('edit-message', {
+        messageId: parseInt(messageId),
+        content: newContent.trim(),
+      });
+    },
+    []
+  );
+
   const markAsRead = useCallback(() => {
     if (!socketRef.current) return;
     socketRef.current.emit('mark-as-read', { otherUserId });
@@ -235,6 +270,7 @@ export function useMessaging({ userId, otherUserId }: UseMessagingProps): UseMes
     isTyping,
     sendMessage,
     reactToMessage,
+    editMessage,
     startTyping,
     stopTyping,
     markAsRead,

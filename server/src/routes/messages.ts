@@ -55,6 +55,8 @@ messagesRoute.get("/messages/:otherUserId", authMiddleware, async (req, res) => 
         imageUrl: messages.imageUrl,
         font: messages.font,
         isRead: messages.isRead,
+        isEdited: messages.isEdited,
+        editedAt: messages.editedAt,
         createdAt: messages.createdAt,
       })
       .from(messages)
@@ -87,6 +89,68 @@ messagesRoute.get("/messages/:otherUserId", authMiddleware, async (req, res) => 
     res.json(conversation);
   } catch (error) {
     console.error("get conversation error:", error);
+    res.status(500).json({ error: "server error" });
+  }
+});
+
+messagesRoute.put("/messages/:messageId/edit", authMiddleware, async (req, res) => {
+  try {
+    const userId = res.locals.userId;
+    const { messageId } = req.params;
+    const { content } = req.body;
+
+    if (!userId) {
+      return res.status(401).json({ error: "unauthorized" });
+    }
+
+    if (!messageId || !content) {
+      return res.status(400).json({ error: "missing messageId or content" });
+    }
+
+    if (typeof content !== "string" || content.trim().length === 0) {
+      return res.status(400).json({ error: "content must be a non-empty string" });
+    }
+
+    if (content.length > 5000) {
+      return res.status(400).json({ error: "content too long (max 5000 characters)" });
+    }
+
+    const originalMessage = await db
+      .select()
+      .from(messages)
+      .where(eq(messages.id, parseInt(messageId)))
+      .limit(1);
+
+    if (originalMessage.length === 0) {
+      return res.status(404).json({ error: "message not found" });
+    }
+
+    const message = originalMessage[0];
+    if (message.senderId !== userId) {
+      return res.status(403).json({ error: "you can only edit your own messages" });
+    }
+
+    const messageAge = Date.now() - new Date(message.createdAt).getTime();
+    const EDIT_TIME_WINDOW = 15 * 60 * 1000; // 15 minutes windo
+
+    if (messageAge > EDIT_TIME_WINDOW) {
+      return res.status(403).json({ error: "edit time window has expired (15 minutes)" });
+    }
+
+    const updatedMessage = await db
+      .update(messages)
+      .set({
+        content: content.trim(),
+        isEdited: true,
+        editedAt: new Date(),
+        originalContent: message.originalContent || message.content, // Store original if first edit
+      })
+      .where(eq(messages.id, parseInt(messageId)))
+      .returning();
+
+    res.json(updatedMessage[0]);
+  } catch (error) {
+    console.error("edit message error:", error);
     res.status(500).json({ error: "server error" });
   }
 });
@@ -227,6 +291,8 @@ messagesRoute.get("/messages/match/:username", authMiddleware, async (req, res) 
         imageUrl: messages.imageUrl,
         font: messages.font,
         isRead: messages.isRead,
+        isEdited: messages.isEdited,
+        editedAt: messages.editedAt,
         createdAt: messages.createdAt,
       })
       .from(messages)

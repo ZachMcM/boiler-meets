@@ -20,6 +20,8 @@ export interface Message {
   imageUrl?: string | null;
   timestamp: Date;
   isRead: boolean;
+  isEdited?: boolean;
+  editedAt?: Date;
 }
 
 export interface Reaction {
