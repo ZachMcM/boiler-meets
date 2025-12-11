@@ -8,6 +8,7 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { FontSelector } from './FontSelector';
+import { ImageGallery } from './ImageGallery';
 import { cn } from '@/lib/utils';
 
 interface MessageInputProps {
@@ -60,6 +61,7 @@ export function MessageInput({
   const [message, setMessage] = useState('');
   const [selectedFont, setSelectedFont] = useState('sans');
   const [isEmojiOpen, setIsEmojiOpen] = useState(false);
+  const [isImageMenuOpen, setIsImageMenuOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
@@ -146,6 +148,11 @@ export function MessageInput({
     setPreviewUrl(null);
   };
 
+  const handleSelectFromGallery = (imageUrl: string) => {
+    setPreviewUrl(imageUrl);
+    setIsImageMenuOpen(false);
+  };
+
   return (
     <div className="flex flex-col gap-2 p-4 border-t bg-background">
       <div className="flex gap-2">
@@ -193,15 +200,24 @@ export function MessageInput({
             if (f) handleImageSelect(f);
           }}
         />
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => fileInputRef.current?.click()}
-          className="shrink-0"
-          title="Upload image"
-        >
-          <ImageIcon className="h-5 w-5" />
-        </Button>
+        <Popover open={isImageMenuOpen} onOpenChange={setIsImageMenuOpen}>
+          <PopoverTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="shrink-0"
+              title="Select image"
+            >
+              <ImageIcon className="h-5 w-5" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-96 p-0" align="end">
+            <ImageGallery
+              onSelectImage={handleSelectFromGallery}
+              onUploadClick={() => fileInputRef.current?.click()}
+            />
+          </PopoverContent>
+        </Popover>
         <FontSelector value={selectedFont} onValueChange={setSelectedFont} />
         <Button
           onClick={handleSend}
