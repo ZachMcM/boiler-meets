@@ -11,6 +11,7 @@ import { headsupItems } from "../data/headsupItems";
 import { purdueTrivia } from "../data/purdueTrivia";
 import { HeadsupGameState, TicTacToeGameState, TwoTruthsGameState, TriviaGameState, TriviaQuestion } from "../types/gameState";
 import { checkWinner, checkTie } from "../utils/tictactoe";
+import { updateUserCallStatus } from "./user-status";
 
 const gameTurnTimeouts = new Map<string, NodeJS.Timeout>();
 
@@ -79,6 +80,9 @@ export async function videoChatHandler(socket: Socket) {
   // Join the room
   socket.join(roomId);
 
+  // This just updates the user's status
+  await updateUserCallStatus(io, userId, true);
+
   // Get all sockets currently in the room (before this user joined)
   const socketsInRoom = await io.of("/video-chat").in(roomId).fetchSockets();
   const otherUsers = socketsInRoom
@@ -136,6 +140,8 @@ export async function videoChatHandler(socket: Socket) {
     // Notify the other user
     socket.to(roomId).emit("user-left", { userId });
 
+    await updateUserCallStatus(io, userId, false);
+
     // Check if room is empty and clean up
     const socketsInRoom = await io.of("/video-chat").in(roomId).fetchSockets();
     if (socketsInRoom.length === 0) {
@@ -147,9 +153,10 @@ export async function videoChatHandler(socket: Socket) {
     }
   });
 
-  socket.on("soft-leave", () => {
+  socket.on("soft-leave", async () => {
     clearTimeout(timeoutId);
     io.of("/video-chat").to(roomId).emit("timeout");
+    await updateUserCallStatus(io, userId, false);
     console.log("Prematurely Ending Call");
   });
 
@@ -161,6 +168,8 @@ export async function videoChatHandler(socket: Socket) {
 
     // Remove user from room
     socket.leave(roomId);
+
+    await updateUserCallStatus(io, userId, false);
 
     // Check if room is empty and clean up
     const socketsInRoom = await io.of("/video-chat").in(roomId).fetchSockets();
