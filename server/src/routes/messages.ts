@@ -52,6 +52,8 @@ messagesRoute.get("/messages/:otherUserId", authMiddleware, async (req, res) => 
         receiverId: messages.receiverId,
         content: messages.content,
         isRead: messages.isRead,
+        isEdited: messages.isEdited,
+        editedAt: messages.editedAt,
         createdAt: messages.createdAt,
       })
       .from(messages)
@@ -280,6 +282,8 @@ messagesRoute.get("/messages/match/:username", authMiddleware, async (req, res) 
         receiverId: messages.receiverId,
         content: messages.content,
         isRead: messages.isRead,
+        isEdited: messages.isEdited,
+        editedAt: messages.editedAt,
         createdAt: messages.createdAt,
       })
       .from(messages)
