@@ -49,6 +49,24 @@ export const Route = createFileRoute("/dashboard")({
   component: RouteComponent,
 });
 
+// This is the status component for user statuses
+const StatusBadge = ({ status }: { status: "online" | "in-call" | "offline" }) => {
+  const config = {
+    online: { color: "bg-green-500", text: "Online" },
+    "in-call": { color: "bg-yellow-500", text: "In Call" },
+    offline: { color: "bg-gray-400", text: "Offline" },
+  };
+
+  const { color, text } = config[status];
+
+  return (
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100">
+      <span className={`w-2 h-2 rounded-full ${color}`} />
+      {text}
+    </span>
+  );
+};
+
 function RouteComponent() {
   const queryClient = useQueryClient();
   const router = useRouter();
@@ -63,6 +81,9 @@ function RouteComponent() {
   const [unmatchUser, setUnmatchUser] = useState<Match | null>(null);
   const [incomingCall, setIncomingCall] = useState<{ callerId: string; callerName: string; roomId: string; matchType: string } | null>(null);
   const [directCallSocket, setDirectCallSocket] = useState<any>(null); // Using 'any' here since it's just for socket management
+
+  const [userStatuses, setUserStatuses] = useState<Record<string, "online" | "in-call" | "offline">>({});
+  const [userStatusSocket, setUserStatusSocket] = useState<any>(null);
 
   const { data: currentUserData, isLoading: sessionPending } = useQuery({
     queryKey: ["session"],
@@ -160,6 +181,61 @@ function RouteComponent() {
       socket.disconnect();
     };
   }, [currentUserData?.data?.user?.id, queryClient]);
+
+  // This is for grabbing the user statuses from the server
+  useEffect(() => {
+    if (!currentUserData?.data?.user?.id) return;
+
+    const socket = io(`${import.meta.env.VITE_SERVER_URL}/user-status`, {
+      auth: { userId: currentUserData.data.user.id },
+      withCredentials: true,
+    });
+
+    socket.on("connect", () => {
+      console.log("Connected to presence");
+      // Request statuses for all users we care about
+      const allUserIds = [
+        ...(matches?.map(m => m.user?.id).filter(Boolean) || []),
+        ...(searchResults?.users?.map(u => u.id).filter(Boolean) || []),
+      ];
+      
+      if (allUserIds.length > 0) {
+        socket.emit("request-statuses", { userIds: allUserIds });
+      }
+    });
+
+    socket.on("statuses-batch", (statuses: Record<string, { userId: string; status: string; lastSeen: number }>) => {
+      const statusMap: Record<string, "online" | "in-call" | "offline"> = {};
+      Object.entries(statuses).forEach(([userId, data]) => {
+        statusMap[userId] = data.status as "online" | "in-call" | "offline";
+      });
+      setUserStatuses(prev => ({ ...prev, ...statusMap }));
+    });
+
+    socket.on("user-status-changed", ({ userId, status }: { userId: string; status: "online" | "in-call" | "offline" }) => {
+      console.log(`User ${userId} status changed to ${status}`);
+      setUserStatuses(prev => ({ ...prev, [userId]: status }));
+    });
+
+    setUserStatusSocket(socket);
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [currentUserData?.data?.user?.id]);
+
+  useEffect(() => {
+    if (!userStatusSocket) return;
+    
+    const allUserIds = [
+      ...(matches?.map(m => m.user?.id).filter(Boolean) || []),
+      ...(searchResults?.users?.map(u => u.id).filter(Boolean) || []),
+    ];
+    
+    if (allUserIds.length > 0) {
+      userStatusSocket.emit("request-statuses", { userIds: allUserIds });
+    }
+  }, [matches, searchResults, userStatusSocket]);
 
   // Listen for user-banned event to immediately log out banned users
   useEffect(() => {
@@ -615,6 +691,9 @@ function RouteComponent() {
                                 <h3 className="font-semibold text-base truncate">
                                   {getDisplayName(user)}
                                 </h3>
+                                {user?.id && userStatuses[user.id] && (
+                                  <StatusBadge status={userStatuses[user.id]} />
+                                )}
                                 <p className="text-sm text-muted-foreground truncate">
                                   {user?.major} • {user?.year}
                                 </p>

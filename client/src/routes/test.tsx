@@ -5,6 +5,10 @@ import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
 import { Video, VideoOff, Mic, MicOff, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 
+// These are keys for data to be stored in local storage
+const MICROPHONE_SENSITIVTY_KEY = "boilermeets_mic_sensitivity";
+const OUTPUT_VOLUME_KEY = "boilermeets_output_volume";
+
 export const Route = createFileRoute("/test")({
   beforeLoad: async ({ context }) => {
     // Require authentication to access test page
@@ -26,6 +30,7 @@ function TestPage() {
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
+  const gainNodeRef = useRef<GainNode | null>(null);
   const animationFrameRef = useRef<number | null>(null);
 
   // UI state
@@ -33,6 +38,18 @@ function TestPage() {
   const [isAudioEnabled, setIsAudioEnabled] = useState(true);
   const [permissionStatus, setPermissionStatus] = useState<"pending" | "granted" | "denied">("pending");
   const [audioLevel, setAudioLevel] = useState(0);
+  const [micSensitivity, setMicSensitivity] = useState<number>(() => {
+    if (typeof window === "undefined") return 1; // SSR safety if needed
+    const stored = localStorage.getItem(MICROPHONE_SENSITIVTY_KEY);
+    const parsed = stored !== null ? Number(stored) : 1;
+    return Number.isFinite(parsed) ? parsed : 1;
+  });
+  const [outputVolume, setOutputVolume] = useState<number>(() => {
+    if (typeof window === "undefined") return 1;
+    const stored = localStorage.getItem(OUTPUT_VOLUME_KEY);
+    const parsed = stored !== null ? Number(stored) : 1;
+    return Number.isFinite(parsed) ? parsed : 1;
+  });
 
   // Initialize media devices
   useEffect(() => {
@@ -77,23 +94,62 @@ function TestPage() {
       if (audioContextRef.current) {
         audioContextRef.current.close();
       }
+      if (gainNodeRef.current) {
+        gainNodeRef.current.disconnect();
+      }
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
       }
     };
   }, []);
 
+  useEffect(() => {
+    if (gainNodeRef.current) {
+      gainNodeRef.current.gain.value = micSensitivity;
+    }
+  }, [micSensitivity]);
+
+  useEffect(() => {
+    if (localVideoRef.current) {
+      localVideoRef.current.volume = outputVolume;
+    }
+  }, [outputVolume]);
+
+  useEffect(() => {
+    localStorage.setItem(MICROPHONE_SENSITIVTY_KEY, String(micSensitivity));
+  }, [micSensitivity]);
+
+  useEffect(() => {
+    localStorage.setItem(OUTPUT_VOLUME_KEY, String(outputVolume));
+  }, [outputVolume]);
+
   // Set up audio analyzer for microphone level meter
   const setupAudioAnalyzer = (stream: MediaStream) => {
     const audioContext = new AudioContext();
     const analyser = audioContext.createAnalyser();
     const microphone = audioContext.createMediaStreamSource(stream);
+    const gainNode = audioContext.createGain();
+    const destination = audioContext.createMediaStreamDestination();
 
     analyser.fftSize = 256;
-    microphone.connect(analyser);
+    microphone.connect(gainNode);
+    gainNode.connect(analyser);
+    gainNode.connect(destination);
 
     audioContextRef.current = audioContext;
     analyserRef.current = analyser;
+    gainNodeRef.current = gainNode;
+
+    gainNode.gain.value = micSensitivity;
+
+    const processedStream = new MediaStream([
+      ...stream.getVideoTracks(),
+      ...destination.stream.getAudioTracks(),
+    ]);
+
+    if (localVideoRef.current) {
+      localVideoRef.current.srcObject = processedStream;
+    }
 
     // Start monitoring audio levels
     monitorAudioLevel();
@@ -193,7 +249,7 @@ function TestPage() {
                   ref={localVideoRef}
                   autoPlay
                   playsInline
-                  muted
+                  muted = {!isAudioEnabled}
                   className="w-full h-64 lg:h-96 object-cover bg-card scale-x-[-1]"
                 />
               </div>
@@ -219,6 +275,44 @@ function TestPage() {
                   <p className="text-xs text-muted-foreground mt-1">
                     Level: {isAudioEnabled ? Math.round(audioLevel) : 0}%
                   </p>
+                  <div className="mt-4">
+                    <label className="block text-xs text-muted-foreground mb-1">
+                      Microphone sensitivity
+                    </label>
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="range"
+                        min={0}
+                        max={3}
+                        step={0.1}
+                        value={micSensitivity}
+                        onChange={(e) => setMicSensitivity(Number(e.target.value))}
+                        className="w-full cursor-e-resize"
+                      />
+                      <span className="text-sm text-muted-foreground min-w-[3ch]">
+                        {Math.round((micSensitivity / 3) * 100)}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="mt-4">
+                    <label className="block text-xs text-muted-foreground mb-1">
+                      Output volume
+                    </label>
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="range"
+                        min={0}
+                        max={1}
+                        step={0.01}
+                        value={outputVolume}
+                        onChange={(e) => setOutputVolume(Number(e.target.value))}
+                        className="w-full cursor-e-resize"
+                      />
+                      <span className="text-sm text-muted-foreground min-w-[3ch]">
+                        {Math.round(outputVolume * 100)}
+                      </span>
+                    </div>
+                  </div>
                 </div>
               )}
             </CardContent>
