@@ -8,9 +8,11 @@ interface MessageListProps {
   currentUserId: string;
   className?: string;
   onEditMessage?: (messageId: string, newContent: string) => void;
+  reactToMessage?: (messageId: string, emoji?: string | null) => void;
 }
 
-export function MessageList({ messages, currentUserId, className, onEditMessage }: MessageListProps) {
+export function MessageList({ messages, currentUserId, className, onEditMessage, reactToMessage }: MessageListProps) {
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -41,6 +43,9 @@ export function MessageList({ messages, currentUserId, className, onEditMessage 
           key={message.id}
           message={message}
           isCurrentUser={message.senderId === currentUserId}
+          // forward react handler if available
+          // message.id is a string
+          onReact={reactToMessage}
           onEditMessage={onEditMessage}
         />
       ))}

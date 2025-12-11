@@ -66,6 +66,7 @@ function MessagesComponent() {
     isConnected,
     isTyping,
     sendMessage,
+    reactToMessage,
     editMessage,
     startTyping,
     stopTyping,
@@ -74,8 +75,9 @@ function MessagesComponent() {
     otherUserId: otherUser?.id || '',
   });
 
-  const handleSendMessage = (content: string) => {
-    sendMessage(content);
+  const handleSendMessage = (content: string | null, font?: string, imageUrl?: string | null) => {
+    // Forward content, font, and optional imageUrl to the messaging hook
+    sendMessage(content, font, imageUrl);
     stopTyping();
   };
 
@@ -149,6 +151,7 @@ function MessagesComponent() {
       <MessageList
         messages={messages}
         currentUserId={currentUserData?.user?.id || ''}
+        reactToMessage={reactToMessage}
         className="flex-1"
         onEditMessage={editMessage}
       />

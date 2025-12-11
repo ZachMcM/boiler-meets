@@ -11,7 +11,8 @@ interface UseMessagingReturn {
   messages: Message[];
   isConnected: boolean;
   isTyping: boolean;
-  sendMessage: (content: string) => void;
+  sendMessage: (content: string | null, font?: string, imageUrl?: string | null) => void;
+  reactToMessage: (messageId: string, emoji?: string | null) => void;
   editMessage: (messageId: string, newContent: string) => void;
   startTyping: () => void;
   stopTyping: () => void;
@@ -58,6 +59,9 @@ export function useMessaging({ userId, otherUserId }: UseMessagingProps): UseMes
           content: message.content,
           senderId: message.senderId,
           receiverId: message.receiverId,
+          font: message.font || 'sans',
+          reaction: message.reaction || null,
+          imageUrl: message.imageUrl || null,
           timestamp: new Date(message.timestamp),
           isRead: message.isRead,
           isEdited: message.isEdited || false,
@@ -75,6 +79,9 @@ export function useMessaging({ userId, otherUserId }: UseMessagingProps): UseMes
           content: message.content,
           senderId: message.senderId,
           receiverId: message.receiverId,
+          font: message.font || 'sans',
+          reaction: message.reaction || null,
+          imageUrl: message.imageUrl || null,
           timestamp: new Date(message.timestamp),
           isRead: message.isRead,
           isEdited: message.isEdited || false,
@@ -131,6 +138,25 @@ export function useMessaging({ userId, otherUserId }: UseMessagingProps): UseMes
       );
     });
 
+    // Listen for message updates (reactions, edits)
+    socket.on('message-updated', (message: any) => {
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === message.id.toString()
+            ? {
+                ...m,
+                content: message.content,
+                font: message.font || m.font,
+                reaction: message.reaction || null,
+                imageUrl: message.imageUrl || m.imageUrl,
+                isRead: message.isRead,
+                timestamp: new Date(message.timestamp),
+              }
+            : m
+        )
+      );
+    });
+
     // Listen for errors
     socket.on('error', (error: { message: string }) => {
       console.error('Socket error:', error.message);
@@ -165,10 +191,13 @@ export function useMessaging({ userId, otherUserId }: UseMessagingProps): UseMes
 
         setMessages(
           data.map((msg: any) => ({
-            id: msg.id.toString(),
+                id: msg.id.toString(),
             content: msg.content,
             senderId: msg.senderId,
             receiverId: msg.receiverId,
+                font: msg.font || 'sans',
+                reaction: msg.reaction || null,
+                imageUrl: msg.imageUrl || null,
             timestamp: new Date(msg.createdAt),
             isRead: msg.isRead,
             isEdited: msg.isEdited,
@@ -184,15 +213,28 @@ export function useMessaging({ userId, otherUserId }: UseMessagingProps): UseMes
   }, [userId, otherUserId]);
 
   const sendMessage = useCallback(
-    (content: string) => {
-      if (!socketRef.current || !content.trim()) return;
+    (content: string | null, font?: string, imageUrl?: string | null) => {
+      if (!socketRef.current) return;
 
-      socketRef.current.emit('send-message', {
-        receiverId: otherUserId,
-        content: content.trim(),
-      });
+      const payload: any = { receiverId: otherUserId, font: font || 'sans' };
+      if (content) payload.content = content.trim();
+      if (imageUrl) payload.imageUrl = imageUrl;
+
+      // Make sure at least content or imageUrl exists
+      if (!payload.content && !payload.imageUrl) return;
+
+      socketRef.current.emit('send-message', payload);
     },
     [otherUserId]
+  );
+
+  const reactToMessage = useCallback(
+    (messageId: string, emoji?: string | null) => {
+      if (!socketRef.current) return;
+      const idNum = Number(messageId);
+      socketRef.current.emit('react-message', { messageId: idNum, emoji });
+    },
+    []
   );
 
   const startTyping = useCallback(() => {
@@ -227,6 +269,7 @@ export function useMessaging({ userId, otherUserId }: UseMessagingProps): UseMes
     isConnected,
     isTyping,
     sendMessage,
+    reactToMessage,
     editMessage,
     startTyping,
     stopTyping,

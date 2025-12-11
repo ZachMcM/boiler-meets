@@ -3,6 +3,7 @@ import { usersRoute } from "./users";
 import { messagesRoute } from "./messages";
 import { unitTestsRoute } from "./unit_tests";
 import { reportsRoute } from "./reports";
+import { imagesRoute } from "./images";
 import { callsRoute } from "./calls";
 import recommendationsRoute from "./recommendations";
 
@@ -12,6 +13,7 @@ routes.use(usersRoute);
 routes.use(messagesRoute);
 routes.use(unitTestsRoute);
 routes.use(reportsRoute);
+routes.use(imagesRoute);
 routes.use(callsRoute);
 routes.use(recommendationsRoute);
 

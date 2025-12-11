@@ -6,7 +6,7 @@ import { authClient } from "@/lib/auth-client";
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import type { DraggableModule } from "@/components/ProfileModules";
 import React, { useState, useEffect } from "react";
-import { Save, Home, MessageCircle, Users, Heart, ShieldX, Edit3, Check, Trash2 } from "lucide-react";
+import { Save, Home, MessageCircle, Users, Heart, ShieldX, Edit3, Check, Info, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import PurdueTrainHeader from '@/components/PurdueTrainAnimation';
@@ -14,6 +14,7 @@ import { getMatches, getProfileReactions, addProfileReaction, blockUser, unblock
 import type { Reaction } from "@/types/user";
 import { Dialog, DialogContent, DialogTitle, DialogHeader, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { useProfileTutorial } from "@/hooks/useTutorial";
 
 export const Route = createFileRoute("/profile/$username")({
   component: () => {
@@ -63,6 +64,7 @@ function RouteComponent(username: string) {
   const { data: currentUserData } = authClient.useSession();
   const queryClient = useQueryClient();
   const router = useRouter();
+  const { startTutorial } = useProfileTutorial();
 
   // Fetch the profile user's data
   const { data: profileUserData, isLoading: isLoadingProfile, error } = useQuery({
@@ -548,6 +550,15 @@ function RouteComponent(username: string) {
           <Home size={18} />
           Dashboard
         </Button>
+        <Button
+          onClick={startTutorial}
+          variant="outline"
+          size="icon"
+          className="hover:cursor-pointer tutorial-tutorial"
+          title="Start tutorial"
+        >
+          <Info className="w-4 h-4" />
+        </Button>
         {permission === "view" && isMatched && (
           <>
             <Button
@@ -628,7 +639,7 @@ function RouteComponent(username: string) {
             </div>
 
             {/* Preferences Section */}
-            <div className="pb-4 border-b mt-4">
+            <div className="pb-4 border-b mt-4 tutorial-looking-for">
               <Label className="text-xl font-semibold mb-3 block">
                 Looking for
               </Label>
@@ -686,7 +697,7 @@ function RouteComponent(username: string) {
                 value={bioText}
                 onChange={handleBioChange}
                 placeholder="Write a bio about yourself..." 
-                className="w-full mt-8 resize-none max-h-full overflow-hidden field-sizing-content p-2"
+                className="w-full mt-8 resize-none max-h-full overflow-hidden field-sizing-content p-2 tutorial-bio"
                 style={{ overflowWrap: 'anywhere' }}
               />
             )}
@@ -745,7 +756,7 @@ function RouteComponent(username: string) {
           </CardContent>
         </Card>
         <Card className="flex-[2] flex flex-col">
-          <CardContent className="h-full p-4">
+          <CardContent className="h-full p-4 tutorial-modules">
             <ProfileModuleEditor
               initialModules={profileModules}
               onSave={handleProfileSave}

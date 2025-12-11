@@ -1,5 +1,5 @@
 {
-  "id": "21d07df1-7a3c-4c85-9b49-d428278ff1c1",
+  "id": "bc804b2d-7179-4380-8e12-50f3ddbad565",
   "prevId": "ebd5e9a7-b51c-4fda-a1ab-f3615871aa04",
   "version": "7",
   "dialect": "postgresql",
@@ -294,6 +294,25 @@
           "primaryKey": false,
           "notNull": true
         },
+        "font": {
+          "name": "font",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'sans'"
+        },
+        "reaction": {
+          "name": "reaction",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "image_url": {
+          "name": "image_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "is_read": {
           "name": "is_read",
           "type": "boolean",
@@ -432,6 +451,103 @@
           "tableTo": "user",
           "columnsFrom": [
             "profile_owner_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.recommendations": {
+      "name": "recommendations",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "recommender_id": {
+          "name": "recommender_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "recommended_user_id": {
+          "name": "recommended_user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "recipient_id": {
+          "name": "recipient_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "message": {
+          "name": "message",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'pending'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "recommendations_recommender_id_user_id_fk": {
+          "name": "recommendations_recommender_id_user_id_fk",
+          "tableFrom": "recommendations",
+          "tableTo": "user",
+          "columnsFrom": [
+            "recommender_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "recommendations_recommended_user_id_user_id_fk": {
+          "name": "recommendations_recommended_user_id_user_id_fk",
+          "tableFrom": "recommendations",
+          "tableTo": "user",
+          "columnsFrom": [
+            "recommended_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "recommendations_recipient_id_user_id_fk": {
+          "name": "recommendations_recipient_id_user_id_fk",
+          "tableFrom": "recommendations",
+          "tableTo": "user",
+          "columnsFrom": [
+            "recipient_id"
           ],
           "columnsTo": [
             "id"

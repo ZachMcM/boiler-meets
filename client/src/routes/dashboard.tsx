@@ -21,8 +21,10 @@ import {
   Bell,
   XCircle,
   Video,
-  TestTube2
+  TestTube2,
+  Info
 } from "lucide-react";
+import { useDashboardTutorial } from "@/hooks/useTutorial";
 import {
   getMatches,
   getMatchMessages,
@@ -80,6 +82,7 @@ const StatusBadge = ({ status }: { status: "online" | "in-call" | "offline" }) =
 function RouteComponent() {
   const queryClient = useQueryClient();
   const router = useRouter();
+  const { startTutorial } = useDashboardTutorial();
 
   const [showWelcomeDialog, setShowWelcomeDialog] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -579,13 +582,22 @@ function RouteComponent() {
       <div className="container mx-auto px-4 py-8">
         {/* Header Section */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
-          <div className="flex flex-col gap-0.5">
+          <div className="flex flex-col gap-0.5 tutorial-welcome">
             <h1 className="text-3xl md:text-4xl font-bold">Dashboard</h1>
             <p className="text-lg text-muted-foreground">
               Welcome back, {currentUserData?.data?.user?.username || "User"}!
             </p>
           </div>
           <div className="flex gap-3">
+            <Button
+              onClick={startTutorial}
+              variant="outline"
+              size="icon"
+              className="hover:cursor-pointer tutorial-tutorial"
+              title="Start tutorial"
+            >
+              <Info className="w-4 h-4" />
+            </Button>
             <Link to="/test">
               <Button
                 variant="outline"
@@ -599,18 +611,20 @@ function RouteComponent() {
               matchType="friend"
               label="Find Friends"
               icon={<Users />}
+              className="tutorial-find-friends"
             />
             <FindRoomButton
               matchType="romantic"
               label="Find Romance"
               icon={<Heart />}
+              className="tutorial-find-romance"
             />
             <Button
               onClick={() =>
                 handleVisitProfile(currentUserData?.data?.user?.username)
               }
               variant="outline"
-              className="hover:cursor-pointer"
+              className="hover:cursor-pointer tutorial-profile"
             >
               <UserCircle className="w-4 h-4 mr-2" />
               My Profile
@@ -635,7 +649,7 @@ function RouteComponent() {
 
         {/* Matches & Notifications Section */}
         <div className="flex gap-2 mb-4">
-        <Card className="mb-8 w-4/5">
+        <Card className="mb-8 w-4/5 tutorial-matches">
           <CardHeader>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -920,7 +934,7 @@ function RouteComponent() {
             )}
           </CardContent>
         </Card>
-        <Card className="mb-8 w-1/5 truncate">
+        <Card className="mb-8 w-1/5 truncate tutorial-notifications">
           <CardHeader>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3 overflow-hidden">

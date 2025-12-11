@@ -33,6 +33,7 @@ import {
   Flag,
   Headphones,
   Heart,
+  Info,
   Loader,
   Mic,
   MicOff,
@@ -60,6 +61,7 @@ import Headsup, { type HeadsupGameState } from "./Headsup";
 import TicTacToe, { type TicTacToeGameState } from "./TicTacToe";
 import TwoTruthsAndALie, { type TwoTruthsGameState } from "./TwoTruthsAndALie";
 import PurdueTrivia, { type TriviaGameState } from "./PurdueTrivia";
+import { useVideoTutorial } from "@/hooks/useTutorial";
 
 const BACKGROUND_OPTIONS = [
   {
@@ -117,6 +119,7 @@ export function ChatRoom({ roomId }: { roomId: string }) {
   const router = useRouter();
   const { data: session } = authClient.useSession();
   const queryClient = useQueryClient();
+  const { startTutorial } = useVideoTutorial()
 
   const [socket, setSocket] = useState<Socket | null>(null);
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
@@ -1239,7 +1242,18 @@ export function ChatRoom({ roomId }: { roomId: string }) {
     >
       <div className="relative overflow-hidden">
         <div className="relative px-4 py-8 mx-auto max-w-7xl">
-          <h1 className="text-3xl md:text-4xl font-bold mb-8">Video Chat</h1>
+          <h1 className="text-3xl md:text-4xl font-bold mb-8">
+            Video Chat  
+            <Button
+            onClick={startTutorial}
+            variant="outline"
+            size="icon"
+            className="hover:cursor-pointer tutorial-tutorial mx-5"
+            title="Start tutorial"
+          >
+            <Info className="w-4 h-4" />
+          </Button>
+          </h1>
 
           {/* incoming call notification card */}
           {incomingCall && (
@@ -1629,7 +1643,7 @@ export function ChatRoom({ roomId }: { roomId: string }) {
                       </div>
                     </CardHeader>
                   )}
-                  <CardContent className="p-0 relative">
+                  <CardContent className="p-0 relative tutorial-feed">
                     {remoteStream ? (
                       <div>
                         <video
@@ -1651,7 +1665,7 @@ export function ChatRoom({ roomId }: { roomId: string }) {
                         </p>
                       </div>
                     )}
-                    <div className="w-36 aspect-video absolute right-4 top-4">
+                    <div className="w-36 aspect-video absolute right-4 top-4 tutorial-your-feed">
                       <video
                         ref={localVideoRef}
                         autoPlay
@@ -1662,7 +1676,7 @@ export function ChatRoom({ roomId }: { roomId: string }) {
                     </div>
                   </CardContent>
                   <CardFooter>
-                    <div className="flex justify-center items-center gap-4">
+                    <div className="flex justify-center items-center gap-4 tutorial-buttons">
                       <Button
                         onClick={toggleVideo}
                         variant={isVideoEnabled ? "default" : "destructive"}
@@ -1849,7 +1863,7 @@ export function ChatRoom({ roomId }: { roomId: string }) {
                   />
                 ) : null
               ) : (
-                <>
+                <div className="tutorial-about">
                   <Card>
                     <CardContent>
                       <div className="text-xl">About Me</div>
@@ -1864,7 +1878,7 @@ export function ChatRoom({ roomId }: { roomId: string }) {
                       No profile :(
                     </Card>
                   )}
-                </>
+                </div>
               )}
             </div>
           </div>
