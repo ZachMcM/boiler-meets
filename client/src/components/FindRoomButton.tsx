@@ -10,9 +10,10 @@ interface FindRoomButtonProps {
   matchType: "friend" | "romantic";
   label: string;
   icon?: React.ReactNode;
+  className?: string;
 }
 
-export default function FindRoomButton({ matchType, label, icon }: FindRoomButtonProps) {
+export default function FindRoomButton({ matchType, label, icon, className }: FindRoomButtonProps) {
   const socketRef = useRef<ReturnType<typeof io> | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -83,7 +84,7 @@ export default function FindRoomButton({ matchType, label, icon }: FindRoomButto
   }
 
   return (
-    <Button className="w-fit hover:cursor-pointer hover:bg-[#a19072]" onClick={handleOnClick}>
+    <Button className={`w-fit hover:cursor-pointer hover:bg-[#a19072] ${className || ''}`} onClick={handleOnClick}>
       {isLoading ? (
         <>
           <Loader2 className="animate-spin duration-500" />
